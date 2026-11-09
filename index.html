@@ -1794,6 +1794,7 @@ function updateLift(dt) {
   }
 }
 function stepLife(dt) {
+  if (window.__HOLD_LIFE) return;
   const d = Math.max(0, Math.min(dt, 0.2));
   lifeT += d;
   updateLift(d);
@@ -3532,6 +3533,7 @@ function tick() {
     }
   });
   mixers.forEach(m => m.update(dt));
+  if (typeof syncProof === 'function') syncProof(dt);
   if (window.__drone) {
     const d = window.__drone;
     d.position.x = 17 + Math.sin(t * 0.35) * 6;
@@ -3612,6 +3614,96 @@ function tick() {
   composer.render();
   requestAnimationFrame(tick);
 }
+// Andrew and Mandy proof: skinned Rocketbox humans (see assets/characters/NOTICE.md).
+// The life director still drives the original rig. These models follow that rig
+// and play a matching clip. Other staff stay on the existing figures.
+const proofHumans = [];
+function proofClip(agent, clips) {
+  if (agent.phase === 'walk' && clips.walk) return 'walk';
+  const pose = agent.pose;
+  if ((pose === 'type' || pose === 'sit' || pose === 'play') && clips.sit) return 'sit';
+  if ((pose === 'talk' || pose === 'look') && clips.talk) return 'talk';
+  return clips.idle || null;
+}
+function playProof(entry, name) {
+  if (!name || !entry.clips[name] || entry.current === name) return;
+  const next = entry.clips[name];
+  next.reset().fadeIn(0.22).play();
+  if (entry.current && entry.clips[entry.current]) entry.clips[entry.current].fadeOut(0.22);
+  entry.current = name;
+}
+function attachProof(id, url) {
+  const agent = castById[id];
+  if (!agent) return;
+  gltfLoader.load(url, (gltf) => {
+    const model = gltf.scene;
+    model.traverse(o => {
+      if (!o.isMesh) return;
+      o.castShadow = false;
+      o.frustumCulled = false;
+      o.layers.enable(LAYER_ROOM);
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(m => {
+        if (!m) return;
+        m.metalness = 0.02;
+        if (m.roughness == null || m.roughness > 0.85) m.roughness = 0.62;
+        if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+      });
+    });
+    agent.rig.traverse(o => { if (o.isMesh) o.visible = false; });
+    const mixer = new THREE.AnimationMixer(model);
+    const clips = {};
+    gltf.animations.forEach(clip => { clips[clip.name] = mixer.clipAction(clip); });
+    proofHumans.push({ id, agent, model, mixer, clips, current: '' });
+    console.info('[proof]', id, Object.keys(clips));
+  }, undefined, err => console.error('[proof]', id, err));
+}
+function syncProof(dt) {
+  proofHumans.forEach(entry => {
+    const rig = entry.agent.rig;
+    if (entry.model.parent !== rig.parent) rig.parent.add(entry.model);
+    const seated = proofClip(entry.agent, entry.clips) === 'sit';
+    entry.model.position.set(rig.position.x, seated ? -0.46 : 0, rig.position.z);
+    entry.model.rotation.set(0, rig.rotation.y, 0);
+    playProof(entry, proofClip(entry.agent, entry.clips));
+    entry.mixer.update(dt);
+  });
+}
+attachProof('andrew', 'assets/characters/andrew.glb');
+attachProof('mandy', 'assets/characters/mandy.glb');
+window.__proof = proofHumans;
+window.__stageProof = (mode) => {
+  window.__HOLD_LIFE = true;
+  const place = (id, x, z, yaw, pose) => {
+    const a = castById[id];
+    a.phase = pose === 'walk' ? 'walk' : 'there';
+    a.pose = pose;
+    a.busy = true;
+    a.rig.position.set(x, 0, z);
+    a.rig.rotation.y = yaw;
+  };
+  if (mode === 'walk') {
+    place('andrew', -1.1, 2.4, Math.PI / 2, 'walk');
+    place('mandy', 1.15, 2.4, -Math.PI / 2, 'walk');
+  } else if (mode === 'close' || mode === 'side') {
+    place('andrew', -3.6, 1.6, 0, 'stand');
+    place('mandy', -6.4, 2.8, 0.5, 'stand');
+  } else {
+    place('andrew', -4, 0.9, Math.PI, 'type');
+    place('mandy', -1.3, 2.35, Math.PI, 'stand');
+  }
+  scene.updateMatrixWorld(true);
+  const wp = new THREE.Vector3();
+  castById.andrew.rig.getWorldPosition(wp);
+  const look = wp.clone();
+  look.y += mode === 'close' ? 1.45 : 1.05;
+  const cam = look.clone();
+  if (mode === 'close') { cam.x += 0.9; cam.z += 2.15; }
+  else if (mode === 'side') { cam.x += 3.3; cam.z += 2.2; cam.y += 0.35; }
+  else { cam.x += 2.6; cam.y += 1.35; cam.z += 3.4; }
+  window.__LOCK_CAM = { pos: cam, tgt: look };
+  return { look: look.toArray(), cam: cam.toArray(), proof: proofHumans.length };
+};
 tick();
 const hsh = location.hash.slice(1); if (hsh) { const f = FLOORS.find(x => x.id === hsh); if (f) openPanel(f); }
 </script>
