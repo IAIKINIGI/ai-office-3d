@@ -231,7 +231,7 @@ window.__camera = camera; window.__controls = controls;
 // lights — cold
 scene.add(new THREE.HemisphereLight(0x4a6cff, 0x0a0614, 0.32));
 // Cool fill for floor interiors only. Layer 2 keeps it off the street and the megatowers.
-const roomFill = new THREE.AmbientLight(0xd0d7e4, 0.78);
+const roomFill = new THREE.AmbientLight(0xd5dce8, 1.05);
 roomFill.layers.set(LAYER_ROOM);
 scene.add(roomFill);
 const moon = new THREE.DirectionalLight(0x6a7ab8, 0.4);
@@ -648,7 +648,7 @@ let rain = null;
 // ---- tower ----
 const tower = new THREE.Group(); scene.add(tower);
 const FW = 22, FD = 14, FH = 4.2;
-const glass = new THREE.MeshPhysicalMaterial({ color: 0x1e4864, transparent: true, opacity: 0.4, roughness: 0.14, metalness: 0.78, clearcoat: 1.0, clearcoatRoughness: 0.1, side: THREE.DoubleSide, depthWrite: true, envMapIntensity: 1.05 });
+const glass = new THREE.MeshPhysicalMaterial({ color: 0x24506e, transparent: true, opacity: 0.34, roughness: 0.16, metalness: 0.74, clearcoat: 1.0, clearcoatRoughness: 0.12, side: THREE.DoubleSide, depthWrite: true, envMapIntensity: 1.0 });
 const glassTint = new THREE.MeshPhysicalMaterial({ color: 0x0a2030, transparent: true, opacity: 0.22, roughness: 0.05, metalness: 0.6, clearcoat: 0.8, side: THREE.FrontSide, depthWrite: false });
 const panelMat = new THREE.MeshStandardMaterial({ color: 0x0c121c, metalness: 0.7, roughness: 0.35 });
 const backWall = new THREE.MeshStandardMaterial({ color: 0x2a3648, metalness: 0.22, roughness: 0.74 });
@@ -685,19 +685,115 @@ function person(parent, x, z, color, name, floor, rotY = 0) {
   [torso, head].forEach(m => { m.userData.floor = floor; pickables.push(m); });
   if (name) labels.push({ obj: head, text: name, floor });
 }
+const screenBank = {};
+let screenCursor = 0, screenAcc = 0;
+function screenKeyFor(floor) {
+  const id = floor && floor.id;
+  if (id === 'hb') return 'book';
+  if (id === 'auto') return 'code';
+  if (id === 'crypto') return 'chart';
+  if (id === 'penny') return 'watch';
+  if (id === 'exec') return 'ceo';
+  return 'meet';
+}
+function paintScreen(key, t) {
+  const s = screenBank[key]; if (!s) return;
+  const ctx = s.ctx, w = 320, h = 180, ph = t / 1000;
+  ctx.fillStyle = '#070b12'; ctx.fillRect(0, 0, w, h);
+  ctx.font = '700 15px sans-serif';
+  if (key === 'book') {
+    ctx.fillStyle = '#062033'; ctx.fillRect(0, 0, w, 28);
+    ctx.fillStyle = '#7fe3ff'; ctx.fillText('SAMPLE BOARD   not a live diary', 10, 19);
+    ['Mon','Tue','Wed','Thu','Fri'].forEach((d, i) => {
+      ctx.fillStyle = i === (Math.floor(ph) % 5) ? '#16384e' : '#101820';
+      ctx.fillRect(12 + i * 60, 42, 52, 122);
+      ctx.fillStyle = '#9ad7ff'; ctx.font = '12px sans-serif'; ctx.fillText(d, 24 + i * 60, 58);
+      ctx.fillStyle = '#00e5ff'; ctx.fillRect(20 + i * 60, 78 + ((i * 19 + ph * 12) % 60), 34, 7);
+    });
+  } else if (key === 'chart') {
+    ctx.fillStyle = '#07140c'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#39ff14'; ctx.fillText('SIMULATED CHART   paper only', 10, 20);
+    ctx.beginPath(); ctx.strokeStyle = '#39ff14'; ctx.lineWidth = 2;
+    for (let x = 0; x < 300; x++) {
+      const y = 108 + Math.sin((x + ph * 24) * 0.07) * 26 + Math.sin(x * 0.19 + ph) * 8;
+      if (x === 0) ctx.moveTo(12 + x, y); else ctx.lineTo(12 + x, y);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#145'; ctx.fillRect(12, 150, 80, 14);
+    ctx.fillStyle = '#9f9'; ctx.font = '11px sans-serif'; ctx.fillText('no orders', 18, 161);
+  } else if (key === 'code') {
+    ctx.fillStyle = '#39ff14'; ctx.fillText('SAMPLE SCRIPT', 10, 20);
+    const lines = ['def tick():', '    # demo only', '    queue.step()', '    check.ok()', '    return True'];
+    ctx.font = '13px monospace';
+    lines.forEach((ln, i) => {
+      ctx.fillStyle = i === (Math.floor(ph * 1.5) % lines.length) ? '#d8ffb0' : '#6d6';
+      ctx.fillText(ln, 16, 48 + i * 24);
+    });
+  } else if (key === 'watch') {
+    ctx.fillStyle = '#4bb3f2'; ctx.fillText('OVERSIGHT   sample list', 10, 20);
+    ['quiet desks', 'duplicates', 'notes', 'hours'].forEach((item, i) => {
+      const on = ((Math.floor(ph) + i) % 4) !== 0;
+      ctx.fillStyle = on ? '#b7e4ff' : '#445566';
+      ctx.font = '14px sans-serif';
+      ctx.fillText((on ? '[x]  ' : '[ ]  ') + item, 16, 52 + i * 28);
+    });
+  } else if (key === 'ceo') {
+    ctx.fillStyle = '#fcee0a'; ctx.fillText('FLOOR GLANCE   sample', 10, 20);
+    ['hall', 'watch', 'desks', 'scripts', 'paper', 'penthouse'].forEach((ln, i) => {
+      ctx.fillStyle = '#3a3418'; ctx.fillRect(16, 36 + i * 22, 50 + ((i * 17 + ph * 8) % 150), 14);
+      ctx.fillStyle = '#f6e7a2'; ctx.font = '12px sans-serif'; ctx.fillText(ln, 20, 47 + i * 22);
+    });
+  } else if (key === 'game') {
+    ctx.fillStyle = '#140810'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#ff4d8d'; ctx.fillText('GAME LOUNGE', 10, 22);
+    ctx.fillStyle = '#00f0ff'; ctx.fillRect(30 + ((ph * 40) % 210), 88, 26, 8);
+    ctx.fillStyle = '#ff2a6d'; ctx.fillRect(250, 48 + Math.sin(ph * 2) * 28 + 30, 8, 40);
+    ctx.fillStyle = '#888'; ctx.font = '11px sans-serif'; ctx.fillText('demo paddle', 10, 168);
+  } else {
+    ctx.fillStyle = '#7fe3ff'; ctx.fillText('MEETING   sample agenda', 10, 20);
+    ctx.fillStyle = '#c5e8ff'; ctx.font = '14px sans-serif';
+    ctx.fillText('open floor', 16, 64);
+    ctx.fillText('no live minutes', 16, 92);
+  }
+  s.tex.needsUpdate = true;
+}
+function screenMat(key) {
+  if (screenBank[key]) return screenBank[key].mat;
+  const c = document.createElement('canvas'); c.width = 320; c.height = 180;
+  const ctx = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.magFilter = THREE.LinearFilter;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+  screenBank[key] = { ctx, tex, mat };
+  paintScreen(key, 0);
+  return mat;
+}
+function updateScreens(dt) {
+  screenAcc += dt;
+  if (screenAcc < 0.55) return;
+  screenAcc = 0;
+  const keys = Object.keys(screenBank);
+  if (!keys.length) return;
+  paintScreen(keys[screenCursor++ % keys.length], performance.now());
+}
+function addMonitor(parent, x, y, z, key) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.02, 0.64), screenMat(key));
+  m.position.set(x, y, z); m.castShadow = m.receiveShadow = false; parent.add(m);
+  box(1.1, 0.72, 0.04, frameMat, x, y, z - 0.03, parent);
+}
 function workstation(parent, x, z, color, name, floor, monCol = 0x00f0ff) {
   // desk top + legs
   box(2.6, 0.1, 1.35, deskMat, x, 1.02, z, parent);
   for (const dx of [-1.15, 1.15]) box(0.12, 1.0, 1.1, deskMat, x + dx, 0.5, z, parent);
-  // dual monitors with strong screen glow
-  const mm = new THREE.MeshStandardMaterial({ color: 0x03060c, emissive: monCol, emissiveIntensity: 4.2, toneMapped: false });
-  box(1.05, 0.7, 0.06, mm, x - 0.55, 1.55, z - 0.45, parent);
-  box(1.05, 0.7, 0.06, mm, x + 0.55, 1.55, z - 0.45, parent);
+  const key = screenKeyFor(floor);
+  addMonitor(parent, x - 0.55, 1.55, z - 0.42, key);
+  addMonitor(parent, x + 0.55, 1.55, z - 0.42, key);
   box(0.08, 0.35, 0.08, frameMat, x - 0.55, 1.15, z - 0.4, parent);
   box(0.08, 0.35, 0.08, frameMat, x + 0.55, 1.15, z - 0.4, parent);
   const gTex = monCol === 0xff2a6d ? GLOW.mag : (monCol === 0xfcee0a ? GLOW.yel : GLOW.cyan);
-  glow(gTex, x - 0.55, 1.55, z - 0.35, 1.8, 1.3, 0.55, parent);
-  glow(gTex, x + 0.55, 1.55, z - 0.35, 1.8, 1.3, 0.55, parent);
+  glow(gTex, x - 0.55, 1.55, z - 0.62, 1.5, 1.0, 0.22, parent);
+  glow(gTex, x + 0.55, 1.55, z - 0.62, 1.5, 1.0, 0.22, parent);
   // keyboard + mouse pad
   box(0.9, 0.04, 0.35, M(0x1a1e28), x, 1.1, z + 0.15, parent);
   // office chair
@@ -739,7 +835,7 @@ FLOORS.forEach((f, idx) => {
     x.shadowColor = accent; x.shadowBlur = 16; x.fillText(f.lv + 'F', 128, 48);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
     const plaque = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.9), new THREE.MeshBasicMaterial({ map: t, transparent: true, toneMapped: false }));
-    plaque.position.set(-FW / 2 + 2.2, FH * 0.55, FD / 2 + 0.18); g.add(plaque);
+    plaque.position.set(3.2, FH * 0.62, FD / 2 + 0.22); g.add(plaque);
   }
   const coolCols = [0x00f0ff, 0x39ff14, 0xff2a6d, 0x7fe3ff, 0xfcee0a, 0xff5fa2];
   const cc = f.id === 'exec' ? 0xfcee0a : coolCols[idx % coolCols.length];
@@ -756,7 +852,7 @@ FLOORS.forEach((f, idx) => {
   if (f.id === 'hall') {
     box(14, 0.15, 3, M(0x3a2a1a, { roughness: 0.4 }), 0, 1.05, 0, g);
     for (let i = 0; i < 6; i++) for (const s of [-1, 1]) { const x = -5.5 + i * 2.2; box(0.9, 0.12, 0.9, chairMat, x, 0.55, s * 2.2, g); }
-    box(6, 2.4, 0.1, new THREE.MeshStandardMaterial({ color: 0x111, emissive: 0x2a6aaa, emissiveIntensity: 1.6, toneMapped: false }), 0, 2.4, -FD / 2 + 0.5, g);
+    { const scr = new THREE.Mesh(new THREE.PlaneGeometry(6, 2.2), screenMat('meet')); scr.position.set(0, 2.4, -FD / 2 + 0.55); scr.castShadow = scr.receiveShadow = false; g.add(scr); }
     glow(GLOW.cyan, 0, 2.4, -FD / 2 + 0.7, 8, 4, 0.4, g);
     // reception desk
     box(4, 1.1, 1.2, deskMat, 0, 0.55, 3.5, g);
@@ -765,7 +861,7 @@ FLOORS.forEach((f, idx) => {
     const gold = 0xc8a84a;
     box(4.2, 0.15, 2, M(gold, { metalness: 0.55, roughness: 0.35 }), -4, 1.05, -1, g);
     box(4, 0.9, 1.8, M(0x8a6a28, { metalness: 0.4 }), -4, 0.5, -1, g);
-    box(1.5, 0.85, 0.08, new THREE.MeshStandardMaterial({ color: 0x111, emissive: 0xfcee0a, emissiveIntensity: 1.6, toneMapped: false }), -4, 1.55, -1.7, g);
+    { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), screenMat('ceo')); scr.position.set(-4, 1.55, -1.55); scr.castShadow = scr.receiveShadow = false; g.add(scr); }
     workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a);
     strip.material.color.set(0xfcee0a); strip.material.emissive.set(0xfcee0a); strip.material.emissiveIntensity = 3;
   } else if ((f.people || []).length >= 3) {
@@ -807,8 +903,8 @@ function plaque(text, ink, w, h, parent, x, y, z, ry = 0) {
   x2.strokeStyle = ink; x2.lineWidth = 14; x2.strokeRect(12, 12, 488, 232);
   x2.fillStyle = ink; x2.textAlign = 'center'; x2.textBaseline = 'middle';
   const lines = String(text).split('\n');
-  x2.font = '800 92px sans-serif';
-  lines.forEach((line, i) => x2.fillText(line, 256, lines.length === 1 ? 132 : 96 + i * 100));
+  x2.font = lines.length === 1 ? '800 84px sans-serif' : '800 68px sans-serif';
+  lines.forEach((line, i) => x2.fillText(line, 256, lines.length === 1 ? 132 : 88 + i * 88));
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false }));
   m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = m.receiveShadow = false; parent.add(m);
@@ -828,9 +924,9 @@ function addFloorLanding(parent, f) {
   const leafMat = M(0x12161e, { metalness: 0.7, roughness: 0.35 });
   const left = prop(0.82, 2.05, 0.08, leafMat, LIFT_X - 0.46, yDoor, FD / 2 + 0.16, parent);
   const right = prop(0.82, 2.05, 0.08, leafMat, LIFT_X + 0.46, yDoor, FD / 2 + 0.16, parent);
-  prop(0.08, 0.5, 0.08, B(f.id === 'exec' ? 0xfcee0a : 0x00f0ff), LIFT_X + 1.25, 1.3, FD / 2 - 0.15, parent);
-  prop(1.3, 0.02, 0.7, B(f.id === 'exec' ? 0xc8a84a : 0x00f0ff), LIFT_X, 0.05, FD / 2 - 0.9, parent);
-  plaque('電梯\n' + f.lv + 'F', f.id === 'exec' ? '#FCEE0A' : '#7fe3ff', 1.15, 0.58, parent, LIFT_X, 2.55, LIFT_Z + 0.72);
+  prop(0.06, 0.28, 0.06, B(f.id === 'exec' ? 0xfcee0a : 0x00f0ff), LIFT_X + 1.2, 1.25, FD / 2 - 0.2, parent);
+  prop(0.9, 0.015, 0.45, B(f.id === 'exec' ? 0xc8a84a : 0x00f0ff), LIFT_X, 0.04, FD / 2 - 0.7, parent);
+  plaque('LIFT', f.id === 'exec' ? '#FCEE0A' : '#d7f6ff', 0.72, 0.28, parent, LIFT_X, 2.15, FD / 2 + 0.22);
   left.userData.kind = right.userData.kind = 'lift-door';
   lift.doors.push({ lv: f.lv, left, right, cx: LIFT_X });
 }
@@ -849,7 +945,7 @@ function addRestCorner(parent, f) {
   const x = 8.05, z = 4.35;
   const g = new THREE.Group(); g.position.set(x, 0, z); g.userData.kind = 'rest-corner'; g.userData.floorId = f.id; parent.add(g); restCount++;
   prop(2.4, 0.04, 1.5, cloth, 0, 0.04, 0, g);
-  prop(2.1, 0.32, 0.7, cloth, 0, 0.28, 0.15, g);
+  prop(2.1, 0.36, 0.7, cloth, 0, 0.32, 0.15, g);
   prop(2.1, 0.7, 0.16, cloth, 0, 0.75, 0.48, g);
   prop(0.16, 0.42, 0.7, cloth, -1.05, 0.4, 0.15, g);
   prop(0.16, 0.42, 0.7, cloth, 1.05, 0.4, 0.15, g);
@@ -871,14 +967,20 @@ function addGamingRoom(parent, f) {
   prop(0.08, 0.74, 0.8, shell, 1.1, 0.4, -0.55, g);
   prop(2.2, 0.05, 0.06, B(0xff2a6d), 0, 0.84, -0.12, g);
   prop(2.2, 0.04, 0.05, B(0x00f0ff), 0, 0.72, -0.95, g);
-  const screen = (x, col) => prop(0.85, 0.52, 0.05, B(col), x, 1.25, -0.95, g);
-  screen(-0.5, 0x00f0ff); screen(0.5, 0xff2a6d);
+  [-0.55, 0.55].forEach(x => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.58), screenMat('game'));
+    m.position.set(x, 1.28, -0.9); m.castShadow = m.receiveShadow = false; g.add(m);
+    prop(1.05, 0.68, 0.04, shell, x, 1.28, -0.96, g);
+  });
+  prop(0.55, 0.04, 0.22, M(0x222), 0, 0.84, -0.35, g);
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.04, 0.16), B(0x202028));
+  pad.position.set(0.35, 0.86, -0.2); g.add(pad);
   prop(0.45, 0.7, 0.4, shell, 1.15, 0.4, -0.7, g);
   prop(0.38, 0.06, 0.04, B(0xff2a6d), 1.15, 0.62, -0.48, g);
   prop(0.38, 0.04, 0.04, B(0x00f0ff), 1.15, 0.28, -0.48, g);
-  prop(0.55, 0.08, 0.5, M(0x141820), 0, 0.48, 0.45, g);
+  prop(0.55, 0.1, 0.5, M(0x141820), 0, 0.5, 0.45, g);
   prop(0.5, 0.55, 0.08, M(0x141820), 0, 0.78, 0.68, g);
-  plaque('遊戲角', '#ff2a6d', 1.2, 0.42, g, 0, 1.85, -1.05);
+  plaque('GAME\nLOUNGE', '#ff4d8d', 1.5, 0.55, g, 0, 1.9, -1.02);
   g.traverse(o => { if (o.isMesh) { o.userData.kind = 'gaming-zone'; o.userData.floor = f; } });
 }
 function buildLiftCabin() {
@@ -900,13 +1002,13 @@ function buildLiftCabin() {
   sign.position.set(0, 1.85, -0.7); cabin.add(sign);
   const H = TOPLV * FH + 1.4;
   const rail = M(0x12151c, { metalness: 0.8, roughness: 0.32 });
-  for (const [dx, dz] of [[-1.15, -0.8], [1.15, -0.8], [-1.15, 0.8], [1.15, 0.8]]) {
-    prop(0.22, H, 0.22, rail, LIFT_X + dx, H / 2 - 0.2, LIFT_Z + dz, tower);
+  for (const [dx, dz] of [[-1.05, -0.72], [1.05, -0.72], [-1.05, 0.72], [1.05, 0.72]]) {
+    prop(0.08, H, 0.08, rail, LIFT_X + dx, H / 2 - 0.2, LIFT_Z + dz, tower);
   }
-  prop(0.12, H, 0.12, B(0xfcee0a), LIFT_X - 1.28, H / 2 - 0.2, LIFT_Z + 0.85, tower);
-  prop(0.12, H, 0.12, B(0x00f0ff), LIFT_X + 1.28, H / 2 - 0.2, LIFT_Z + 0.85, tower);
+  prop(0.04, H, 0.04, B(0x6a5a28), LIFT_X - 1.12, H / 2 - 0.2, LIFT_Z + 0.78, tower);
+  prop(0.04, H, 0.04, B(0x1a4a55), LIFT_X + 1.12, H / 2 - 0.2, LIFT_Z + 0.78, tower);
   for (let lv = 1; lv <= TOPLV; lv++) {
-    prop(2.5, 0.14, 1.7, B(lv === TOPLV ? 0xfcee0a : 0x00f0ff), LIFT_X, liftY(lv) + 2.35, LIFT_Z, tower);
+    prop(1.9, 0.05, 0.08, B(lv === TOPLV ? 0xc8a84a : 0x2a6a78), LIFT_X, liftY(lv) + 2.32, LIFT_Z + 0.7, tower);
   }
   lift.cabin = cabin;
   lift.label = { ctx, tex, shown: 0 };
@@ -950,8 +1052,8 @@ function makeAndrew(floor) {
   const hair = new THREE.Mesh(new THREE.SphereGeometry(0.135, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), M(0x1a120c));
   hair.position.y = 1.68; hair.castShadow = false; g.add(hair);
   const footL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.16), shoe);
-  footL.position.set(-0.1, 0.04, 0.08); footL.castShadow = false; g.add(footL);
-  const footR = footL.clone(); footR.position.x = 0.1; g.add(footR);
+  footL.position.set(0, -0.48, 0.05); footL.castShadow = false; shinL.add(footL);
+  const footR = footL.clone(); shinR.add(footR);
   g.userData = { legL, legR, shinL, shinR, armL, armR, head, floor };
   [torso, head].forEach(m => { m.userData.floor = floor; pickables.push(m); });
   labels.push({ obj: head, text: 'Andrew 行政總監', floor });
@@ -971,7 +1073,7 @@ const andrew = {
 if (execBundle) {
   andrew.rig = makeAndrew(execBundle.f);
   execBundle.g.add(andrew.rig);
-  prop(0.55, 0.08, 0.5, M(0x141820), -4, 0.46, 0.85, execBundle.g);
+  prop(0.55, 0.1, 0.5, M(0x141820), -4, 0.5, 0.85, execBundle.g);
   prop(0.48, 0.5, 0.08, M(0x141820), -4, 0.75, 1.08, execBundle.g);
 }
 function markRoom(root) {
@@ -1004,9 +1106,17 @@ function walkRoute(dt) {
   const dx = tgt[0] - rig.position.x, dz = tgt[1] - rig.position.z;
   const dist = Math.hypot(dx, dz);
   if (dist < 0.06) { rig.position.x = tgt[0]; rig.position.z = tgt[1]; andrew.ri++; return andrew.ri >= andrew.route.length; }
-  const step = Math.min(dist, 1.3 * dt);
+  const yaw = Math.atan2(dx, dz);
+  let turn = yaw - rig.rotation.y;
+  while (turn > Math.PI) turn -= Math.PI * 2;
+  while (turn < -Math.PI) turn += Math.PI * 2;
+  if (Math.abs(turn) > 0.45 && dist > 0.25) {
+    rig.rotation.y += Math.sign(turn) * Math.min(Math.abs(turn), 2.4 * dt);
+    return false;
+  }
+  const step = Math.min(dist, 1.25 * dt);
   rig.position.x += dx / dist * step; rig.position.z += dz / dist * step;
-  faceYaw(rig, Math.atan2(dx, dz), dt);
+  faceYaw(rig, yaw, dt);
   return false;
 }
 function poseAndrew(kind, t) {
@@ -1022,7 +1132,7 @@ function poseAndrew(kind, t) {
   } else if (kind === 'type' || kind === 'sit' || kind === 'play') {
     u.legL.rotation.x = u.legR.rotation.x = 1.2;
     u.shinL.rotation.x = u.shinR.rotation.x = -1.25;
-    andrew.rig.position.y = 0.34;
+    andrew.rig.position.y = -0.38;
     u.head.rotation.y = 0;
     if (kind === 'type') {
       u.armL.rotation.x = -0.85 + Math.sin(t * 8) * 0.16;
@@ -2893,6 +3003,7 @@ function tick() {
   }
   updateLift(dt);
   updateAndrew(dt, t);
+  updateScreens(dt);
 
   // project labels — keep floor tags clear of top HUD (y > 90)
   labels.forEach(l => {
