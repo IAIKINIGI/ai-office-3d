@@ -846,38 +846,64 @@ function jacketGeo(kind) {
   c[kind] = mergeGeos(parts);
   return c[kind];
 }
+// A thin shell on the skull. The old caps were flattened spheres parked on top,
+// which read as a beret and left the forehead bare.
+function hairShell(o) {
+  const geo = new THREE.SphereGeometry(o.r, 32, 22);
+  const pos = geo.attributes.position;
+  const nrm = geo.attributes.normal;
+  const idx = geo.index.array;
+  const outP = [], outN = [];
+  const keep = (x, y, z) => {
+    const len = Math.hypot(x, y, z) || 1;
+    const nx = x / len, ny = y / len, nz = z / len;
+    const face = Math.max(0, nz), back = Math.max(0, -nz);
+    const line = o.front * face + o.back * back + o.side * (1 - face - back);
+    if (ny < line) return false;
+    if (nz > 0.42 && ny < o.brow) return false;
+    return true;
+  };
+  for (let i = 0; i < idx.length; i += 3) {
+    const ia = idx[i], ib = idx[i + 1], ic = idx[i + 2];
+    const mx = (pos.getX(ia) + pos.getX(ib) + pos.getX(ic)) / 3;
+    const my = (pos.getY(ia) + pos.getY(ib) + pos.getY(ic)) / 3;
+    const mz = (pos.getZ(ia) + pos.getZ(ib) + pos.getZ(ic)) / 3;
+    if (!keep(mx, my, mz)) continue;
+    for (const vi of [ia, ib, ic]) {
+      outP.push(pos.getX(vi), pos.getY(vi), pos.getZ(vi));
+      outN.push(nrm.getX(vi), nrm.getY(vi), nrm.getZ(vi));
+    }
+  }
+  geo.dispose();
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(outP, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(outN, 3));
+  return g;
+}
 function hairGeo(kind) {
   const c = hairGeo.c || (hairGeo.c = {});
   if (c[kind]) return c[kind];
-  const cap = (r, ts, tl) => new THREE.SphereGeometry(r, 12, 8, 0, Math.PI * 2, ts, tl);
-  let parts;
-  if (kind === 'part') parts = [placed(cap(0.112, 0, Math.PI * 0.46), -0.012, 0.045, -0.012, 0, 0, 0, 1.04, 0.58, 0.98)];
-  else if (kind === 'bob') parts = [placed(cap(0.108, 0.2, Math.PI * 0.7), 0, -0.015, -0.055, 0, 0, 0, 1.04, 1.15, 1.12)];
-  else if (kind === 'pony') parts = [
-    placed(cap(0.108, 0, Math.PI * 0.48), 0, 0.03, -0.01),
-    placed(new THREE.CylinderGeometry(0.018, 0.026, 0.18, 8), 0, -0.02, -0.1, 0.6, 0, 0),
-  ];
-  else if (kind === 'pixie') parts = [placed(cap(0.1, 0, Math.PI * 0.4), 0, 0.05, 0.005, 0, 0, 0, 1.04, 0.48, 0.92)];
-  else if (kind === 'sweep') parts = [placed(cap(0.118, 0.05, Math.PI * 0.72), 0.03, -0.01, -0.04, 0, 0.4, 0.2, 1.08, 1.1, 1.16)];
-  else if (kind === 'bun') parts = [
-    placed(cap(0.1, 0, Math.PI * 0.42), 0, 0.04, -0.01, 0, 0, 0, 1, 0.55, 1),
-    placed(sphG(0.038, 8, 6), 0, 0.105, -0.03),
-  ];
-  else if (kind === 'undercut') parts = [
-    placed(cap(0.1, 0, Math.PI * 0.4), 0, 0.05, 0, 0, 0, 0, 1.1, 0.42, 1),
-    placed(boxG(0.09, 0.01, 0.03), 0, 0.095, 0.03),
-  ];
-  else if (kind === 'spike') {
-    parts = [placed(cap(0.09, 0, Math.PI * 0.4), 0, 0.035, 0)];
-    for (let i = 0; i < 4; i++) parts.push(placed(new THREE.ConeGeometry(0.012, 0.055, 5), -0.03 + i * 0.02, 0.09, 0.01, 0.25, 0, (i - 1.5) * 0.25));
-  } else if (kind === 'slick') parts = [placed(cap(0.114, 0.1, Math.PI * 0.58), 0, 0.015, -0.035, -0.45, 0, 0, 1.02, 0.72, 1.22)];
-  else parts = [placed(cap(0.112, 0, Math.PI * 0.55), 0.02, 0.02, -0.025, 0, 0.25, 0, 1.05, 0.88, 1.12)];
-  c[kind] = mergeGeos(parts);
-  return c[kind];
+  const spec = {
+    part:  { front: 0.22, back: -0.08, side: -0.02, brow: 0.4, r: 0.114 },
+    bob:   { front: 0.16, back: -0.48, side: -0.3, brow: 0.34, r: 0.116 },
+    pony:  { front: 0.24, back: -0.16, side: -0.04, brow: 0.4, r: 0.114 },
+    pixie: { front: 0.3, back: -0.02, side: 0.06, brow: 0.46, r: 0.112 },
+    sweep: { front: 0.18, back: -0.34, side: -0.16, brow: 0.36, r: 0.115 },
+    bun:   { front: 0.26, back: -0.1, side: 0.0, brow: 0.42, r: 0.113 },
+    undercut: { front: 0.34, back: 0.02, side: 0.1, brow: 0.48, r: 0.111 },
+    spike: { front: 0.24, back: -0.04, side: 0.02, brow: 0.4, r: 0.113 },
+    slick: { front: 0.28, back: -0.2, side: 0.02, brow: 0.44, r: 0.113 },
+    side:  { front: 0.2, back: -0.14, side: -0.04, brow: 0.38, r: 0.114 },
+  }[kind] || { front: 0.24, back: -0.08, side: 0, brow: 0.4, r: 0.114 };
+  let g = hairShell(spec);
+  if (kind === 'pony') g = mergeGeos([g, placed(new THREE.CylinderGeometry(0.01, 0.016, 0.055, 8), 0, -0.03, -0.09, 0.7, 0, 0)]);
+  if (kind === 'bun') g = mergeGeos([g, placed(sphG(0.018, 8, 6), 0, 0.02, -0.082)]);
+  c[kind] = g;
+  return g;
 }
 const LOOKS = {
-  andrew:     { suit: 0x6a5040, shirt: 0xf3efe6, trim: 0xf0d078, hair: 0x1a120c, skin: 0xd0a07a, hairKind: 'part', jacket: 'coat', shoulder: 1.1, head: [1.0, 1.1, 0.96], cyber: 'pin', tie: 0x6e2434, trousers: 0x2a241c },
-  mandy:      { suit: 0x8a2460, shirt: 0x2a1022, trim: 0x9af0ff, hair: 0x2a121c, skin: 0xe0b090, hairKind: 'bob', jacket: 'blazer', shoulder: 0.9, head: [0.92, 1.02, 0.97], cyber: 'ear', trousers: 0x140c12 },
+  andrew:     { suit: 0x6a5040, shirt: 0xf3efe6, trim: 0xf0d078, hair: 0x2c2016, skin: 0xd0a07a, hairKind: 'part', jacket: 'coat', shoulder: 1.1, head: [1.0, 1.1, 0.96], cyber: 'pin', tie: 0x6e2434, trousers: 0x2a241c },
+  mandy:      { suit: 0x8a2460, shirt: 0x2a1022, trim: 0x9af0ff, hair: 0x3a2428, skin: 0xe0b090, hairKind: 'bob', jacket: 'blazer', shoulder: 0.9, head: [0.92, 1.02, 0.97], cyber: 'ear', trousers: 0x140c12 },
   hailey:     { suit: 0x1a4a5c, shirt: 0xd5e4ea, trim: 0x3ec8e0, hair: 0x4a3020, skin: 0xc98868, hairKind: 'pony', jacket: 'blazer', shoulder: 0.98, head: [0.96, 1.04, 0.95], cyber: 'ring', trousers: 0x12161c },
   holly:      { suit: 0x24344e, shirt: 0xd8dde6, trim: 0xb7c6dc, hair: 0x121216, skin: 0xd8b098, hairKind: 'pixie', jacket: 'blazer', shoulder: 0.92, head: [0.9, 1.0, 0.94], cyber: 'ring', trousers: 0x10141a },
   hazel:      { suit: 0x5a3850, shirt: 0xf0dce4, trim: 0xf0a0c0, hair: 0x6a4030, skin: 0xe0b898, hairKind: 'sweep', jacket: 'coat', shoulder: 0.96, head: [0.98, 1.05, 0.98], cyber: 'ear', trousers: 0x1a1218 },
@@ -898,7 +924,7 @@ function makeOfficePerson(id) {
   const suit = M(look.suit, { roughness: 0.48, metalness: 0.14 });
   const cloth = M(look.trousers, { roughness: 0.6, metalness: 0.06 });
   const skin = M(look.skin, { roughness: 0.52, metalness: 0 });
-  const hairM = M(look.hair, { roughness: 0.4, metalness: 0.12 });
+  const hairM = M(look.hair, { roughness: 0.92, metalness: 0 });
   const shoeM = M(0x1a140e, { roughness: 0.38, metalness: 0.35 });
   const shirtM = M(look.shirt, { roughness: 0.5, metalness: 0.04 });
   const eyeM = M(0xf4f7fb, { roughness: 0.22, metalness: 0 });
@@ -1001,10 +1027,13 @@ function makeOfficePerson(id) {
   }
   const armL = addArm(-1), armR = addArm(1);
   const legL = addLeg(-1), legR = addLeg(1);
+  const labelAt = new THREE.Object3D();
+  labelAt.position.set(0, 1.96, 0);
+  rig.add(labelAt);
   rig.userData = {
     legL: legL.hip, legR: legR.hip, shinL: legL.shin, shinR: legR.shin,
     armL: armL.pivot, armR: armR.pivot, foreL: armL.fore, foreR: armR.fore,
-    head, torso,
+    head, torso, labelAt,
   };
   return rig;
 }
@@ -1025,7 +1054,7 @@ function person(parent, x, z, color, name, floor, rotY = 0) {
   parent.add(rig);
   const { torso, head } = rig.userData;
   [torso, head].forEach(m => { m.userData.floor = floor; pickables.push(m); });
-  if (name) labels.push({ obj: head, text: name, floor });
+  if (name) labels.push({ obj: rig.userData.labelAt, text: name, floor });
   registerAgent(id, floor, parent, rig, x, z, rotY);
 }
 const screenBank = {};
@@ -1374,7 +1403,7 @@ function makeAndrew(floor) {
   const g = makeOfficePerson('andrew');
   const { torso, head } = g.userData;
   [torso, head].forEach(m => { m.userData.floor = floor; pickables.push(m); });
-  labels.push({ obj: head, text: 'Andrew 行政總監', floor });
+  labels.push({ obj: g.userData.labelAt, text: 'Andrew 行政總監', floor });
   g.position.set(-4, 0, 0.9); g.rotation.y = Math.PI;
   return g;
 }
@@ -3564,7 +3593,7 @@ function tick() {
   labels.forEach(l => {
     l.obj.getWorldPosition(v); v.project(camera);
     const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight;
-    l.el.style.transform = `translate(${x}px,${y}px) translate(-50%,-120%)`;
+    l.el.style.transform = `translate(${x}px,${y}px) translate(-50%,-100%)`;
     l.el.style.display = v.z > 1 || x < 0 || x > innerWidth || y < 56 || y > innerHeight - 30 ? 'none' : '';
   });
   floorTags.forEach(({ f, el }, i) => {
