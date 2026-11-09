@@ -231,7 +231,7 @@ window.__camera = camera; window.__controls = controls;
 // lights — cold
 scene.add(new THREE.HemisphereLight(0x4a6cff, 0x0a0614, 0.32));
 // Cool fill for floor interiors only. Layer 2 keeps it off the street and the megatowers.
-const roomFill = new THREE.AmbientLight(0xc5cedc, 0.42);
+const roomFill = new THREE.AmbientLight(0xd0d7e4, 0.78);
 roomFill.layers.set(LAYER_ROOM);
 scene.add(roomFill);
 const moon = new THREE.DirectionalLight(0x6a7ab8, 0.4);
@@ -648,12 +648,12 @@ let rain = null;
 // ---- tower ----
 const tower = new THREE.Group(); scene.add(tower);
 const FW = 22, FD = 14, FH = 4.2;
-const glass = new THREE.MeshPhysicalMaterial({ color: 0x163044, transparent: true, opacity: 0.5, roughness: 0.12, metalness: 0.82, clearcoat: 1.0, clearcoatRoughness: 0.08, side: THREE.DoubleSide, depthWrite: true, envMapIntensity: 1.15 });
+const glass = new THREE.MeshPhysicalMaterial({ color: 0x1e4864, transparent: true, opacity: 0.4, roughness: 0.14, metalness: 0.78, clearcoat: 1.0, clearcoatRoughness: 0.1, side: THREE.DoubleSide, depthWrite: true, envMapIntensity: 1.05 });
 const glassTint = new THREE.MeshPhysicalMaterial({ color: 0x0a2030, transparent: true, opacity: 0.22, roughness: 0.05, metalness: 0.6, clearcoat: 0.8, side: THREE.FrontSide, depthWrite: false });
 const panelMat = new THREE.MeshStandardMaterial({ color: 0x0c121c, metalness: 0.7, roughness: 0.35 });
-const backWall = new THREE.MeshStandardMaterial({ color: 0x1a2230, metalness: 0.28, roughness: 0.72 });
+const backWall = new THREE.MeshStandardMaterial({ color: 0x2a3648, metalness: 0.22, roughness: 0.74 });
 const frameMat = M(0x1a2030, { metalness: 0.85, roughness: 0.25 });
-const floorMat = M(0x243044, { roughness: 0.62 }); const deskMat = M(0x2a3344, { metalness: 0.25 }); const chairMat = M(0x243040);
+const floorMat = M(0x354860, { roughness: 0.58 }); const deskMat = M(0x3a5068, { metalness: 0.22 }); const chairMat = M(0x34485e);
 const pickables = [], typers = [], labels = [];
 const colors = [0xf2b84b, 0x4bb3f2, 0xe25c8a, 0x7bd36a, 0xb48cf2, 0x5fd3c4];
 let execBundle = null;
@@ -746,8 +746,8 @@ FLOORS.forEach((f, idx) => {
   const lamp = new THREE.MeshStandardMaterial({ color: 0x050810, emissive: cc, emissiveIntensity: h === 'vacant' ? 0.05 : 0.55, toneMapped: false });
   for (const lx of [-7, -2.5, 2.5, 7]) box(2.8, 0.05, 0.3, lamp, lx, FH - 0.12, 0, g);
   // interior warm fill so staff/desks read through glass
-  const pl = new THREE.PointLight(cc, (f.id === 'exec' ? 10 : 6.4) * (h === 'vacant' ? 0.05 : 1), 18, 1.7); pl.position.set(0, 2.0, 1); pl.layers.set(LAYER_ROOM); g.add(pl);
-  const fill = new THREE.PointLight(0xffe8c8, (f.id === 'exec' ? 6.5 : 3.8) * (h === 'vacant' ? 0.05 : 1), 14, 1.9); fill.position.set(0, 1.4, -2); fill.layers.set(LAYER_ROOM); g.add(fill);
+  const pl = new THREE.PointLight(cc, (f.id === 'exec' ? 14 : 9) * (h === 'vacant' ? 0.05 : 1), 18, 1.7); pl.position.set(0, 2.0, 1); pl.layers.set(LAYER_ROOM); g.add(pl);
+  const fill = new THREE.PointLight(0xffe8c8, (f.id === 'exec' ? 9 : 5.5) * (h === 'vacant' ? 0.05 : 1), 14, 1.9); fill.position.set(0, 1.4, -2); fill.layers.set(LAYER_ROOM); g.add(fill);
   // ceiling cove light strip readable through glass
   box(FW - 2, 0.06, 0.2, E(cc, h === 'vacant' ? 0.2 : 1.6), 0, FH - 0.25, -FD / 2 + 1.2, g);
   if (f.id === 'exec') { const gl = new THREE.PointLight(0xfcee0a, 14, 16, 1.4); gl.position.set(-4, 2.2, -1); gl.layers.set(LAYER_ROOM); g.add(gl); }
