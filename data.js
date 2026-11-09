@@ -549,12 +549,13 @@ window.OFFICE_DATA = {
    "lv": 3,
    "id": "hb",
    "dept": "訂車部",
-   "name": "Hailey・Holly",
+   "name": "Hailey・Holly・Hazel",
    "people": [
     "Hailey",
-    "Holly"
+    "Holly",
+    "Hazel"
    ],
-   "role": "3F 訂車部：Hailey（PACE / 1Link MOT）・Holly（Halfords 候補）；每日目標最少 60 單（Offer Made 都計）",
+   "role": "3F 訂車部：Hailey（PACE / 1Link MOT）・Holly（Halfords 候補）・Hazel（Halfords Bookings）；每日目標最少 60 單（Offer Made 都計）",
    "last": "09/11 09:50（訂車記錄）",
    "tasks": [
     [

@@ -70,6 +70,41 @@ if (!D) throw new Error('data.js missing');
 const TEX = window.OFFICE_TEX;
 if (!TEX) throw new Error('textures.js missing');
 const WEATHER = D.weather, FLOORS = D.floors, USAGE = D.usage || null, TODAY = D.today || null;
+// Identity only. Status, counts, and tasks stay in hourly data.js.
+// sync_from_page.py is outside this repo and replaces data.js wholesale; this puts Hazel back
+// if a refresh omits her. Ivy is the previous name of this same agent, not a second person.
+const FLOOR_ROSTER = [
+  { floorId: 'hb', name: 'Hazel', aliases: ['Ivy'], id: '15bb0dad-856c-4aa7-9b7e-5c6278854e45', title: 'Halfords Bookings' },
+];
+function applyFloorRoster(floors) {
+  for (const bot of FLOOR_ROSTER) {
+    const f = floors.find(x => x.id === bot.floorId);
+    if (!f) continue;
+    const people = Array.isArray(f.people) ? f.people : (f.people = []);
+    for (let i = people.length - 1; i >= 0; i--) {
+      const n = String(people[i]);
+      if (bot.aliases.some(a => n === a || n.startsWith(a + ' ') || n.startsWith(a + '·') || n.startsWith(a + '・'))) people.splice(i, 1);
+    }
+    if (!people.some(n => String(n) === bot.name || String(n).startsWith(bot.name + ' ') || String(n).startsWith(bot.name + '·') || String(n).startsWith(bot.name + '・'))) people.push(bot.name);
+    const dropAlias = (text, alias) => text
+      .replace(new RegExp('(^|・)' + alias + '（[^）]*）', 'g'), '$1')
+      .replace(new RegExp('(^|・)' + alias + '(?=・|（|\\(|$|；)', 'g'), '$1')
+      .replaceAll('・・', '・').replaceAll('・；', '；').replace(/^・/, '').replace(/・$/, '');
+    if (typeof f.name === 'string') {
+      for (const a of bot.aliases) f.name = dropAlias(f.name, a);
+      if (!f.name.includes(bot.name)) f.name = f.name ? `${f.name}・${bot.name}` : bot.name;
+    }
+    const ident = `${bot.name}（${bot.title}）`;
+    if (typeof f.role === 'string') {
+      for (const a of bot.aliases) f.role = dropAlias(f.role, a);
+      if (!f.role.includes(bot.name)) {
+        const cut = f.role.indexOf('；');
+        f.role = cut > 0 ? `${f.role.slice(0, cut)}・${ident}${f.role.slice(cut)}` : cut === 0 ? `${ident}${f.role}` : `${f.role} ${ident}`;
+      }
+    }
+  }
+}
+applyFloorRoster(FLOORS);
 const TOPLV = Math.max(...FLOORS.map(f => f.lv));
 const HCOL = { run: '#3ccf7a', idle: '#aab2c8', stop: '#ffb347', vacant: '#8a8f9c' };
 const isVac = f => f.health === 'vacant';
