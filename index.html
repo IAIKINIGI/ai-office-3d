@@ -3618,9 +3618,17 @@ function tick() {
 // The life director still drives the original rig. These models follow that rig
 // and play a matching clip. Other staff stay on the existing figures.
 const proofHumans = [];
+// Fictional adults. Fully clothed. Not likenesses of any real person.
+// Halfords (Hailey, Holly, Hazel) and bookings (Mandy, Penny) are women.
+// Andrew and the other staff are men. Only Andrew and Mandy are on the skinned proof.
+const CAST_DESIGN = {
+  female: ['mandy', 'hailey', 'holly', 'hazel', 'penny'],
+  male: ['andrew', 'routinizer', 'crypto', 'risk', 'market'],
+};
 function proofClip(agent, clips) {
   if (agent.phase === 'walk' && clips.walk) return 'walk';
   const pose = agent.pose;
+  if (pose === 'type' && clips.type) return 'type';
   if ((pose === 'type' || pose === 'sit' || pose === 'play') && clips.sit) return 'sit';
   if ((pose === 'talk' || pose === 'look') && clips.talk) return 'talk';
   return clips.idle || null;
@@ -3682,24 +3690,28 @@ window.__stageProof = (mode) => {
     a.rig.position.set(x, 0, z);
     a.rig.rotation.y = yaw;
   };
+  const focusId = mode === 'mandy' ? 'mandy' : 'andrew';
   if (mode === 'walk') {
     place('andrew', -1.1, 2.4, Math.PI / 2, 'walk');
     place('mandy', 1.15, 2.4, -Math.PI / 2, 'walk');
-  } else if (mode === 'close' || mode === 'side') {
-    place('andrew', -3.6, 1.6, 0, 'stand');
-    place('mandy', -6.4, 2.8, 0.5, 'stand');
+  } else if (mode === 'close' || mode === 'body') {
+    place('andrew', -3.5, 1.5, 0.15, 'stand');
+    place('mandy', -1.6, 1.5, -0.15, 'stand');
+  } else if (mode === 'mandy') {
+    place('mandy', -2.4, 1.6, 0.2, 'stand');
+    place('andrew', -5.2, 2.6, 0.4, 'stand');
   } else {
     place('andrew', -4, 0.9, Math.PI, 'type');
-    place('mandy', -1.3, 2.35, Math.PI, 'stand');
+    place('mandy', -1.15, 2.15, 2.6, 'stand');
   }
   scene.updateMatrixWorld(true);
   const wp = new THREE.Vector3();
-  castById.andrew.rig.getWorldPosition(wp);
+  castById[focusId].rig.getWorldPosition(wp);
   const look = wp.clone();
-  look.y += mode === 'close' ? 1.45 : 1.05;
+  look.y += mode === 'close' ? 1.5 : mode === 'body' || mode === 'mandy' ? 0.95 : 1.0;
   const cam = look.clone();
-  if (mode === 'close') { cam.x += 0.9; cam.z += 2.15; }
-  else if (mode === 'side') { cam.x += 3.3; cam.z += 2.2; cam.y += 0.35; }
+  if (mode === 'close') { cam.x += 0.55; cam.z += 1.55; }
+  else if (mode === 'body' || mode === 'mandy') { cam.x += 1.15; cam.y += 0.15; cam.z += 3.15; }
   else { cam.x += 2.6; cam.y += 1.35; cam.z += 3.4; }
   window.__LOCK_CAM = { pos: cam, tgt: look };
   return { look: look.toArray(), cam: cam.toArray(), proof: proofHumans.length };

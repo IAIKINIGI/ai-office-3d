@@ -1,0 +1,12 @@
+{
+  "note": "Fictional adults for the office cast. Fully clothed. Not likenesses of any real person.",
+  "female": ["mandy", "hailey", "holly", "hazel", "penny"],
+  "male": ["andrew", "routinizer", "crypto", "risk", "market"],
+  "groups": {
+    "halfords": ["hailey", "holly", "hazel"],
+    "bookings": ["mandy", "penny"]
+  },
+  "femaleSilhouette": "Adult women. Fuller clothed bust under fitted garments. Believable proportions. No exposed skin beyond the face, neck, and hands.",
+  "proofNow": ["andrew", "mandy"],
+  "wardrobe": "Andrew and Mandy are still the Rocketbox security meshes, recolored and with the cap pulled down. A real techwear garment has not been modeled yet."
+}
