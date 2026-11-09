@@ -703,35 +703,222 @@ function whoId(name) {
   const map = { Andrew: 'andrew', Mandy: 'mandy', Penny: 'penny', Hailey: 'hailey', Holly: 'holly', Hazel: 'hazel', Routinizer: 'routinizer', Crypto: 'crypto', '風控官': 'risk', '大市監察': 'market' };
   return hit ? map[hit] : '';
 }
-function makeWalker(color) {
-  const g = new THREE.Group();
-  const suit = M(color, { metalness: 0.28, roughness: 0.48 });
-  const trouser = M(0x12141c, { roughness: 0.72 });
-  const skin = M(0xd0a07a, { roughness: 0.62 });
-  const shoe = M(0x0c0c10, { metalness: 0.25, roughness: 0.5 });
-  const hang = (parent, len, rad, mat) => {
-    const pivot = new THREE.Group(); parent.add(pivot);
-    const m = new THREE.Mesh(new THREE.CapsuleGeometry(rad, len, 3, 5), mat);
-    m.position.y = -(len * 0.5 + rad); m.castShadow = m.receiveShadow = false; pivot.add(m);
-    return pivot;
+function officeGeos() {
+  if (officeGeos.cache) return officeGeos.cache;
+  const V = THREE.Vector2;
+  const g = {
+    // Original meshes drawn for this scene. No downloaded character, no likeness.
+    torso: new THREE.LatheGeometry([
+      new V(0.102, 0.00), new V(0.148, 0.06), new V(0.116, 0.17),
+      new V(0.142, 0.30), new V(0.166, 0.42), new V(0.148, 0.52),
+      new V(0.072, 0.58), new V(0.050, 0.68),
+    ], 18),
+    head: new THREE.SphereGeometry(0.104, 18, 14),
+    hair: new THREE.SphereGeometry(0.112, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.50),
+    eye: new THREE.SphereGeometry(0.017, 8, 6),
+    pupil: new THREE.SphereGeometry(0.008, 6, 4),
+    nose: new THREE.SphereGeometry(0.015, 6, 5),
+    ear: new THREE.SphereGeometry(0.022, 7, 5),
+    shoulder: new THREE.SphereGeometry(0.052, 8, 6),
+    upper: new THREE.CylinderGeometry(0.040, 0.034, 0.18, 10),
+    fore: new THREE.CylinderGeometry(0.034, 0.028, 0.16, 10),
+    hand: new THREE.SphereGeometry(0.028, 8, 6),
+    lapel: new THREE.BoxGeometry(0.03, 0.15, 0.016),
+    thigh: new THREE.CylinderGeometry(0.066, 0.050, 0.40, 10),
+    shin: new THREE.CylinderGeometry(0.046, 0.036, 0.38, 10),
+    shoe: new THREE.BoxGeometry(0.076, 0.046, 0.155),
+    collar: new THREE.TorusGeometry(0.072, 0.011, 6, 16),
+    ring: new THREE.TorusGeometry(0.058, 0.008, 6, 14),
+    shirt: new THREE.BoxGeometry(0.09, 0.20, 0.016),
+    tie: new THREE.BoxGeometry(0.032, 0.15, 0.014),
+    mouth: new THREE.BoxGeometry(0.036, 0.007, 0.01),
+    bar: new THREE.BoxGeometry(0.064, 0.01, 0.01),
+    pin: new THREE.SphereGeometry(0.012, 6, 5),
   };
-  const legL = hang(g, 0.34, 0.065, trouser); legL.position.set(-0.09, 0.88, 0);
-  const shinL = hang(legL, 0.32, 0.05, trouser); shinL.position.y = -0.42;
-  const legR = hang(g, 0.34, 0.065, trouser); legR.position.set(0.09, 0.88, 0);
-  const shinR = hang(legR, 0.32, 0.05, trouser); shinR.position.y = -0.42;
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.38, 4, 8), suit);
-  torso.position.y = 1.16; torso.castShadow = false; g.add(torso);
-  const armL = hang(g, 0.28, 0.045, suit); armL.position.set(-0.26, 1.4, 0);
-  const armR = hang(g, 0.28, 0.045, suit); armR.position.set(0.26, 1.4, 0);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), skin);
-  head.position.y = 1.52; g.add(head);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.125, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), M(0x1a120c));
-  hair.position.y = 1.58; g.add(hair);
-  const footL = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.045, 0.15), shoe);
-  footL.position.set(0, -0.42, 0.04); shinL.add(footL);
-  const footR = footL.clone(); shinR.add(footR);
-  g.userData = { legL, legR, shinL, shinR, armL, armR, head, torso };
+  officeGeos.cache = g;
   return g;
+}
+const LOOKS = {
+  andrew:      { suit: 0x5c4636, trim: 0xf0d078, hair: 0x1a120c, hairY: 0.055, hairZ: -0.012, hairScale: [1.0, 0.62, 0.98], skin: 0xd0a07a, cyber: 'pin', tie: 0x6a2838 },
+  mandy:       { suit: 0x7a2458, trim: 0x7fe7ff, hair: 0x241018, hairY: 0.02, hairZ: -0.028, hairScale: [1.06, 0.92, 1.18], skin: 0xe0b090, cyber: 'ear' },
+  hailey:      { suit: 0x1c4558, trim: 0x3ec8e0, hair: 0x3a2818, hairY: 0.03, hairZ: -0.02, hairScale: [1.04, 0.88, 1.12], skin: 0xc98868, cyber: 'ring' },
+  holly:       { suit: 0x2a3a52, trim: 0x9eb6d8, hair: 0x16161c, hairY: 0.02, hairZ: -0.026, hairScale: [1.05, 0.9, 1.16], skin: 0xd8b098, cyber: 'ring' },
+  hazel:       { suit: 0x4a3044, trim: 0xf0a0c0, hair: 0x5a3824, hairY: 0.028, hairZ: -0.022, hairScale: [1.05, 0.9, 1.14], skin: 0xe0b898, cyber: 'ear' },
+  penny:       { suit: 0x1a3860, trim: 0x4bb3f2, hair: 0x141820, hairY: 0.02, hairZ: -0.026, hairScale: [1.04, 0.9, 1.14], skin: 0xd0a080, cyber: 'visor' },
+  routinizer:  { suit: 0x1a3830, trim: 0x39ff14, hair: 0x101410, hairY: 0.05, hairZ: -0.01, hairScale: [1.0, 0.66, 1.0], skin: 0xc09070, cyber: 'ring', tie: 0x102018 },
+  crypto:      { suit: 0x163028, trim: 0x39ff14, hair: 0x101610, hairY: 0.05, hairZ: -0.01, hairScale: [1.0, 0.64, 1.0], skin: 0xc8a080, cyber: 'cheek' },
+  risk:        { suit: 0x3a2818, trim: 0xffb347, hair: 0x1c1612, hairY: 0.05, hairZ: -0.012, hairScale: [1.02, 0.68, 1.0], skin: 0xc49878, cyber: 'monocle' },
+  market:      { suit: 0x163040, trim: 0x7fe3ff, hair: 0x1a1e24, hairY: 0.03, hairZ: -0.02, hairScale: [1.04, 0.86, 1.12], skin: 0xd0a888, cyber: 'temple' },
+};
+function quietMesh(geo, mat) {
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = m.receiveShadow = false;
+  return m;
+}
+function makeOfficePerson(id) {
+  const look = LOOKS[id] || LOOKS.hailey;
+  const g = officeGeos();
+  const rig = new THREE.Group();
+  const suit = M(look.suit, { roughness: 0.5, metalness: 0.12 });
+  const cloth = M(0x141820, { roughness: 0.62, metalness: 0.06 });
+  const skin = M(look.skin, { roughness: 0.58, metalness: 0 });
+  const hairM = M(look.hair, { roughness: 0.45, metalness: 0.08 });
+  const shoeM = M(0x12141c, { roughness: 0.42, metalness: 0.28 });
+  const shirtM = M(0xe7e1d6, { roughness: 0.55, metalness: 0.02 });
+  const eyeM = M(0xf4f7fb, { roughness: 0.28, metalness: 0 });
+  const pupilM = M(0x1a120e, { roughness: 0.35 });
+  const mouthM = M(0x8a5048, { roughness: 0.5 });
+  const trimI = id === 'andrew' ? 1.15 : 0.55;
+  const trimM = E(look.trim, trimI);
+
+  const torso = quietMesh(g.torso, suit);
+  torso.position.y = 0.88;
+  rig.add(torso);
+  const shirt = quietMesh(g.shirt, shirtM);
+  shirt.scale.set(0.42, 0.85, 1);
+  shirt.position.set(0, 0.36, 0.155);
+  torso.add(shirt);
+  [-1, 1].forEach(side => {
+    const lapel = quietMesh(g.lapel, suit);
+    lapel.position.set(side * 0.045, 0.40, 0.162);
+    lapel.rotation.z = side * -0.42;
+    lapel.rotation.x = -0.18;
+    torso.add(lapel);
+  });
+  const belt = quietMesh(g.collar, M(0x10141c, { roughness: 0.4, metalness: 0.45 }));
+  belt.rotation.x = Math.PI / 2;
+  belt.scale.set(1.62, 1.62, 1.15);
+  belt.position.set(0, 0.14, 0);
+  torso.add(belt);
+  if (look.tie) {
+    const tie = quietMesh(g.tie, M(look.tie, { roughness: 0.4, metalness: 0.05 }));
+    tie.scale.set(0.7, 1.05, 1);
+    tie.position.set(0, 0.30, 0.175);
+    torso.add(tie);
+  }
+  const collar = quietMesh(g.collar, shirtM);
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = 0.56;
+  torso.add(collar);
+  const ring = quietMesh(g.ring, trimM);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.62;
+  torso.add(ring);
+  [-1, 1].forEach(side => {
+    const s = quietMesh(g.shoulder, suit);
+    s.position.set(side * 0.15, 0.48, 0);
+    torso.add(s);
+  });
+  if (look.cyber === 'pin') {
+    const pin = quietMesh(g.pin, trimM);
+    pin.position.set(0.09, 0.44, 0.16);
+    torso.add(pin);
+  }
+
+  const head = quietMesh(g.head, skin);
+  head.position.y = 1.66;
+  head.scale.set(0.96, 1.07, 0.95);
+  rig.add(head);
+  const hair = quietMesh(g.hair, hairM);
+  hair.position.set(0, look.hairY, look.hairZ);
+  hair.scale.set(look.hairScale[0], look.hairScale[1], look.hairScale[2]);
+  head.add(hair);
+  [-1, 1].forEach(side => {
+    const eye = quietMesh(g.eye, eyeM);
+    eye.scale.set(1.05, 0.82, 0.65);
+    eye.position.set(side * 0.034, 0.018, 0.088);
+    const pupil = quietMesh(g.pupil, pupilM);
+    pupil.position.set(0, 0, 0.012);
+    eye.add(pupil);
+    head.add(eye);
+    const ear = quietMesh(g.ear, skin);
+    ear.scale.set(0.55, 1, 0.7);
+    ear.position.set(side * 0.1, -0.005, 0);
+    head.add(ear);
+  });
+  const nose = quietMesh(g.nose, skin);
+  nose.scale.set(0.85, 0.7, 1.15);
+  nose.position.set(0, -0.006, 0.1);
+  head.add(nose);
+  const mouth = quietMesh(g.mouth, mouthM);
+  mouth.position.set(0, -0.04, 0.092);
+  head.add(mouth);
+  if (look.cyber === 'ear') {
+    const cuff = quietMesh(g.bar, trimM);
+    cuff.scale.set(0.28, 1.1, 1);
+    cuff.position.set(0.112, 0.02, 0.02);
+    head.add(cuff);
+  } else if (look.cyber === 'visor') {
+    const bar = quietMesh(g.bar, trimM);
+    bar.scale.set(1.35, 0.7, 1);
+    bar.position.set(0, 0.046, 0.09);
+    head.add(bar);
+  } else if (look.cyber === 'cheek') {
+    const bar = quietMesh(g.bar, trimM);
+    bar.scale.set(0.45, 0.7, 1);
+    bar.position.set(0.045, -0.012, 0.095);
+    head.add(bar);
+  } else if (look.cyber === 'monocle') {
+    const mono = quietMesh(g.ring, trimM);
+    mono.scale.set(0.32, 0.32, 0.32);
+    mono.position.set(0.034, 0.02, 0.09);
+    head.add(mono);
+  } else if (look.cyber === 'temple') {
+    const bar = quietMesh(g.bar, trimM);
+    bar.scale.set(0.4, 0.8, 1);
+    bar.position.set(0.075, 0.04, 0.055);
+    head.add(bar);
+  }
+
+  function addArm(side) {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.2, 1.40, 0);
+    rig.add(pivot);
+    const upper = quietMesh(g.upper, suit);
+    upper.position.y = -0.09;
+    pivot.add(upper);
+    const fore = new THREE.Group();
+    fore.position.y = -0.18;
+    pivot.add(fore);
+    const fm = quietMesh(g.fore, suit);
+    fm.position.y = -0.08;
+    fore.add(fm);
+    const hand = quietMesh(g.hand, skin);
+    hand.position.set(side * 0.006, -0.178, 0.02);
+    hand.scale.set(1.15, 0.55, 1.45);
+    fore.add(hand);
+    const thumb = quietMesh(g.pin, skin);
+    thumb.position.set(side * 0.02, 0.01, 0.012);
+    thumb.scale.set(1.15, 0.85, 1.35);
+    hand.add(thumb);
+    return { pivot, fore };
+  }
+  function addLeg(side) {
+    const hip = new THREE.Group();
+    hip.position.set(side * 0.085, 0.90, 0);
+    rig.add(hip);
+    const thigh = quietMesh(g.thigh, cloth);
+    thigh.position.y = -0.20;
+    hip.add(thigh);
+    const shin = new THREE.Group();
+    shin.position.y = -0.40;
+    hip.add(shin);
+    const sm = quietMesh(g.shin, cloth);
+    sm.position.y = -0.19;
+    shin.add(sm);
+    const shoe = quietMesh(g.shoe, shoeM);
+    shoe.position.set(0, -0.40, 0.035);
+    shin.add(shoe);
+    return { hip, shin };
+  }
+  const armL = addArm(-1), armR = addArm(1);
+  const legL = addLeg(-1), legR = addLeg(1);
+  rig.userData = {
+    legL: legL.hip, legR: legR.hip, shinL: legL.shin, shinR: legR.shin,
+    armL: armL.pivot, armR: armR.pivot, foreL: armL.fore, foreR: armR.fore,
+    head, torso,
+  };
+  return rig;
 }
 function registerAgent(id, floor, group, rig, x, z, rot) {
   const agent = {
@@ -746,7 +933,7 @@ function registerAgent(id, floor, group, rig, x, z, rot) {
 function person(parent, x, z, color, name, floor, rotY = 0) {
   const id = whoId(name);
   if (!id || castById[id]) return;
-  const rig = makeWalker(color);
+  const rig = makeOfficePerson(id);
   parent.add(rig);
   const { torso, head } = rig.userData;
   [torso, head].forEach(m => { m.userData.floor = floor; pickables.push(m); });
@@ -1096,35 +1283,8 @@ function setCabinFloor(n) {
   lab.tex.needsUpdate = true;
 }
 function makeAndrew(floor) {
-  const g = new THREE.Group();
-  const suit = M(0x1a140c, { metalness: 0.25, roughness: 0.55 });
-  const trouser = M(0x12100c, { roughness: 0.75 });
-  const skin = M(0xc8966a, { roughness: 0.65, metalness: 0 });
-  const shoe = M(0x0c0c10, { metalness: 0.3, roughness: 0.5 });
-  const hang = (parent, len, rad, mat) => {
-    const pivot = new THREE.Group(); parent.add(pivot);
-    const m = new THREE.Mesh(new THREE.CapsuleGeometry(rad, len, 3, 5), mat);
-    m.position.y = -(len * 0.5 + rad); m.castShadow = m.receiveShadow = false; pivot.add(m);
-    return pivot;
-  };
-  const legL = hang(g, 0.38, 0.07, trouser); legL.position.set(-0.1, 0.92, 0);
-  const shinL = hang(legL, 0.36, 0.055, trouser); shinL.position.y = -0.46;
-  const legR = hang(g, 0.38, 0.07, trouser); legR.position.set(0.1, 0.92, 0);
-  const shinR = hang(legR, 0.36, 0.055, trouser); shinR.position.y = -0.46;
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.42, 4, 8), suit);
-  torso.position.y = 1.22; torso.castShadow = torso.receiveShadow = false; g.add(torso);
-  const trim = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.02, 6, 12), B(0xfcee0a));
-  trim.rotation.x = Math.PI / 2; trim.position.y = 1.38; g.add(trim);
-  const armL = hang(g, 0.32, 0.05, suit); armL.position.set(-0.28, 1.48, 0);
-  const armR = hang(g, 0.32, 0.05, suit); armR.position.set(0.28, 1.48, 0);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), skin);
-  head.position.y = 1.62; head.castShadow = false; g.add(head);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.135, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), M(0x1a120c));
-  hair.position.y = 1.68; hair.castShadow = false; g.add(hair);
-  const footL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.16), shoe);
-  footL.position.set(0, -0.48, 0.05); footL.castShadow = false; shinL.add(footL);
-  const footR = footL.clone(); shinR.add(footR);
-  g.userData = { legL, legR, shinL, shinR, armL, armR, head, floor };
+  const g = makeOfficePerson('andrew');
+  const { torso, head } = g.userData;
   [torso, head].forEach(m => { m.userData.floor = floor; pickables.push(m); });
   labels.push({ obj: head, text: 'Andrew 行政總監', floor });
   g.position.set(-4, 0, 0.9); g.rotation.y = Math.PI;
@@ -1262,6 +1422,11 @@ function walkAgent(agent, dt) {
   faceYaw(rig, yaw, dt);
   return false;
 }
+function setElbows(u, l, r) {
+  if (!u.foreL) return;
+  u.foreL.rotation.x = l;
+  u.foreR.rotation.x = r;
+}
 function poseAgent(agent, kind, t) {
   const u = agent.rig.userData, rig = agent.rig;
   if (!u.legL) return;
@@ -1271,6 +1436,7 @@ function poseAgent(agent, kind, t) {
     u.legL.rotation.x = s * 0.7; u.legR.rotation.x = -s * 0.7;
     u.shinL.rotation.x = Math.max(0, -s) * 0.95; u.shinR.rotation.x = Math.max(0, s) * 0.95;
     u.armL.rotation.x = -s * 0.45; u.armR.rotation.x = s * 0.45;
+    setElbows(u, -0.28, -0.28);
     rig.position.y = Math.abs(s) * 0.03;
     u.head.rotation.x = 0; u.head.rotation.y = 0;
   } else if (kind === 'type' || kind === 'sit' || kind === 'play') {
@@ -1279,31 +1445,38 @@ function poseAgent(agent, kind, t) {
     rig.position.y = -0.38;
     u.head.rotation.y = 0;
     if (kind === 'type') {
-      u.armL.rotation.x = -0.9 + Math.sin(t * 8 + agent.home.x) * 0.18;
-      u.armR.rotation.x = -0.85 + Math.cos(t * 8.5 + agent.home.x) * 0.18;
-      u.head.rotation.x = 0.32;
+      u.armL.rotation.x = -0.62 + Math.sin(t * 8 + agent.home.x) * 0.08;
+      u.armR.rotation.x = -0.58 + Math.cos(t * 8.5 + agent.home.x) * 0.08;
+      setElbows(u, -0.85, -0.8);
+      u.head.rotation.x = 0.28;
     } else if (kind === 'play') {
-      u.armL.rotation.x = -1.2 + Math.sin(t * 6 + agent.home.x) * 0.08;
-      u.armR.rotation.x = -1.05 + Math.sin(t * 7 + agent.home.x) * 0.1;
-      u.head.rotation.x = 0.4;
+      u.armL.rotation.x = -0.78 + Math.sin(t * 6 + agent.home.x) * 0.05;
+      u.armR.rotation.x = -0.72 + Math.sin(t * 7 + agent.home.x) * 0.06;
+      setElbows(u, -0.55, -0.5);
+      u.head.rotation.x = 0.34;
     } else {
-      u.armL.rotation.x = -0.35; u.armR.rotation.x = -0.28; u.head.rotation.x = 0.08;
+      u.armL.rotation.x = -0.28; u.armR.rotation.x = -0.24;
+      setElbows(u, -0.55, -0.5);
+      u.head.rotation.x = 0.06;
     }
   } else if (kind === 'talk') {
     plant(); rig.position.y = 0;
-    u.armL.rotation.x = -1.4 + Math.sin(t * 3.1 + agent.home.x) * 0.28;
-    u.armR.rotation.x = -0.35;
-    u.head.rotation.x = Math.sin(t * 1.6 + agent.home.x) * 0.07;
+    u.armL.rotation.x = -1.15 + Math.sin(t * 3.1 + agent.home.x) * 0.12;
+    u.armR.rotation.x = -0.22;
+    setElbows(u, -0.25, -0.45);
+    u.head.rotation.x = Math.sin(t * 1.6 + agent.home.x) * 0.06;
     u.head.rotation.y = 0;
   } else if (kind === 'look') {
     plant(); rig.position.y = 0;
-    u.armR.rotation.x = -1.28; u.armL.rotation.x = -0.3;
-    u.head.rotation.x = 0.28;
-    u.head.rotation.y = Math.sin(t * 1.2 + agent.home.x) * 0.2;
+    u.armR.rotation.x = -0.85; u.armL.rotation.x = -0.22;
+    setElbows(u, -0.4, -0.35);
+    u.head.rotation.x = 0.22;
+    u.head.rotation.y = Math.sin(t * 1.2 + agent.home.x) * 0.15;
   } else {
     plant(); rig.position.y = 0;
-    u.armL.rotation.x = Math.sin(t * 0.8 + agent.home.x) * 0.06;
-    u.armR.rotation.x = -0.1;
+    u.armL.rotation.x = Math.sin(t * 0.8 + agent.home.x) * 0.04;
+    u.armR.rotation.x = -0.08;
+    setElbows(u, -0.22, -0.22);
     u.head.rotation.x = 0; u.head.rotation.y = 0;
   }
 }
@@ -1532,6 +1705,18 @@ window.__life = {
   get trace() { return lifeTrace; },
   ids: () => cast.map(a => a.id),
   pause(v) { director.paused = v !== false; },
+  meshCost() {
+    const geos = new Set();
+    let meshes = 0, tris = 0;
+    for (const a of cast) a.rig.traverse(o => {
+      if (!o.isMesh || !o.geometry) return;
+      meshes++;
+      geos.add(o.geometry.uuid);
+      const geo = o.geometry;
+      tris += geo.index ? geo.index.count / 3 : (geo.attributes.position ? geo.attributes.position.count / 3 : 0);
+    });
+    return { people: cast.length, meshes, tris, uniqueGeos: geos.size };
+  },
 };
 window.__ceo = {
   get activity() { return director.beat ? director.beat.kind : 'work'; },
