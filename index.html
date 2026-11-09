@@ -3670,8 +3670,7 @@ function syncProof(dt) {
   proofHumans.forEach(entry => {
     const rig = entry.agent.rig;
     if (entry.model.parent !== rig.parent) rig.parent.add(entry.model);
-    const seated = proofClip(entry.agent, entry.clips) === 'sit';
-    entry.model.position.set(rig.position.x, seated ? -0.46 : 0, rig.position.z);
+    entry.model.position.set(rig.position.x, 0, rig.position.z);
     entry.model.rotation.set(0, rig.rotation.y, 0);
     playProof(entry, proofClip(entry.agent, entry.clips));
     entry.mixer.update(dt);
@@ -3680,6 +3679,58 @@ function syncProof(dt) {
 attachProof('andrew', 'assets/characters/andrew.glb');
 attachProof('mandy', 'assets/characters/mandy.glb');
 window.__proof = proofHumans;
+window.__frame = (id, clip, phase, view) => {
+  window.__HOLD_LIFE = true;
+  const a = castById[id];
+  const other = castById[id === 'andrew' ? 'mandy' : 'andrew'];
+  a.phase = clip === 'walk' ? 'walk' : 'there';
+  a.pose = clip === 'walk' ? 'walk' : clip === 'sit' || clip === 'type' ? 'sit' : 'stand';
+  a.busy = true;
+  a.rig.position.set(-7.2, 0, 2.4);
+  a.rig.rotation.y = 0;
+  if (other) other.rig.position.set(14, 0, 14);
+  scene.updateMatrixWorld(true);
+  const info = window.__scrub(id, clip, phase);
+  const wp = new THREE.Vector3();
+  a.rig.getWorldPosition(wp);
+  const look = wp.clone();
+  look.y += view === 'close' ? 1.55 : 0.78;
+  const cam = look.clone();
+  if (view === 'close') { cam.z += 1.15; }
+  else if (view === 'side') { cam.x += 3.15; cam.z += 0.35; }
+  else { cam.z += 3.6; cam.y += 0.05; }
+  window.__LOCK_CAM = { pos: cam, tgt: look };
+  return info;
+};
+window.__chairShot = () => {
+  window.__HOLD_LIFE = true;
+  const a = castById.andrew;
+  a.phase = 'there'; a.pose = 'sit'; a.busy = true;
+  a.rig.position.set(-4, 0, 0.9); a.rig.rotation.y = Math.PI;
+  const m = castById.mandy;
+  m.phase = 'there'; m.pose = 'sit'; m.busy = true;
+  m.rig.position.set(8, 0, 8);
+  scene.updateMatrixWorld(true);
+  window.__scrub('andrew', 'sit', 0);
+  const wp = new THREE.Vector3();
+  a.rig.getWorldPosition(wp);
+  const look = wp.clone(); look.y += 0.55;
+  const cam = look.clone(); cam.x += 2.2; cam.z += 2.4; cam.y += 0.35;
+  window.__LOCK_CAM = { pos: cam, tgt: look };
+};
+window.__scrub = (id, clip, phase) => {
+  const entry = proofHumans.find(p => p.id === id);
+  if (!entry || !entry.clips[clip]) return null;
+  Object.values(entry.clips).forEach(a => { a.stop(); a.setEffectiveWeight(0); });
+  const act = entry.clips[clip];
+  act.reset().play();
+  act.paused = true;
+  act.setEffectiveWeight(1);
+  act.time = Math.max(0, act.getClip().duration * phase);
+  entry.current = clip;
+  entry.mixer.update(0);
+  return { clip, time: +act.time.toFixed(3), dur: +act.getClip().duration.toFixed(3) };
+};
 window.__stageProof = (mode) => {
   window.__HOLD_LIFE = true;
   const place = (id, x, z, yaw, pose) => {

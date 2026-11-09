@@ -1,36 +1,26 @@
 # Character assets — Andrew and Mandy proof
 
 Fictional adults. Fully clothed. Not likenesses of any real person.
-
-The cast split is recorded in `cast.json` and `CAST_DESIGN` in `index.html`.
-
-| Who | Design |
-| --- | --- |
-| Mandy, Hailey, Holly, Hazel, Penny | Adult women. Halfords is Hailey, Holly, and Hazel. Bookings is Mandy and Penny. |
-| Andrew, Routinizer, Crypto, risk, market | Men. |
-
-Only Andrew and Mandy are skinned in this preview. The other staff are still the previous figures.
+The cast split is in `cast.json`. Only Andrew and Mandy are skinned here.
 
 | File | Source | Triangles | File size |
 | --- | --- | --- | --- |
-| `andrew.glb` | Rocketbox `Security_Male_01` | 9,515 | 1.5 MB |
-| `mandy.glb` | Rocketbox `Security_Female_01` | 8,006 | 0.8 MB |
+| `andrew.glb` | Rocketbox `Security_Male_01` | about 9.5k plus a hair shell | 1.6 MB |
+| `mandy.glb` | Rocketbox `Security_Female_01` | about 8.0k plus a hair shell | 1.0 MB |
 
 Source: https://github.com/microsoft/Microsoft-Rocketbox
 License: MIT, Copyright (c) 2020 Microsoft. Full text in `LICENSE.md`.
 
-## What changed in this pass
+## Legs
 
-- Standing rest pose now has the arms down, instead of the library T-pose.
-- Walk clips stay in place so the office director still moves the body. Andrew also has the library talk clip.
-- A seated pose and a short typing pose were keyed on that skeleton.
-- Andrew's gray shirt was darkened. The peaked cap was pulled onto the scalp. A couple of small side shapes are still on the head.
-- Mandy's hat and holster were removed. The clothed chest of the jacket was pushed forward by about 7 cm on the low-poly torso.
+Idle keeps both feet on the ground for the whole clip. That was measured on the skeleton and on the mesh, at several times, and it matches the standing renders.
 
-## What is not done
+The folded leg was the seated pose. The right thigh used the opposite local rotation from the left, and that knee bent backward. Both thighs now use the same local sign, so both knees come forward and both feet meet the floor. The hips drop with that pose. Walking had about 1.5 m of forward travel on the armature root; that travel is removed so the stride stays in place. Knee height during the cycle stays near a normal step, not a high march. The feet-together moment is the passing phase of the same cycle.
 
-These are still the security-uniform meshes: shirt, pockets, tie shape, cargo trousers, black jacket. Darkening and the cap edit do not make them cyberpunk techwear. No licensed realistic techwear garment was available to download without an account or a purchase.
+## Hair
 
-Mandy's chest edit does not yet read as a large clothed bust in the office shots. The jacket is too low-poly for that silhouette. She is fully clothed. This is not a pinup.
+The police cap was deleted. It is not pushed into the scalp. A separate matte shell is weighted to the head bone. Andrew's is a short crop with the forehead and ears showing. Mandy's is a dark bob that comes to about the shoulder. The shell is smooth-shaded, but the hairline is still angular because the head mesh is coarse. It is not strand hair, and it is not the old glossy helmet.
 
-Andrew sits in the chair, but his hands are not on the keyboard. Mandy's walk clip still hits a high step.
+## Still not cyberpunk clothing
+
+The shirts, pockets, tie shape, and jackets are still the Rocketbox security uniform, only darkened. Mandy's clothed chest change is small on this mesh.
