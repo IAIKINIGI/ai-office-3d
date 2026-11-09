@@ -25,13 +25,15 @@ canvas{display:block}
 #panel{position:fixed;right:-460px;top:56px;bottom:20px;width:380px;max-width:90vw;border-radius:20px;padding:22px;overflow:auto;transition:right .45s cubic-bezier(.2,.8,.2,1);z-index:6;box-sizing:border-box;background:linear-gradient(160deg,rgba(40,48,110,.78),rgba(12,14,38,.92));backdrop-filter:blur(14px);border:1px solid rgba(252,238,10,.3);box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 30px rgba(252,238,10,.12)}
 #panel.open{right:20px} #panel h2{margin:4px 0 6px;font-size:20px} #panel .lv{display:inline-block;background:linear-gradient(135deg,#FCEE0A,#ff9a3c);color:#1b1408;font-weight:800;border-radius:999px;padding:2px 10px;font-size:12px}
 #panel .role{color:#c8cde8;font-size:13px;line-height:1.5} #panel h3{font-size:14px;color:#FCEE0A;margin:16px 0 6px}
-.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px} .kv{font-size:13px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 10px} .kv b{display:block;font-size:11px;color:#9aa3cc;font-weight:500;margin-bottom:2px} .kv span{display:flex;align-items:center;gap:4px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px} .kv{font-size:13px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 10px;min-width:0} .kv b{display:block;font-size:11px;color:#9aa3cc;font-weight:500;margin-bottom:2px} .kv span{display:block;min-width:0;overflow-wrap:anywhere;line-height:1.4}
 .kv.warn{margin-top:8px;color:#ffc46b;border-color:rgba(255,196,107,.3)}
-#panel ul{list-style:none;padding:0;margin:0} #panel li{display:grid;grid-template-columns:48px 1fr auto;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px}
+#panel ul{list-style:none;padding:0;margin:0} #panel li{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:8px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px;align-items:start} #panel li .d{line-height:1.45;overflow-wrap:anywhere}
 #panel li.empty{display:block;color:#c8cde8} .t{color:#9aa3cc} .s{font-size:11px;padding:2px 8px;border-radius:999px;height:fit-content} .s.ok{background:#2e7d4f} .s.go{background:#3a6fd1} .s.wait{background:#8a6a2a}
 .x{position:absolute;right:14px;top:12px;background:none;border:0;color:#fff;font-size:18px;cursor:pointer}
 #hint{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);font-size:11px;color:#c8cde8;z-index:5;padding:5px 12px;border-radius:999px;opacity:.75}
 #hud{position:fixed;right:14px;bottom:12px;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:#FCEE0A;text-shadow:0 0 8px #FCEE0A;z-index:5;opacity:.7;letter-spacing:1px}
+#qmode{position:fixed;top:64px;left:16px;z-index:6;font:600 11px/1.2 "Noto Sans CJK TC","PingFang HK","Microsoft JhengHei",sans-serif;color:#FCEE0A;padding:5px 10px;border-radius:999px;cursor:pointer;letter-spacing:.4px}
+#qmode:hover{border-color:#FCEE0A;box-shadow:0 0 16px rgba(252,238,10,.35)}
 </style>
 <script src="assets/glb-embeds-0.js"></script>
 <script src="assets/glb-embeds-1.js"></script>
@@ -45,6 +47,7 @@ canvas{display:block}
 </head><body>
 <div id="top" class="glass"></div>
 <div id="title">AI 辦公大樓<small>NIGHT CITY · 6F · TEX</small></div>
+<button id="qmode" class="glass" type="button" aria-label="切換畫質">畫質 · 自動</button>
 <div id="btns"></div><div id="labels"></div><div id="panel"></div>
 <div id="hint" class="glass">拖曳旋轉・滾輪縮放・撳樓層或員工睇工作報告</div>
 <div id="hud">SYS // TEX · BLOOM · RAIN</div>
@@ -60,6 +63,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const D = window.OFFICE_DATA;
 if (!D) throw new Error('data.js missing');
@@ -74,14 +78,16 @@ const dot = f => f.health ? `<i class="dot ${f.health}"></i>` : '';
 const useTxt = u => !u ? '' : (/%$/.test(u) ? `本週用量 ${u}` : u);
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&', '<': '<', '>': '>' }[c]));
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
+const LAYER_ACTOR = 1; // people / cars — local rim lights must not enter city shaders
+const LAYER_ROOM = 2;  // office interiors only
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x140828, 0.0021);
 scene.background = new THREE.Color(0x0a0618);
@@ -133,8 +139,27 @@ function glow(tex, x, y, z, sx, sy = sx, op = 0.5, parent = scene) {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: op, fog: false }));
   s.scale.set(sx, sy, 1); s.position.set(x, y, z); parent.add(s); return s;
 }
-const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7, ...o });
-const E = (c, i = 1.5) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: i, toneMapped: false });
+const _matCache = new Map();
+function _matKey(kind, parts) {
+  return kind + '\0' + parts.map(v => {
+    if (v && v.isColor) return 'c' + v.getHexString();
+    if (v && v.isTexture) return 't' + v.uuid;
+    return typeof v === 'object' ? JSON.stringify(v) : String(v);
+  }).join('\0');
+}
+const M = (c, o = {}) => {
+  const keys = Object.keys(o).sort();
+  const k = _matKey('M', [c, ...keys.flatMap(key => [key, o[key]])]);
+  let m = _matCache.get(k);
+  if (!m) { m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.7, ...o }); _matCache.set(k, m); }
+  return m;
+};
+const E = (c, i = 1.5) => {
+  const k = _matKey('E', [c, i]);
+  let m = _matCache.get(k);
+  if (!m) { m = new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: i, toneMapped: false }); _matCache.set(k, m); }
+  return m;
+};
 const box = (w, h, d, mat, x, y, z, parent = scene) => {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m;
@@ -204,11 +229,11 @@ const streetWide3 = new THREE.PointLight(0xfcee0a, 40, 60, 1.6); streetWide3.pos
 }
 
 // ---- wet street ground ----
-{ const gnd = new THREE.Mesh(new THREE.PlaneGeometry(500, 500),
-  new THREE.MeshPhysicalMaterial({
-    map: texStreet, color: 0x9aabbc, roughness: 0.1, metalness: 0.85,
-    clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.6
-  }));
+const gndMat = new THREE.MeshPhysicalMaterial({
+  map: texStreet, color: 0x9aabbc, roughness: 0.1, metalness: 0.85,
+  clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.6
+});
+{ const gnd = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), gndMat);
   gnd.rotation.x = -Math.PI / 2; gnd.position.y = 0.02; gnd.receiveShadow = true; scene.add(gnd);
   texStreet.repeat.set(14, 14);
 }
@@ -496,6 +521,64 @@ const cityRim2 = new THREE.DirectionalLight(0x00f0ff, 0.4); cityRim2.position.se
   window.__HQ = { CX, CZ, embY, H: y + spireH };
 }
 
+function logPerf(tag) {
+  let meshes = 0, casters = 0, point = 0, actor = 0, room = 0, globalP = 0;
+  scene.traverse(o => {
+    if (o.isMesh) { meshes++; if (o.castShadow) casters++; }
+    if (!o.isPointLight) return;
+    point++;
+    if (o.layers.mask === (1 << LAYER_ACTOR)) actor++;
+    else if (o.layers.mask === (1 << LAYER_ROOM)) room++;
+    else globalP++;
+  });
+  console.info('[perf]', tag, JSON.stringify({ meshes, casters, point, actor, room, globalP }));
+}
+// Distant canyon props don't need moon-shadow draws. Merge identical static boxes
+// so the establishing shot is not thousands of draw calls. Unique facades stay separate.
+(function mergeCityClutter() {
+  try {
+  const skip = new Set(neonFlickers);
+  megaGroup.updateMatrixWorld(true);
+  megaGroup.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+  const buckets = new Map();
+  const meshes = [];
+  megaGroup.traverse(o => { if (o.isMesh && !o.isSkinnedMesh) meshes.push(o); });
+  for (const o of meshes) {
+    if (skip.has(o) || !o.geometry || !o.material || Array.isArray(o.material)) continue;
+    if (o.material.transparent) continue;
+    const key = o.material.uuid;
+    let b = buckets.get(key);
+    if (!b) { b = { mat: o.material, items: [] }; buckets.set(key, b); }
+    b.items.push(o);
+  }
+  let mergedSets = 0, removed = 0;
+  for (const b of buckets.values()) {
+    if (b.items.length < 2) continue;
+    const geos = [];
+    for (const o of b.items) {
+      const g = o.geometry.clone();
+      g.applyMatrix4(o.matrixWorld);
+      geos.push(g);
+    }
+    const merged = mergeGeometries(geos, false);
+    geos.forEach(g => g.dispose());
+    if (!merged) continue;
+    for (const o of b.items) {
+      o.geometry.dispose();
+      if (o.parent) o.parent.remove(o);
+      removed++;
+    }
+    const mesh = new THREE.Mesh(merged, b.mat);
+    mesh.castShadow = false; mesh.receiveShadow = false;
+    mesh.matrixAutoUpdate = false;
+    scene.add(mesh);
+    mergedSets++;
+  }
+  console.info('[perf] city merge', { mergedSets, removed });
+  } catch (err) { console.warn('[perf] city merge failed', err); }
+})();
+logPerf('sync');
+
 // ---- koi + dancer holograms ----
 const koiMat = new THREE.SpriteMaterial({ map: texKoi, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.9, fog: false, toneMapped: false });
 const koi = new THREE.Sprite(koiMat); koi.scale.set(14, 8, 1); koi.position.set(-24, 20, 2); scene.add(koi);
@@ -616,11 +699,11 @@ FLOORS.forEach((f, idx) => {
   const lamp = new THREE.MeshStandardMaterial({ color: 0x050810, emissive: cc, emissiveIntensity: h === 'vacant' ? 0.05 : 0.55, toneMapped: false });
   for (const lx of [-7, -2.5, 2.5, 7]) box(2.8, 0.05, 0.3, lamp, lx, FH - 0.12, 0, g);
   // interior warm fill so staff/desks read through glass
-  const pl = new THREE.PointLight(cc, (f.id === 'exec' ? 8 : 4.2) * (h === 'vacant' ? 0.05 : 1), 18, 1.7); pl.position.set(0, 2.0, 1); g.add(pl);
-  const fill = new THREE.PointLight(0xffe8c8, (f.id === 'exec' ? 5 : 2.4) * (h === 'vacant' ? 0.05 : 1), 14, 1.9); fill.position.set(0, 1.4, -2); g.add(fill);
+  const pl = new THREE.PointLight(cc, (f.id === 'exec' ? 8 : 4.2) * (h === 'vacant' ? 0.05 : 1), 18, 1.7); pl.position.set(0, 2.0, 1); pl.layers.set(LAYER_ROOM); g.add(pl);
+  const fill = new THREE.PointLight(0xffe8c8, (f.id === 'exec' ? 5 : 2.4) * (h === 'vacant' ? 0.05 : 1), 14, 1.9); fill.position.set(0, 1.4, -2); fill.layers.set(LAYER_ROOM); g.add(fill);
   // ceiling cove light strip readable through glass
   box(FW - 2, 0.06, 0.2, E(cc, h === 'vacant' ? 0.2 : 1.6), 0, FH - 0.25, -FD / 2 + 1.2, g);
-  if (f.id === 'exec') { const gl = new THREE.PointLight(0xfcee0a, 14, 16, 1.4); gl.position.set(-4, 2.2, -1); g.add(gl); }
+  if (f.id === 'exec') { const gl = new THREE.PointLight(0xfcee0a, 14, 16, 1.4); gl.position.set(-4, 2.2, -1); gl.layers.set(LAYER_ROOM); g.add(gl); }
 
   const c = colors[idx % colors.length];
   if (f.id === 'hall') {
@@ -656,6 +739,7 @@ FLOORS.forEach((f, idx) => {
     workstation(g, 4.5, -1.5, c, null, f);
   }
 });
+tower.traverse(o => { if (o.isMesh) o.layers.enable(LAYER_ROOM); });
 
 // cyan tower edges
 for (const [x, z] of [[-FW / 2 - 0.25, FD / 2 + 0.25], [FW / 2 + 0.25, FD / 2 + 0.25], [-FW / 2 - 0.25, -FD / 2 - 0.25], [FW / 2 + 0.25, -FD / 2 - 0.25]])
@@ -1638,7 +1722,12 @@ function makeHumanoid(color, accent, opts = {}) {
 }
 
 function placePed(g, x, z, rotY, mode, speed, x0, x1) {
-  g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g);
+  g.position.set(x, 0, z); g.rotation.y = rotY;
+  g.traverse(o => {
+    if (o.isLight) o.layers.set(LAYER_ACTOR);
+    else if (o.isMesh) o.layers.enable(LAYER_ACTOR);
+  });
+  scene.add(g);
   pedestrians.push({ g, z, x0, x1, speed: mode === 'walk' ? speed : 0, ph: Math.random() * 10, mode });
 }
 
@@ -1844,7 +1933,7 @@ function cyberpunkize(root, { neon = 0x00f0ff, kind = 'building' } = {}) {
       return m;
     });
     obj.material = next.length === 1 ? next[0] : next;
-    obj.castShadow = true; obj.receiveShadow = true;
+    obj.castShadow = false; obj.receiveShadow = kind !== 'building';
   });
 }
 function groundOnY(obj) {
@@ -1929,7 +2018,8 @@ function loadGltf(base, name) {
       if (ln.speed === 0) c.rotation.y = Math.PI / 2;
       groundOnY(c);
       const rim = new THREE.PointLight(neon, 8, 10, 2);
-      rim.position.set(0, 1.0, 1.5); c.add(rim);
+      rim.layers.set(LAYER_ACTOR); rim.position.set(0, 1.0, 1.5); c.add(rim);
+      c.traverse(o => { if (o.isMesh) o.layers.enable(LAYER_ACTOR); });
       const ug = neon === 0x00f0ff ? GLOW.cyan : GLOW.mag;
       glow(ug, 0, 0.1, 0, 3.2, 1.0, 0.4, c);
       glow(ug, 0, 0.04, 0, 3.5, 1.8, 0.22, c);
@@ -2100,6 +2190,7 @@ function loadGltf(base, name) {
     }
 
         console.info('[models] Kenney CC0 loaded', kenneyBuildings.length, 'buildings', kenneyCars.length, 'cars');
+        logPerf('models');
     window.__MODELS_OK = true;
   } catch (err) {
     console.warn('[models] Kenney/people load failed', err);
@@ -2129,6 +2220,64 @@ composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.26, 0.36, 0.82);
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
+// Quality: local lights are isolated on every tier (that is the real fix).
+// Auto steps down only after measured frame time stays above budget.
+const Q_TIERS = [
+  { label: '高畫質', dpr: 1.75, shadow: true, map: 2048, soft: true, bloom: 1, coat: 1 },
+  { label: '均衡', dpr: 1.25, shadow: true, map: 1024, soft: false, bloom: 0.55, coat: 0.45 },
+  { label: '流暢', dpr: 1, shadow: true, map: 512, soft: false, bloom: 0.4, coat: 0 },
+  { label: '流暢', dpr: 0.8, shadow: false, map: 256, soft: false, bloom: 0.35, coat: 0 },
+];
+const qArg = new URLSearchParams(location.search).get('quality');
+let qMode = (qArg === 'high' || qArg === 'smooth' || qArg === 'auto') ? qArg : 'auto';
+let qTier = qMode === 'smooth' ? 2 : 0;
+let qGaps = [];
+const qBtn = document.getElementById('qmode');
+function qText() {
+  const label = Q_TIERS[qTier].label;
+  if (qMode === 'auto') return qTier === 0 ? '畫質 · 自動' : `畫質 · 自動 · ${label}`;
+  return qMode === 'high' ? '畫質 · 高畫質' : '畫質 · 流暢';
+}
+function applyQuality() {
+  const t = Q_TIERS[qTier];
+  const cap = Math.min(devicePixelRatio || 1, t.dpr);
+  renderer.setPixelRatio(cap);
+  renderer.shadowMap.enabled = t.shadow;
+  renderer.shadowMap.type = t.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  renderer.shadowMap.needsUpdate = true;
+  moon.shadow.mapSize.set(t.map, t.map);
+  if (moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; }
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+  composer.setPixelRatio(cap);
+  bloomPass.setSize(Math.max(2, innerWidth * cap * t.bloom), Math.max(2, innerHeight * cap * t.bloom));
+  gndMat.clearcoat = t.coat; gndMat.needsUpdate = true;
+  glass.clearcoat = t.coat; glass.needsUpdate = true;
+  if (qBtn) qBtn.textContent = qText();
+}
+function observeQuality(elapsed, frameMs) {
+  if (qMode !== 'auto' || elapsed < INTRO + 0.5) return;
+  if (frameMs > 4000) return; // ignore a one-off shader compile, keep real slow frames
+  qGaps.push(frameMs);
+  if (qGaps.length < 10) return;
+  const s = qGaps.slice().sort((a, b) => a - b);
+  const p50 = s[4];
+  qGaps = [];
+  if (p50 > 34 && qTier < Q_TIERS.length - 1) { qTier++; applyQuality(); }
+}
+if (qBtn) qBtn.addEventListener('click', () => {
+  qMode = qMode === 'auto' ? 'high' : qMode === 'high' ? 'smooth' : 'auto';
+  qTier = qMode === 'high' ? 0 : qMode === 'smooth' ? 2 : 0;
+  qGaps = [];
+  applyQuality();
+});
+window.__quality = {
+  get mode() { return qMode; },
+  get tier() { return qTier; },
+  get label() { return qText(); },
+  get tierCount() { return Q_TIERS.length; },
+};
+applyQuality();
 
 // ---- HUD / labels ----
 const labelWrap = document.getElementById('labels');
@@ -2178,14 +2327,17 @@ renderer.domElement.addEventListener('pointerup', e => {
 });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+  applyQuality();
 });
 
 // ---- animation ----
 const v = new THREE.Vector3(); const clock = new THREE.Clock();
 const INTRO = 4.2; const ease = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 let last = 0;
+let qPrevMs = performance.now();
 function tick() {
+  const nowMs = performance.now();
+  const frameMs = nowMs - qPrevMs; qPrevMs = nowMs;
   const t = clock.getElapsedTime(), dt = Math.min(t - last, 0.05); last = t;
   if (window.__LOCK_CAM) {
     camera.position.copy(window.__LOCK_CAM.pos);
@@ -2297,7 +2449,7 @@ function tick() {
 
   // project labels — keep floor tags clear of top HUD (y > 90)
   labels.forEach(l => {
-    v.copy(l.obj.getWorldPosition(new THREE.Vector3())); v.project(camera);
+    l.obj.getWorldPosition(v); v.project(camera);
     const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight;
     l.el.style.transform = `translate(${x}px,${y}px) translate(-50%,-120%)`;
     l.el.style.display = v.z > 1 || x < 0 || x > innerWidth || y < 56 || y > innerHeight - 30 ? 'none' : '';
@@ -2314,6 +2466,7 @@ function tick() {
     el.style.display = v.z > 1 ? 'none' : '';
   });
 
+  observeQuality(t, frameMs);
   composer.render();
   requestAnimationFrame(tick);
 }
