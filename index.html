@@ -703,52 +703,189 @@ function whoId(name) {
   const map = { Andrew: 'andrew', Mandy: 'mandy', Penny: 'penny', Hailey: 'hailey', Holly: 'holly', Hazel: 'hazel', Routinizer: 'routinizer', Crypto: 'crypto', '風控官': 'risk', '大市監察': 'market' };
   return hit ? map[hit] : '';
 }
-function officeGeos() {
-  if (officeGeos.cache) return officeGeos.cache;
-  const V = THREE.Vector2;
-  const g = {
-    // Original meshes drawn for this scene. No downloaded character, no likeness.
-    torso: new THREE.LatheGeometry([
-      new V(0.102, 0.00), new V(0.148, 0.06), new V(0.116, 0.17),
-      new V(0.142, 0.30), new V(0.166, 0.42), new V(0.148, 0.52),
-      new V(0.072, 0.58), new V(0.050, 0.68),
-    ], 18),
-    head: new THREE.SphereGeometry(0.104, 18, 14),
-    hair: new THREE.SphereGeometry(0.112, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.50),
-    eye: new THREE.SphereGeometry(0.017, 8, 6),
-    pupil: new THREE.SphereGeometry(0.008, 6, 4),
-    nose: new THREE.SphereGeometry(0.015, 6, 5),
-    ear: new THREE.SphereGeometry(0.022, 7, 5),
-    shoulder: new THREE.SphereGeometry(0.052, 8, 6),
-    upper: new THREE.CylinderGeometry(0.040, 0.034, 0.18, 10),
-    fore: new THREE.CylinderGeometry(0.034, 0.028, 0.16, 10),
-    hand: new THREE.SphereGeometry(0.028, 8, 6),
-    lapel: new THREE.BoxGeometry(0.03, 0.15, 0.016),
-    thigh: new THREE.CylinderGeometry(0.066, 0.050, 0.40, 10),
-    shin: new THREE.CylinderGeometry(0.046, 0.036, 0.38, 10),
-    shoe: new THREE.BoxGeometry(0.076, 0.046, 0.155),
-    collar: new THREE.TorusGeometry(0.072, 0.011, 6, 16),
-    ring: new THREE.TorusGeometry(0.058, 0.008, 6, 14),
-    shirt: new THREE.BoxGeometry(0.09, 0.20, 0.016),
-    tie: new THREE.BoxGeometry(0.032, 0.15, 0.014),
-    mouth: new THREE.BoxGeometry(0.036, 0.007, 0.01),
-    bar: new THREE.BoxGeometry(0.064, 0.01, 0.01),
-    pin: new THREE.SphereGeometry(0.012, 6, 5),
-  };
-  officeGeos.cache = g;
+function placed(geo, x, y, z, rx, ry, rz, sx, sy, sz) {
+  const m = new THREE.Matrix4();
+  m.compose(
+    new THREE.Vector3(x || 0, y || 0, z || 0),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(rx || 0, ry || 0, rz || 0)),
+    new THREE.Vector3(sx == null ? 1 : sx, sy == null ? 1 : sy, sz == null ? 1 : sz)
+  );
+  const g = geo.index ? geo.toNonIndexed() : geo.clone();
+  g.applyMatrix4(m);
   return g;
 }
+function mergeGeos(parts) {
+  let n = 0;
+  for (const g of parts) n += g.attributes.position.count;
+  const pos = new Float32Array(n * 3);
+  const nrm = new Float32Array(n * 3);
+  let off = 0;
+  for (const g of parts) {
+    const p = g.attributes.position.array;
+    const nn = g.attributes.normal ? g.attributes.normal.array : null;
+    pos.set(p, off);
+    if (nn && nn.length === p.length) nrm.set(nn, off);
+    off += p.length;
+    g.dispose();
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  return out;
+}
+function boxG(w, h, d) { return new THREE.BoxGeometry(w, h, d); }
+function sphG(r, w, h) { return new THREE.SphereGeometry(r, w || 8, h || 6); }
+// Original geometry for this page. Rigged downloads were skipped: their skeletons
+// do not match these elbow and knee pivots, and they would add a character file.
+function limbGeo(kind) {
+  const c = limbGeo.c || (limbGeo.c = {});
+  if (c[kind]) return c[kind];
+  const V = THREE.Vector2;
+  const profiles = {
+    upper: [new V(0.052, 0), new V(0.05, -0.05), new V(0.04, -0.11), new V(0.034, -0.18)],
+    fore: [new V(0.036, 0), new V(0.038, -0.04), new V(0.03, -0.1), new V(0.026, -0.15), new V(0.022, -0.17)],
+    thigh: [new V(0.074, 0), new V(0.07, -0.1), new V(0.055, -0.28), new V(0.044, -0.4)],
+    shin: [new V(0.044, 0), new V(0.054, -0.12), new V(0.038, -0.28), new V(0.03, -0.38)],
+  };
+  c[kind] = new THREE.LatheGeometry(profiles[kind], 12);
+  return c[kind];
+}
+function handGeo(side) {
+  const c = handGeo.c || (handGeo.c = {});
+  if (c[side]) return c[side];
+  const s = side < 0 ? -1 : 1;
+  const parts = [placed(boxG(0.05, 0.03, 0.034), 0, -0.014, 0.008)];
+  const fingers = [[-0.016, 0.028], [-0.005, 0.034], [0.006, 0.031], [0.016, 0.024]];
+  for (const [x, len] of fingers) {
+    parts.push(placed(boxG(0.011, len, 0.012), s * x, -0.028 - len / 2, 0.012));
+    parts.push(placed(sphG(0.006, 5, 4), s * x, -0.028 - len, 0.012));
+  }
+  parts.push(placed(boxG(0.012, 0.024, 0.012), s * -0.024, -0.01, 0.016, 0.4, 0, s * -0.6));
+  parts.push(placed(sphG(0.007, 5, 4), s * -0.034, -0.024, 0.022));
+  c[side] = mergeGeos(parts);
+  return c[side];
+}
+function shoeGeo() {
+  if (shoeGeo.g) return shoeGeo.g;
+  shoeGeo.g = mergeGeos([
+    placed(boxG(0.072, 0.014, 0.168), 0, 0.01, 0.02),
+    placed(boxG(0.06, 0.03, 0.09), 0, 0.028, -0.005),
+    placed(boxG(0.056, 0.022, 0.055), 0, 0.022, 0.07),
+    placed(boxG(0.052, 0.034, 0.04), 0, 0.03, -0.05),
+    placed(sphG(0.02, 6, 5), 0, 0.02, 0.09, 0, 0, 0, 1.3, 0.6, 1.1),
+  ]);
+  return shoeGeo.g;
+}
+function skinGeo() {
+  if (skinGeo.g) return skinGeo.g;
+  skinGeo.g = mergeGeos([
+    placed(new THREE.SphereGeometry(0.104, 18, 14), 0, 0, 0),
+    placed(sphG(0.016, 7, 5), 0, -0.004, 0.096, 0, 0, 0, 0.75, 0.6, 1.25),
+    placed(sphG(0.02, 7, 5), 0.098, -0.006, 0, 0, 0, 0, 0.45, 1.05, 0.62),
+    placed(sphG(0.02, 7, 5), -0.098, -0.006, 0, 0, 0, 0, 0.45, 1.05, 0.62),
+    placed(boxG(0.032, 0.006, 0.008), 0, -0.042, 0.09),
+    placed(boxG(0.026, 0.006, 0.008), -0.032, 0.042, 0.084, 0, 0, 0.2),
+    placed(boxG(0.026, 0.006, 0.008), 0.032, 0.042, 0.084, 0, 0, -0.2),
+  ]);
+  return skinGeo.g;
+}
+function eyeGeo() {
+  if (eyeGeo.g) return eyeGeo.g;
+  const whites = mergeGeos([
+    placed(sphG(0.016, 8, 6), -0.034, 0.016, 0.09, 0, 0, 0, 1.05, 0.72, 0.55),
+    placed(sphG(0.016, 8, 6), 0.034, 0.016, 0.09, 0, 0, 0, 1.05, 0.72, 0.55),
+  ]);
+  const pupils = mergeGeos([
+    placed(sphG(0.007, 6, 4), -0.034, 0.014, 0.1),
+    placed(sphG(0.007, 6, 4), 0.034, 0.014, 0.1),
+  ]);
+  const wc = whites.attributes.position.count;
+  const pc = pupils.attributes.position.count;
+  const pos = new Float32Array((wc + pc) * 3);
+  const nrm = new Float32Array((wc + pc) * 3);
+  pos.set(whites.attributes.position.array, 0);
+  pos.set(pupils.attributes.position.array, wc * 3);
+  nrm.set(whites.attributes.normal.array, 0);
+  nrm.set(pupils.attributes.normal.array, wc * 3);
+  whites.dispose(); pupils.dispose();
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  g.addGroup(0, wc, 0);
+  g.addGroup(wc, pc, 1);
+  eyeGeo.g = g;
+  return g;
+}
+function lapelGeo() {
+  if (lapelGeo.g) return lapelGeo.g;
+  const lip = boxG(0.032, 0.17, 0.01);
+  lapelGeo.g = mergeGeos([
+    placed(lip, 0.055, 0.42, 0.198, -0.28, 0, -0.55),
+    placed(lip, -0.055, 0.42, 0.198, -0.28, 0, 0.55),
+  ]);
+  return lapelGeo.g;
+}
+function jacketGeo(kind) {
+  const c = jacketGeo.c || (jacketGeo.c = {});
+  if (c[kind]) return c[kind];
+  const V = THREE.Vector2;
+  const profiles = {
+    coat: [new V(0.118, -0.05), new V(0.156, 0.02), new V(0.124, 0.16), new V(0.15, 0.32), new V(0.178, 0.44), new V(0.15, 0.54), new V(0.07, 0.6), new V(0.046, 0.7)],
+    blazer: [new V(0.1, 0.05), new V(0.146, 0.09), new V(0.11, 0.18), new V(0.146, 0.32), new V(0.164, 0.44), new V(0.14, 0.54), new V(0.066, 0.6), new V(0.046, 0.68)],
+    utility: [new V(0.132, 0.02), new V(0.158, 0.1), new V(0.15, 0.22), new V(0.162, 0.36), new V(0.172, 0.46), new V(0.14, 0.54), new V(0.07, 0.6), new V(0.048, 0.68)],
+  };
+  const parts = [placed(new THREE.LatheGeometry(profiles[kind], 16), 0, 0, 0)];
+  const lapel = boxG(0.026, kind === 'blazer' ? 0.15 : 0.18, 0.012);
+  parts.push(placed(lapel, 0.05, 0.4, 0.185, -0.25, 0, -0.5));
+  parts.push(placed(lapel, -0.05, 0.4, 0.185, -0.25, 0, 0.5));
+  parts.push(placed(boxG(0.008, 0.3, 0.01), 0, 0.28, 0.162));
+  parts.push(placed(boxG(0.11, 0.008, 0.012), 0.1, 0.5, 0.06, 0, 0, 0.35));
+  parts.push(placed(boxG(0.11, 0.008, 0.012), -0.1, 0.5, 0.06, 0, 0, -0.35));
+  if (kind === 'utility') parts.push(placed(boxG(0.07, 0.05, 0.014), 0.07, 0.36, 0.175));
+  if (kind === 'coat') parts.push(placed(boxG(0.24, 0.012, 0.012), 0, -0.02, 0.1));
+  c[kind] = mergeGeos(parts);
+  return c[kind];
+}
+function hairGeo(kind) {
+  const c = hairGeo.c || (hairGeo.c = {});
+  if (c[kind]) return c[kind];
+  const cap = (r, ts, tl) => new THREE.SphereGeometry(r, 12, 8, 0, Math.PI * 2, ts, tl);
+  let parts;
+  if (kind === 'part') parts = [placed(cap(0.112, 0, Math.PI * 0.46), -0.012, 0.045, -0.012, 0, 0, 0, 1.04, 0.58, 0.98)];
+  else if (kind === 'bob') parts = [placed(cap(0.108, 0.2, Math.PI * 0.7), 0, -0.015, -0.055, 0, 0, 0, 1.04, 1.15, 1.12)];
+  else if (kind === 'pony') parts = [
+    placed(cap(0.108, 0, Math.PI * 0.48), 0, 0.03, -0.01),
+    placed(new THREE.CylinderGeometry(0.018, 0.026, 0.18, 8), 0, -0.02, -0.1, 0.6, 0, 0),
+  ];
+  else if (kind === 'pixie') parts = [placed(cap(0.1, 0, Math.PI * 0.4), 0, 0.05, 0.005, 0, 0, 0, 1.04, 0.48, 0.92)];
+  else if (kind === 'sweep') parts = [placed(cap(0.118, 0.05, Math.PI * 0.72), 0.03, -0.01, -0.04, 0, 0.4, 0.2, 1.08, 1.1, 1.16)];
+  else if (kind === 'bun') parts = [
+    placed(cap(0.1, 0, Math.PI * 0.42), 0, 0.04, -0.01, 0, 0, 0, 1, 0.55, 1),
+    placed(sphG(0.038, 8, 6), 0, 0.105, -0.03),
+  ];
+  else if (kind === 'undercut') parts = [
+    placed(cap(0.1, 0, Math.PI * 0.4), 0, 0.05, 0, 0, 0, 0, 1.1, 0.42, 1),
+    placed(boxG(0.09, 0.01, 0.03), 0, 0.095, 0.03),
+  ];
+  else if (kind === 'spike') {
+    parts = [placed(cap(0.09, 0, Math.PI * 0.4), 0, 0.035, 0)];
+    for (let i = 0; i < 4; i++) parts.push(placed(new THREE.ConeGeometry(0.012, 0.055, 5), -0.03 + i * 0.02, 0.09, 0.01, 0.25, 0, (i - 1.5) * 0.25));
+  } else if (kind === 'slick') parts = [placed(cap(0.114, 0.1, Math.PI * 0.58), 0, 0.015, -0.035, -0.45, 0, 0, 1.02, 0.72, 1.22)];
+  else parts = [placed(cap(0.112, 0, Math.PI * 0.55), 0.02, 0.02, -0.025, 0, 0.25, 0, 1.05, 0.88, 1.12)];
+  c[kind] = mergeGeos(parts);
+  return c[kind];
+}
 const LOOKS = {
-  andrew:      { suit: 0x5c4636, trim: 0xf0d078, hair: 0x1a120c, hairY: 0.055, hairZ: -0.012, hairScale: [1.0, 0.62, 0.98], skin: 0xd0a07a, cyber: 'pin', tie: 0x6a2838 },
-  mandy:       { suit: 0x7a2458, trim: 0x7fe7ff, hair: 0x241018, hairY: 0.02, hairZ: -0.028, hairScale: [1.06, 0.92, 1.18], skin: 0xe0b090, cyber: 'ear' },
-  hailey:      { suit: 0x1c4558, trim: 0x3ec8e0, hair: 0x3a2818, hairY: 0.03, hairZ: -0.02, hairScale: [1.04, 0.88, 1.12], skin: 0xc98868, cyber: 'ring' },
-  holly:       { suit: 0x2a3a52, trim: 0x9eb6d8, hair: 0x16161c, hairY: 0.02, hairZ: -0.026, hairScale: [1.05, 0.9, 1.16], skin: 0xd8b098, cyber: 'ring' },
-  hazel:       { suit: 0x4a3044, trim: 0xf0a0c0, hair: 0x5a3824, hairY: 0.028, hairZ: -0.022, hairScale: [1.05, 0.9, 1.14], skin: 0xe0b898, cyber: 'ear' },
-  penny:       { suit: 0x1a3860, trim: 0x4bb3f2, hair: 0x141820, hairY: 0.02, hairZ: -0.026, hairScale: [1.04, 0.9, 1.14], skin: 0xd0a080, cyber: 'visor' },
-  routinizer:  { suit: 0x1a3830, trim: 0x39ff14, hair: 0x101410, hairY: 0.05, hairZ: -0.01, hairScale: [1.0, 0.66, 1.0], skin: 0xc09070, cyber: 'ring', tie: 0x102018 },
-  crypto:      { suit: 0x163028, trim: 0x39ff14, hair: 0x101610, hairY: 0.05, hairZ: -0.01, hairScale: [1.0, 0.64, 1.0], skin: 0xc8a080, cyber: 'cheek' },
-  risk:        { suit: 0x3a2818, trim: 0xffb347, hair: 0x1c1612, hairY: 0.05, hairZ: -0.012, hairScale: [1.02, 0.68, 1.0], skin: 0xc49878, cyber: 'monocle' },
-  market:      { suit: 0x163040, trim: 0x7fe3ff, hair: 0x1a1e24, hairY: 0.03, hairZ: -0.02, hairScale: [1.04, 0.86, 1.12], skin: 0xd0a888, cyber: 'temple' },
+  andrew:     { suit: 0x6a5040, shirt: 0xf3efe6, trim: 0xf0d078, hair: 0x1a120c, skin: 0xd0a07a, hairKind: 'part', jacket: 'coat', shoulder: 1.1, head: [1.0, 1.1, 0.96], cyber: 'pin', tie: 0x6e2434, trousers: 0x2a241c },
+  mandy:      { suit: 0x8a2460, shirt: 0x2a1022, trim: 0x9af0ff, hair: 0x2a121c, skin: 0xe0b090, hairKind: 'bob', jacket: 'blazer', shoulder: 0.9, head: [0.92, 1.02, 0.97], cyber: 'ear', trousers: 0x140c12 },
+  hailey:     { suit: 0x1a4a5c, shirt: 0xd5e4ea, trim: 0x3ec8e0, hair: 0x4a3020, skin: 0xc98868, hairKind: 'pony', jacket: 'blazer', shoulder: 0.98, head: [0.96, 1.04, 0.95], cyber: 'ring', trousers: 0x12161c },
+  holly:      { suit: 0x24344e, shirt: 0xd8dde6, trim: 0xb7c6dc, hair: 0x121216, skin: 0xd8b098, hairKind: 'pixie', jacket: 'blazer', shoulder: 0.92, head: [0.9, 1.0, 0.94], cyber: 'ring', trousers: 0x10141a },
+  hazel:      { suit: 0x5a3850, shirt: 0xf0dce4, trim: 0xf0a0c0, hair: 0x6a4030, skin: 0xe0b898, hairKind: 'sweep', jacket: 'coat', shoulder: 0.96, head: [0.98, 1.05, 0.98], cyber: 'ear', trousers: 0x1a1218 },
+  penny:      { suit: 0x16365e, shirt: 0xd5e2f2, trim: 0x4bb3f2, hair: 0x10141c, skin: 0xd0a080, hairKind: 'bun', jacket: 'coat', shoulder: 1.0, head: [0.97, 1.06, 0.95], cyber: 'visor', trousers: 0x101820 },
+  routinizer: { suit: 0x1c4034, shirt: 0xd7e6dc, trim: 0x39ff14, hair: 0x101410, skin: 0xc09070, hairKind: 'undercut', jacket: 'utility', shoulder: 1.08, head: [1.02, 1.04, 0.98], cyber: 'ring', tie: 0x102018, trousers: 0x101614 },
+  crypto:     { suit: 0x143028, shirt: 0xd4e6d4, trim: 0x39ff14, hair: 0x14301c, skin: 0xc8a080, hairKind: 'spike', jacket: 'utility', shoulder: 0.98, head: [0.95, 1.03, 0.96], cyber: 'cheek', trousers: 0x101814 },
+  risk:       { suit: 0x4a321c, shirt: 0xf0e6d4, trim: 0xffb347, hair: 0x1c1610, skin: 0xc49878, hairKind: 'slick', jacket: 'blazer', shoulder: 1.02, head: [1.0, 1.08, 0.94], cyber: 'monocle', trousers: 0x16120e },
+  market:     { suit: 0x163848, shirt: 0xd5e6ee, trim: 0x7fe3ff, hair: 0x1a1e28, skin: 0xd0a888, hairKind: 'side', jacket: 'coat', shoulder: 1.0, head: [0.98, 1.05, 0.97], cyber: 'temple', trousers: 0x10161c },
 };
 function quietMesh(geo, mat) {
   const m = new THREE.Mesh(geo, mat);
@@ -757,157 +894,108 @@ function quietMesh(geo, mat) {
 }
 function makeOfficePerson(id) {
   const look = LOOKS[id] || LOOKS.hailey;
-  const g = officeGeos();
   const rig = new THREE.Group();
-  const suit = M(look.suit, { roughness: 0.5, metalness: 0.12 });
-  const cloth = M(0x141820, { roughness: 0.62, metalness: 0.06 });
-  const skin = M(look.skin, { roughness: 0.58, metalness: 0 });
-  const hairM = M(look.hair, { roughness: 0.45, metalness: 0.08 });
-  const shoeM = M(0x12141c, { roughness: 0.42, metalness: 0.28 });
-  const shirtM = M(0xe7e1d6, { roughness: 0.55, metalness: 0.02 });
-  const eyeM = M(0xf4f7fb, { roughness: 0.28, metalness: 0 });
-  const pupilM = M(0x1a120e, { roughness: 0.35 });
-  const mouthM = M(0x8a5048, { roughness: 0.5 });
-  const trimI = id === 'andrew' ? 1.15 : 0.55;
-  const trimM = E(look.trim, trimI);
+  const suit = M(look.suit, { roughness: 0.48, metalness: 0.14 });
+  const cloth = M(look.trousers, { roughness: 0.6, metalness: 0.06 });
+  const skin = M(look.skin, { roughness: 0.52, metalness: 0 });
+  const hairM = M(look.hair, { roughness: 0.4, metalness: 0.12 });
+  const shoeM = M(0x1a140e, { roughness: 0.38, metalness: 0.35 });
+  const shirtM = M(look.shirt, { roughness: 0.5, metalness: 0.04 });
+  const eyeM = M(0xf4f7fb, { roughness: 0.22, metalness: 0 });
+  const pupilM = M(0x140e0c, { roughness: 0.3 });
+  const trimM = E(look.trim, id === 'andrew' ? 1.05 : 0.5);
+  const beltM = M(0x10141c, { roughness: 0.35, metalness: 0.55 });
 
-  const torso = quietMesh(g.torso, suit);
+  const torso = quietMesh(jacketGeo(look.jacket), suit);
   torso.position.y = 0.88;
+  torso.scale.x = look.shoulder;
   rig.add(torso);
-  const shirt = quietMesh(g.shirt, shirtM);
-  shirt.scale.set(0.42, 0.85, 1);
-  shirt.position.set(0, 0.36, 0.155);
+  const lapelTint = new THREE.Color(look.suit);
+  lapelTint.offsetHSL(0, -0.04, 0.14);
+  const lapels = quietMesh(lapelGeo(), M(lapelTint.getHex(), { roughness: 0.4, metalness: 0.22 }));
+  torso.add(lapels);
+  const shirt = quietMesh(mergeGeos([
+    placed(boxG(0.04, 0.18, 0.012), 0, 0.36, 0.16),
+    placed(new THREE.TorusGeometry(0.07, 0.01, 6, 14), 0, 0.56, 0, Math.PI / 2, 0, 0),
+  ]), shirtM);
   torso.add(shirt);
-  [-1, 1].forEach(side => {
-    const lapel = quietMesh(g.lapel, suit);
-    lapel.position.set(side * 0.045, 0.40, 0.162);
-    lapel.rotation.z = side * -0.42;
-    lapel.rotation.x = -0.18;
-    torso.add(lapel);
-  });
-  const belt = quietMesh(g.collar, M(0x10141c, { roughness: 0.4, metalness: 0.45 }));
-  belt.rotation.x = Math.PI / 2;
-  belt.scale.set(1.62, 1.62, 1.15);
-  belt.position.set(0, 0.14, 0);
-  torso.add(belt);
   if (look.tie) {
-    const tie = quietMesh(g.tie, M(look.tie, { roughness: 0.4, metalness: 0.05 }));
-    tie.scale.set(0.7, 1.05, 1);
-    tie.position.set(0, 0.30, 0.175);
+    const tie = quietMesh(boxG(0.022, 0.16, 0.01), M(look.tie, { roughness: 0.4 }));
+    tie.position.set(0, 0.3, 0.175);
     torso.add(tie);
   }
-  const collar = quietMesh(g.collar, shirtM);
-  collar.rotation.x = Math.PI / 2;
-  collar.position.y = 0.56;
-  torso.add(collar);
-  const ring = quietMesh(g.ring, trimM);
+  const belt = quietMesh(new THREE.TorusGeometry(0.07, 0.008, 6, 14), beltM);
+  belt.rotation.x = Math.PI / 2;
+  belt.scale.set(look.shoulder * 1.55, 1.55, 1.15);
+  belt.position.y = 0.12;
+  torso.add(belt);
+  const ring = quietMesh(new THREE.TorusGeometry(0.09, 0.011, 6, 16), trimM);
   ring.rotation.x = Math.PI / 2;
-  ring.position.y = 0.62;
+  ring.position.y = 0.57;
   torso.add(ring);
-  [-1, 1].forEach(side => {
-    const s = quietMesh(g.shoulder, suit);
-    s.position.set(side * 0.15, 0.48, 0);
-    torso.add(s);
-  });
   if (look.cyber === 'pin') {
-    const pin = quietMesh(g.pin, trimM);
-    pin.position.set(0.09, 0.44, 0.16);
+    const pin = quietMesh(sphG(0.012, 6, 5), trimM);
+    pin.position.set(0.1 * look.shoulder, 0.44, 0.17);
     torso.add(pin);
   }
 
-  const head = quietMesh(g.head, skin);
+  const head = quietMesh(skinGeo(), skin);
   head.position.y = 1.66;
-  head.scale.set(0.96, 1.07, 0.95);
+  head.scale.set(look.head[0], look.head[1], look.head[2]);
   rig.add(head);
-  const hair = quietMesh(g.hair, hairM);
-  hair.position.set(0, look.hairY, look.hairZ);
-  hair.scale.set(look.hairScale[0], look.hairScale[1], look.hairScale[2]);
+  const hair = quietMesh(hairGeo(look.hairKind), hairM);
   head.add(hair);
-  [-1, 1].forEach(side => {
-    const eye = quietMesh(g.eye, eyeM);
-    eye.scale.set(1.05, 0.82, 0.65);
-    eye.position.set(side * 0.034, 0.018, 0.088);
-    const pupil = quietMesh(g.pupil, pupilM);
-    pupil.position.set(0, 0, 0.012);
-    eye.add(pupil);
-    head.add(eye);
-    const ear = quietMesh(g.ear, skin);
-    ear.scale.set(0.55, 1, 0.7);
-    ear.position.set(side * 0.1, -0.005, 0);
-    head.add(ear);
-  });
-  const nose = quietMesh(g.nose, skin);
-  nose.scale.set(0.85, 0.7, 1.15);
-  nose.position.set(0, -0.006, 0.1);
-  head.add(nose);
-  const mouth = quietMesh(g.mouth, mouthM);
-  mouth.position.set(0, -0.04, 0.092);
-  head.add(mouth);
+  const eyes = quietMesh(eyeGeo(), [eyeM, pupilM]);
+  eyes.scale.set(look.head[0] > 1 ? 0.96 : 1.04, 1, 1);
+  head.add(eyes);
   if (look.cyber === 'ear') {
-    const cuff = quietMesh(g.bar, trimM);
-    cuff.scale.set(0.28, 1.1, 1);
-    cuff.position.set(0.112, 0.02, 0.02);
+    const cuff = quietMesh(boxG(0.016, 0.012, 0.02), trimM);
+    cuff.position.set(0.11, 0.01, 0.02);
     head.add(cuff);
   } else if (look.cyber === 'visor') {
-    const bar = quietMesh(g.bar, trimM);
-    bar.scale.set(1.35, 0.7, 1);
-    bar.position.set(0, 0.046, 0.09);
+    const bar = quietMesh(boxG(0.086, 0.008, 0.01), trimM);
+    bar.position.set(0, 0.048, 0.09);
     head.add(bar);
   } else if (look.cyber === 'cheek') {
-    const bar = quietMesh(g.bar, trimM);
-    bar.scale.set(0.45, 0.7, 1);
-    bar.position.set(0.045, -0.012, 0.095);
+    const bar = quietMesh(boxG(0.028, 0.006, 0.008), trimM);
+    bar.position.set(0.045, -0.01, 0.095);
     head.add(bar);
   } else if (look.cyber === 'monocle') {
-    const mono = quietMesh(g.ring, trimM);
-    mono.scale.set(0.32, 0.32, 0.32);
-    mono.position.set(0.034, 0.02, 0.09);
+    const mono = quietMesh(new THREE.TorusGeometry(0.02, 0.004, 6, 12), trimM);
+    mono.position.set(0.034, 0.018, 0.095);
     head.add(mono);
   } else if (look.cyber === 'temple') {
-    const bar = quietMesh(g.bar, trimM);
-    bar.scale.set(0.4, 0.8, 1);
-    bar.position.set(0.075, 0.04, 0.055);
+    const bar = quietMesh(boxG(0.02, 0.008, 0.012), trimM);
+    bar.position.set(0.08, 0.04, 0.05);
     head.add(bar);
   }
 
   function addArm(side) {
     const pivot = new THREE.Group();
-    pivot.position.set(side * 0.2, 1.40, 0);
+    pivot.position.set(side * (0.19 + (look.shoulder - 1) * 0.05), 1.4, 0);
     rig.add(pivot);
-    const upper = quietMesh(g.upper, suit);
-    upper.position.y = -0.09;
+    const upper = quietMesh(limbGeo('upper'), suit);
     pivot.add(upper);
     const fore = new THREE.Group();
     fore.position.y = -0.18;
     pivot.add(fore);
-    const fm = quietMesh(g.fore, suit);
-    fm.position.y = -0.08;
-    fore.add(fm);
-    const hand = quietMesh(g.hand, skin);
-    hand.position.set(side * 0.006, -0.178, 0.02);
-    hand.scale.set(1.15, 0.55, 1.45);
+    fore.add(quietMesh(limbGeo('fore'), suit));
+    const hand = quietMesh(handGeo(side), skin);
+    hand.position.y = -0.16;
     fore.add(hand);
-    const thumb = quietMesh(g.pin, skin);
-    thumb.position.set(side * 0.02, 0.01, 0.012);
-    thumb.scale.set(1.15, 0.85, 1.35);
-    hand.add(thumb);
     return { pivot, fore };
   }
   function addLeg(side) {
     const hip = new THREE.Group();
-    hip.position.set(side * 0.085, 0.90, 0);
+    hip.position.set(side * 0.085, 0.9, 0);
     rig.add(hip);
-    const thigh = quietMesh(g.thigh, cloth);
-    thigh.position.y = -0.20;
-    hip.add(thigh);
+    hip.add(quietMesh(limbGeo('thigh'), cloth));
     const shin = new THREE.Group();
-    shin.position.y = -0.40;
+    shin.position.y = -0.4;
     hip.add(shin);
-    const sm = quietMesh(g.shin, cloth);
-    sm.position.y = -0.19;
-    shin.add(sm);
-    const shoe = quietMesh(g.shoe, shoeM);
-    shoe.position.set(0, -0.40, 0.035);
+    shin.add(quietMesh(limbGeo('shin'), cloth));
+    const shoe = quietMesh(shoeGeo(), shoeM);
+    shoe.position.set(0, -0.36, 0.02);
     shin.add(shoe);
     return { hip, shin };
   }
