@@ -214,7 +214,13 @@ controls.target.set(2, TGT_Y, -4);
 controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.495;
 controls.minDistance = 22; controls.maxDistance = 200; controls.enabled = false;
 let userTook = false;
-controls.addEventListener('start', () => { userTook = true; controls.autoRotate = false; });
+let ceoInspect = false;
+const CEO_POS = new THREE.Vector3(2.4, 23.5, 15.5);
+const CEO_TGT = new THREE.Vector3(0.5, 22.6, -0.4);
+const camHomePos = new THREE.Vector3();
+const camHomeTgt = new THREE.Vector3(2, TGT_Y, -4);
+let ceoBlend = 0;
+controls.addEventListener('start', () => { userTook = true; ceoInspect = false; ceoBlend = 0; controls.autoRotate = false; });
 window.__setCam = (x, y, z, tx, ty, tz) => {
   userTook = true; controls.enabled = true;
   camera.position.set(x, y, z); controls.target.set(tx, ty, tz); controls.update();
@@ -646,6 +652,8 @@ const frameMat = M(0x1a2030, { metalness: 0.85, roughness: 0.25 });
 const floorMat = M(0x10141c, { roughness: 0.7 }); const deskMat = M(0x1a1e2a, { metalness: 0.3 }); const chairMat = M(0x141820);
 const pickables = [], typers = [], labels = [];
 const colors = [0xf2b84b, 0x4bb3f2, 0xe25c8a, 0x7bd36a, 0xb48cf2, 0x5fd3c4];
+let execBundle = null;
+const floorGroups = [];
 
 function person(parent, x, z, color, name, floor, rotY = 0) {
   const g = new THREE.Group();
@@ -754,7 +762,6 @@ FLOORS.forEach((f, idx) => {
     box(4.2, 0.15, 2, M(gold, { metalness: 0.55, roughness: 0.35 }), -4, 1.05, -1, g);
     box(4, 0.9, 1.8, M(0x8a6a28, { metalness: 0.4 }), -4, 0.5, -1, g);
     box(1.5, 0.85, 0.08, new THREE.MeshStandardMaterial({ color: 0x111, emissive: 0xfcee0a, emissiveIntensity: 1.6, toneMapped: false }), -4, 1.55, -1.7, g);
-    person(g, -4, 0.7, 0xfcee0a, 'Andrew 行政總監', f, Math.PI);
     workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a);
     strip.material.color.set(0xfcee0a); strip.material.emissive.set(0xfcee0a); strip.material.emissiveIntensity = 3;
   } else if ((f.people || []).length >= 3) {
@@ -773,8 +780,389 @@ FLOORS.forEach((f, idx) => {
     workstation(g, -2, -1.5, c, (f.people && f.people[0]) || f.name, f);
     workstation(g, 4.5, -1.5, c, null, f);
   }
+  floorGroups.push({ g, f });
 });
 tower.traverse(o => { if (o.isMesh) o.layers.enable(LAYER_ROOM); });
+
+// Decorative penthouse life. Unlit trims only — no extra point lights.
+const basicMat = new Map();
+function B(hex) {
+  let m = basicMat.get(hex);
+  if (!m) { m = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false }); basicMat.set(hex, m); }
+  return m;
+}
+function prop(w, h, d, mat, x, y, z, parent) {
+  const m = box(w, h, d, mat, x, y, z, parent);
+  m.castShadow = m.receiveShadow = false;
+  return m;
+}
+function plaque(text, ink, w, h, parent, x, y, z, ry = 0) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+  const x2 = c.getContext('2d');
+  x2.fillStyle = 'rgba(6,8,16,0.72)'; x2.fillRect(0, 0, 512, 256);
+  x2.strokeStyle = ink; x2.lineWidth = 14; x2.strokeRect(12, 12, 488, 232);
+  x2.fillStyle = ink; x2.textAlign = 'center'; x2.textBaseline = 'middle';
+  const lines = String(text).split('\n');
+  x2.font = '800 92px sans-serif';
+  lines.forEach((line, i) => x2.fillText(line, 256, lines.length === 1 ? 132 : 96 + i * 100));
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false }));
+  m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = m.receiveShadow = false; parent.add(m);
+  return m;
+}
+const LIFT_X = -8.15, LIFT_Z = FD / 2 + 1.45;
+const lift = { doors: [], cabin: null, target: 6, open: 1, openTarget: 1, hold: false, idleT: 0, lv: 6, destQueue: [] };
+let restCount = 0;
+function liftY(lv) { return (lv - 1) * FH + 0.2; }
+function addFloorLanding(parent, f) {
+  const yDoor = 1.2;
+  const frame = M(0x1a2030, { metalness: 0.75, roughness: 0.3 });
+  prop(2.3, 0.1, 1.7, frame, LIFT_X, 0.08, LIFT_Z, parent);
+  prop(0.1, 2.3, 0.1, frame, LIFT_X - 1.05, yDoor, FD / 2 + 0.12, parent);
+  prop(0.1, 2.3, 0.1, frame, LIFT_X + 1.05, yDoor, FD / 2 + 0.12, parent);
+  prop(2.3, 0.1, 0.1, frame, LIFT_X, 2.35, FD / 2 + 0.12, parent);
+  const leafMat = M(0x12161e, { metalness: 0.7, roughness: 0.35 });
+  const left = prop(0.82, 2.05, 0.08, leafMat, LIFT_X - 0.46, yDoor, FD / 2 + 0.16, parent);
+  const right = prop(0.82, 2.05, 0.08, leafMat, LIFT_X + 0.46, yDoor, FD / 2 + 0.16, parent);
+  prop(0.08, 0.5, 0.08, B(f.id === 'exec' ? 0xfcee0a : 0x00f0ff), LIFT_X + 1.25, 1.3, FD / 2 - 0.15, parent);
+  prop(1.3, 0.02, 0.7, B(f.id === 'exec' ? 0xc8a84a : 0x00f0ff), LIFT_X, 0.05, FD / 2 - 0.9, parent);
+  plaque('電梯\n' + f.lv + 'F', f.id === 'exec' ? '#FCEE0A' : '#7fe3ff', 1.15, 0.58, parent, LIFT_X, 2.55, LIFT_Z + 0.72);
+  left.userData.kind = right.userData.kind = 'lift-door';
+  lift.doors.push({ lv: f.lv, left, right, cx: LIFT_X });
+}
+const REST_STYLE = {
+  hall:   { cloth: 0x1c2433, accent: 0x7fe3ff, label: '會議休息', ink: '#7fe3ff' },
+  penny:  { cloth: 0x172028, accent: 0x4bb3f2, label: '監察休息', ink: '#4bb3f2' },
+  hb:     { cloth: 0x241820, accent: 0xff2a6d, label: '訂車休息', ink: '#ff5fa2' },
+  auto:   { cloth: 0x121c18, accent: 0x39ff14, label: '自動化休息', ink: '#39ff14' },
+  crypto: { cloth: 0x101810, accent: 0x39ff14, label: '交易休息', ink: '#7dff6a' },
+  exec:   { cloth: 0x2c2416, accent: 0xfcee0a, label: '總監休息', ink: '#FCEE0A' },
+};
+function addRestCorner(parent, f) {
+  const s = REST_STYLE[f.id] || REST_STYLE.hall;
+  const cloth = M(s.cloth, { roughness: 0.82, metalness: 0.08 });
+  const metal = M(0x1a2030, { metalness: 0.6, roughness: 0.4 });
+  const x = 8.05, z = 4.35;
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.userData.kind = 'rest-corner'; g.userData.floorId = f.id; parent.add(g); restCount++;
+  prop(2.4, 0.04, 1.5, cloth, 0, 0.04, 0, g);
+  prop(2.1, 0.32, 0.7, cloth, 0, 0.28, 0.15, g);
+  prop(2.1, 0.7, 0.16, cloth, 0, 0.75, 0.48, g);
+  prop(0.16, 0.42, 0.7, cloth, -1.05, 0.4, 0.15, g);
+  prop(0.16, 0.42, 0.7, cloth, 1.05, 0.4, 0.15, g);
+  prop(2.15, 0.06, 0.08, B(s.accent), 0, 0.48, 0.52, g);
+  prop(0.7, 0.08, 0.45, metal, 0.15, 0.32, -0.55, g);
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.22, 8), metal);
+  pot.position.set(-0.85, 0.16, -0.35); pot.castShadow = pot.receiveShadow = false; g.add(pot);
+  const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), B(s.accent));
+  leaf.position.set(-0.85, 0.48, -0.35); g.add(leaf);
+  const sign = plaque(s.label, s.ink, 1.35, 0.48, g, 0, 1.35, 0.62);
+  sign.userData.kind = 'rest-corner';
+  g.traverse(o => { if (o.isMesh) o.userData.kind = 'rest-corner'; });
+}
+function addGamingRoom(parent, f) {
+  const g = new THREE.Group(); g.position.set(8.35, 0, -2.35); g.userData.kind = 'gaming-zone'; parent.add(g);
+  const shell = M(0x0c0e14, { metalness: 0.72, roughness: 0.32 });
+  prop(2.4, 0.08, 0.9, shell, 0, 0.78, -0.55, g);
+  prop(0.08, 0.74, 0.8, shell, -1.1, 0.4, -0.55, g);
+  prop(0.08, 0.74, 0.8, shell, 1.1, 0.4, -0.55, g);
+  prop(2.2, 0.05, 0.06, B(0xff2a6d), 0, 0.84, -0.12, g);
+  prop(2.2, 0.04, 0.05, B(0x00f0ff), 0, 0.72, -0.95, g);
+  const screen = (x, col) => prop(0.85, 0.52, 0.05, B(col), x, 1.25, -0.95, g);
+  screen(-0.5, 0x00f0ff); screen(0.5, 0xff2a6d);
+  prop(0.45, 0.7, 0.4, shell, 1.15, 0.4, -0.7, g);
+  prop(0.38, 0.06, 0.04, B(0xff2a6d), 1.15, 0.62, -0.48, g);
+  prop(0.38, 0.04, 0.04, B(0x00f0ff), 1.15, 0.28, -0.48, g);
+  prop(0.55, 0.08, 0.5, M(0x141820), 0, 0.48, 0.45, g);
+  prop(0.5, 0.55, 0.08, M(0x141820), 0, 0.78, 0.68, g);
+  plaque('遊戲角', '#ff2a6d', 1.2, 0.42, g, 0, 1.85, -1.05);
+  g.traverse(o => { if (o.isMesh) { o.userData.kind = 'gaming-zone'; o.userData.floor = f; } });
+}
+function buildLiftCabin() {
+  const cabin = new THREE.Group();
+  tower.add(cabin);
+  cabin.position.set(LIFT_X, liftY(6), LIFT_Z);
+  const frame = M(0x161a24, { metalness: 0.78, roughness: 0.28 });
+  prop(1.85, 0.08, 1.35, frame, 0, 0.04, 0, cabin);
+  prop(1.85, 0.08, 1.35, B(0xfcee0a), 0, 2.28, 0, cabin);
+  prop(0.08, 2.15, 1.2, frame, -0.9, 1.15, 0, cabin);
+  prop(0.08, 2.15, 1.2, frame, 0.9, 1.15, 0, cabin);
+  prop(1.7, 2.15, 0.06, frame, 0, 1.15, 0.62, cabin);
+  prop(0.08, 2.15, 0.08, B(0xfcee0a), -0.95, 1.15, -0.62, cabin);
+  prop(0.08, 2.15, 0.08, B(0x00f0ff), 0.95, 1.15, -0.62, cabin);
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const ctx = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.35), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false }));
+  sign.position.set(0, 1.85, -0.7); cabin.add(sign);
+  const H = TOPLV * FH + 1.4;
+  const rail = M(0x12151c, { metalness: 0.8, roughness: 0.32 });
+  for (const [dx, dz] of [[-1.15, -0.8], [1.15, -0.8], [-1.15, 0.8], [1.15, 0.8]]) {
+    prop(0.22, H, 0.22, rail, LIFT_X + dx, H / 2 - 0.2, LIFT_Z + dz, tower);
+  }
+  prop(0.12, H, 0.12, B(0xfcee0a), LIFT_X - 1.28, H / 2 - 0.2, LIFT_Z + 0.85, tower);
+  prop(0.12, H, 0.12, B(0x00f0ff), LIFT_X + 1.28, H / 2 - 0.2, LIFT_Z + 0.85, tower);
+  for (let lv = 1; lv <= TOPLV; lv++) {
+    prop(2.5, 0.14, 1.7, B(lv === TOPLV ? 0xfcee0a : 0x00f0ff), LIFT_X, liftY(lv) + 2.35, LIFT_Z, tower);
+  }
+  lift.cabin = cabin;
+  lift.label = { ctx, tex, shown: 0 };
+  setCabinFloor(6);
+}
+function setCabinFloor(n) {
+  const lab = lift.label; if (!lab || lab.shown === n) return;
+  lab.shown = n;
+  const ctx = lab.ctx;
+  ctx.clearRect(0, 0, 256, 128);
+  ctx.fillStyle = 'rgba(8,8,12,0.8)'; ctx.fillRect(0, 0, 256, 128);
+  ctx.strokeStyle = '#FCEE0A'; ctx.lineWidth = 8; ctx.strokeRect(8, 8, 240, 112);
+  ctx.fillStyle = '#FCEE0A'; ctx.font = '800 72px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(n + 'F', 128, 68);
+  lab.tex.needsUpdate = true;
+}
+function makeAndrew(floor) {
+  const g = new THREE.Group();
+  const suit = M(0x1a140c, { metalness: 0.25, roughness: 0.55 });
+  const trouser = M(0x12100c, { roughness: 0.75 });
+  const skin = M(0xc8966a, { roughness: 0.65, metalness: 0 });
+  const shoe = M(0x0c0c10, { metalness: 0.3, roughness: 0.5 });
+  const hang = (parent, len, rad, mat) => {
+    const pivot = new THREE.Group(); parent.add(pivot);
+    const m = new THREE.Mesh(new THREE.CapsuleGeometry(rad, len, 3, 5), mat);
+    m.position.y = -(len * 0.5 + rad); m.castShadow = m.receiveShadow = false; pivot.add(m);
+    return pivot;
+  };
+  const legL = hang(g, 0.38, 0.07, trouser); legL.position.set(-0.1, 0.92, 0);
+  const shinL = hang(legL, 0.36, 0.055, trouser); shinL.position.y = -0.46;
+  const legR = hang(g, 0.38, 0.07, trouser); legR.position.set(0.1, 0.92, 0);
+  const shinR = hang(legR, 0.36, 0.055, trouser); shinR.position.y = -0.46;
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.42, 4, 8), suit);
+  torso.position.y = 1.22; torso.castShadow = torso.receiveShadow = false; g.add(torso);
+  const trim = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.02, 6, 12), B(0xfcee0a));
+  trim.rotation.x = Math.PI / 2; trim.position.y = 1.38; g.add(trim);
+  const armL = hang(g, 0.32, 0.05, suit); armL.position.set(-0.28, 1.48, 0);
+  const armR = hang(g, 0.32, 0.05, suit); armR.position.set(0.28, 1.48, 0);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), skin);
+  head.position.y = 1.62; head.castShadow = false; g.add(head);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.135, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), M(0x1a120c));
+  hair.position.y = 1.68; hair.castShadow = false; g.add(hair);
+  const footL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.16), shoe);
+  footL.position.set(-0.1, 0.04, 0.08); footL.castShadow = false; g.add(footL);
+  const footR = footL.clone(); footR.position.x = 0.1; g.add(footR);
+  g.userData = { legL, legR, shinL, shinR, armL, armR, head, floor };
+  [torso, head].forEach(m => { m.userData.floor = floor; pickables.push(m); });
+  labels.push({ obj: head, text: 'Andrew 行政總監', floor });
+  g.position.set(-4, 0, 0.9); g.rotation.y = Math.PI;
+  return g;
+}
+for (const { g, f } of floorGroups) {
+  addFloorLanding(g, f);
+  addRestCorner(g, f);
+  if (f.id === 'exec') { addGamingRoom(g, f); execBundle = { g, f }; }
+}
+buildLiftCabin();
+const andrew = {
+  rig: null, at: 'desk', activity: 'desk', phase: 'dwell', dwell: 5,
+  route: [], ri: 0, want: null, rideTo: 3, pose: 'type',
+};
+if (execBundle) {
+  andrew.rig = makeAndrew(execBundle.f);
+  execBundle.g.add(andrew.rig);
+  prop(0.55, 0.08, 0.5, M(0x141820), -4, 0.46, 0.85, execBundle.g);
+  prop(0.48, 0.5, 0.08, M(0x141820), -4, 0.75, 1.08, execBundle.g);
+}
+const ANDREW_SPOT = {
+  desk: { rot: Math.PI, pose: 'type', dwell: [8, 14], via: [[-4, 2.5], [-4, 0.9]] },
+  rest: { rot: Math.PI, pose: 'sit', dwell: [8, 13], via: [[2.2, 2.6], [6.6, 2.6], [6.6, 4.15], [8.05, 4.42]] },
+  game: { rot: Math.PI, pose: 'play', dwell: [10, 16], via: [[2.2, 2.6], [6.6, 2.6], [6.6, -1.9], [8.35, -1.9]] },
+  look: { rot: 0, pose: 'look', dwell: [6, 10], via: [[-1.2, 2.6], [-1.2, 5.35]] },
+  liftLobby: { rot: 0, pose: 'stand', dwell: [0.4, 0.4], via: [[-6.2, 2.6], [-6.2, 5.5]] },
+};
+function routeBackAndForth(fromId, toId) {
+  const back = (ANDREW_SPOT[fromId]?.via || []).slice().reverse();
+  const fwd = ANDREW_SPOT[toId]?.via || [];
+  return back.concat(fwd);
+}
+function faceYaw(rig, yaw, dt) {
+  let d = yaw - rig.rotation.y;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  rig.rotation.y += d * Math.min(1, dt * 8);
+}
+function walkRoute(dt) {
+  const rig = andrew.rig;
+  const tgt = andrew.route[andrew.ri];
+  if (!tgt) return true;
+  const dx = tgt[0] - rig.position.x, dz = tgt[1] - rig.position.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist < 0.06) { rig.position.x = tgt[0]; rig.position.z = tgt[1]; andrew.ri++; return andrew.ri >= andrew.route.length; }
+  const step = Math.min(dist, 1.3 * dt);
+  rig.position.x += dx / dist * step; rig.position.z += dz / dist * step;
+  faceYaw(rig, Math.atan2(dx, dz), dt);
+  return false;
+}
+function poseAndrew(kind, t) {
+  const u = andrew.rig.userData;
+  const plant = () => { u.legL.rotation.x = u.legR.rotation.x = u.shinL.rotation.x = u.shinR.rotation.x = 0; u.head.rotation.x = 0; };
+  if (kind === 'walk') {
+    const s = Math.sin(t * 7.2);
+    u.legL.rotation.x = s * 0.65; u.legR.rotation.x = -s * 0.65;
+    u.shinL.rotation.x = Math.max(0, -s) * 0.9; u.shinR.rotation.x = Math.max(0, s) * 0.9;
+    u.armL.rotation.x = -s * 0.4; u.armR.rotation.x = s * 0.4;
+    andrew.rig.position.y = Math.abs(Math.sin(t * 7.2)) * 0.03;
+    u.head.rotation.x = 0; u.head.rotation.y = 0;
+  } else if (kind === 'type' || kind === 'sit' || kind === 'play') {
+    u.legL.rotation.x = u.legR.rotation.x = 1.2;
+    u.shinL.rotation.x = u.shinR.rotation.x = -1.25;
+    andrew.rig.position.y = 0.34;
+    u.head.rotation.y = 0;
+    if (kind === 'type') {
+      u.armL.rotation.x = -0.85 + Math.sin(t * 8) * 0.16;
+      u.armR.rotation.x = -0.8 + Math.cos(t * 8.4) * 0.16;
+      u.head.rotation.x = 0.35;
+    } else if (kind === 'play') {
+      u.armL.rotation.x = -1.15 + Math.sin(t * 6) * 0.07;
+      u.armR.rotation.x = -1.05 + Math.sin(t * 7) * 0.09;
+      u.head.rotation.x = 0.42;
+    } else {
+      u.armL.rotation.x = -0.25; u.armR.rotation.x = -0.2; u.head.rotation.x = 0.12;
+    }
+  } else if (kind === 'look') {
+    plant(); andrew.rig.position.y = 0;
+    u.armL.rotation.x = -0.12; u.armR.rotation.x = -0.08;
+    u.head.rotation.x = -0.1; u.head.rotation.y = Math.sin(t * 0.35) * 0.4;
+  } else {
+    plant(); andrew.rig.position.y = 0;
+    u.armL.rotation.x = Math.sin(t * 0.7) * 0.06; u.armR.rotation.x = -0.08;
+    u.head.rotation.y = Math.sin(t * 0.45) * 0.15;
+  }
+}
+function chooseAndrewActivity() {
+  const pool = ['desk', 'rest', 'game', 'look', 'lift'].filter(id => id !== andrew.activity);
+  return pool[(Math.random() * pool.length) | 0];
+}
+function beginAndrewTrip(id) {
+  if (!andrew.rig) return;
+  const from = andrew.at;
+  andrew.activity = id;
+  andrew.headingTo = id === 'lift' ? 'liftLobby' : id;
+  andrew.route = routeBackAndForth(from, andrew.headingTo);
+  andrew.ri = 0;
+  andrew.phase = 'walk';
+  if (!andrew.route.length) andrew.phase = 'arrive';
+}
+function updateLift(dt) {
+  const destY = liftY(lift.target);
+  const dy = destY - lift.cabin.position.y;
+  if (Math.abs(dy) > 0.08) {
+    if (lift.open > 0.06) lift.openTarget = 0;
+    else lift.cabin.position.y += Math.sign(dy) * Math.min(Math.abs(dy), 2.6 * dt);
+  } else {
+    lift.cabin.position.y = destY;
+    lift.lv = lift.target;
+    lift.openTarget = 1;
+    if (!lift.hold && andrew.phase !== 'waitCabin' && andrew.phase !== 'ride') {
+      lift.idleT += dt;
+      if (lift.open > 0.92 && lift.idleT > 9) {
+        let n = 1 + ((Math.random() * 6) | 0);
+        if (n === lift.lv) n = n === 6 ? 2 : n + 1;
+        lift.target = n;
+        lift.idleT = 0;
+      }
+    }
+  }
+  lift.open += (lift.openTarget - lift.open) * Math.min(1, dt * 4);
+  const shown = Math.min(6, Math.max(1, Math.round((lift.cabin.position.y - 0.2) / FH) + 1));
+  setCabinFloor(shown);
+  for (const d of lift.doors) {
+    const gap = d.lv === shown && Math.abs(lift.cabin.position.y - liftY(d.lv)) < 0.35 ? lift.open : 0;
+    d.left.position.x = d.cx - 0.46 - gap * 0.48;
+    d.right.position.x = d.cx + 0.46 + gap * 0.48;
+  }
+}
+function updateAndrew(dt, t) {
+  if (!andrew.rig || !execBundle) return;
+  if (andrew.want) { const w = andrew.want; andrew.want = null; beginAndrewTrip(w); }
+  if (andrew.phase === 'dwell') {
+    andrew.dwell -= dt;
+    const spot = ANDREW_SPOT[andrew.at];
+    if (spot) faceYaw(andrew.rig, spot.rot, dt);
+    poseAndrew(spot ? spot.pose : 'stand', t);
+    if (andrew.dwell <= 0) beginAndrewTrip(chooseAndrewActivity());
+  } else if (andrew.phase === 'walk') {
+    poseAndrew('walk', t);
+    if (walkRoute(dt)) {
+      andrew.at = andrew.headingTo || andrew.at;
+      if (andrew.activity === 'lift') andrew.phase = 'waitCabin';
+      else {
+        andrew.phase = 'dwell';
+        const spot = ANDREW_SPOT[andrew.at];
+        andrew.dwell = spot ? spot.dwell[0] + Math.random() * (spot.dwell[1] - spot.dwell[0]) : 6;
+        if (spot) andrew.rig.rotation.y = spot.rot;
+      }
+    }
+  } else if (andrew.phase === 'waitCabin') {
+    poseAndrew('stand', t);
+    faceYaw(andrew.rig, 0, dt);
+    lift.hold = true;
+    lift.target = 6;
+    if (lift.lv === 6 && Math.abs(lift.cabin.position.y - liftY(6)) < 0.12 && lift.open > 0.9) {
+      andrew.phase = 'board';
+      andrew.route = [[LIFT_X, 6.15], [LIFT_X, LIFT_Z - 0.15]];
+      andrew.ri = 0;
+    }
+  } else if (andrew.phase === 'board') {
+    poseAndrew('walk', t);
+    if (walkRoute(dt)) {
+      lift.cabin.attach(andrew.rig);
+      andrew.rig.position.set(0, 0.02, -0.05);
+      andrew.rig.rotation.y = Math.PI;
+      andrew.phase = 'ride';
+      andrew.rideTo = 1 + ((Math.random() * 5) | 0);
+      if (andrew.rideTo === 6) andrew.rideTo = 3;
+      lift.target = andrew.rideTo;
+      andrew.rideBack = false;
+    }
+  } else if (andrew.phase === 'ride') {
+    poseAndrew('stand', t);
+    const parked = Math.abs(lift.cabin.position.y - liftY(lift.target)) < 0.12 && lift.open > 0.9;
+    if (parked && !andrew.rideBack) {
+      andrew.rideWait = (andrew.rideWait || 0) + dt;
+      if (andrew.rideWait > 2.4) { andrew.rideBack = true; andrew.rideWait = 0; lift.target = 6; }
+    } else if (parked && andrew.rideBack && lift.target === 6) {
+      execBundle.g.attach(andrew.rig);
+      andrew.rig.position.set(-6.2, 0, 5.5);
+      andrew.rig.rotation.y = Math.PI;
+      lift.hold = false;
+      andrew.at = 'liftLobby';
+      andrew.activity = 'lift';
+      beginAndrewTrip(chooseAndrewActivity());
+    } else andrew.rideWait = 0;
+  }
+}
+window.__ceo = {
+  get activity() { return andrew.activity; },
+  get phase() { return andrew.phase; },
+  get pose() { return andrew.phase === 'walk' || andrew.phase === 'board' ? 'walk' : (ANDREW_SPOT[andrew.at]?.pose || andrew.phase); },
+  get lift() { return lift.lv; },
+  get open() { return +lift.open.toFixed(2); },
+  rests: () => restCount,
+  doors: () => lift.doors.length,
+  pointLights() { let n = 0; scene.traverse(o => { if (o.isPointLight) n++; }); return n; },
+  goto(id) { andrew.want = id; },
+  snap(id) {
+    const spot = ANDREW_SPOT[id];
+    if (!spot || !andrew.rig || !execBundle) return;
+    if (andrew.rig.parent !== execBundle.g) execBundle.g.attach(andrew.rig);
+    const p = spot.via[spot.via.length - 1];
+    andrew.at = id; andrew.activity = id; andrew.phase = 'dwell'; andrew.dwell = 30; lift.hold = false;
+    andrew.rig.position.set(p[0], 0, p[1]);
+    andrew.rig.rotation.y = spot.rot;
+    poseAndrew(spot.pose, 2);
+  },
+  showLift(lv) {
+    lift.target = lv; lift.lv = lv; lift.cabin.position.y = liftY(lv); lift.open = lift.openTarget = 1; setCabinFloor(lv);
+  },
+};
 
 // cyan tower edges
 for (const [x, z] of [[-FW / 2 - 0.25, FD / 2 + 0.25], [FW / 2 + 0.25, FD / 2 + 0.25], [-FW / 2 - 0.25, -FD / 2 - 0.25], [FW / 2 + 0.25, -FD / 2 - 0.25]])
@@ -2349,6 +2737,7 @@ function openPanel(f) {
   ${f.stats ? `<div class="kv warn"><b>今日數字</b><span>${f.stats}</span></div>` : ''}
   <h3>工作報告</h3><ul>${rows}</ul>`;
   panel.classList.add('open'); focusY = (f.lv - 1) * FH + FH / 2;
+  ceoInspect = f.id === 'exec' && !userTook;
   floorTags.forEach(x => x.el.classList.toggle('sel', x.f === f));
 }
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(); let down;
@@ -2374,6 +2763,7 @@ function tick() {
   const nowMs = performance.now();
   const frameMs = nowMs - qPrevMs; qPrevMs = nowMs;
   const t = clock.getElapsedTime(), dt = Math.min(t - last, 0.05); last = t;
+  if (document.hidden) { requestAnimationFrame(tick); return; }
   if (window.__LOCK_CAM) {
     camera.position.copy(window.__LOCK_CAM.pos);
     controls.target.copy(window.__LOCK_CAM.tgt);
@@ -2384,6 +2774,17 @@ function tick() {
     camera.position.lerpVectors(CAM_START, CAM_END, k);
     controls.target.y = TGT_Y + 4 * (1 - k);
   } else if (!controls.enabled) { controls.enabled = true; }
+  if (!window.__LOCK_CAM && t >= INTRO && !userTook) {
+    if (!panel.classList.contains('open')) ceoInspect = false;
+    const want = ceoInspect ? 1 : 0;
+    ceoBlend += (want - ceoBlend) * 0.045;
+    if (ceoBlend > 0.004) {
+      controls.minDistance = 8;
+      camHomeTgt.y = focusY != null ? focusY : TGT_Y;
+      camera.position.lerpVectors(CAM_END, CEO_POS, ceoBlend);
+      controls.target.lerpVectors(camHomeTgt, CEO_TGT, ceoBlend);
+    } else controls.minDistance = 22;
+  }
 
   typers.forEach(p => { p.armL.rotation.x = Math.sin(t * 10 + p.ph) * 0.25; p.armR.rotation.x = Math.cos(t * 10 + p.ph) * 0.25; p.head.rotation.y = Math.sin(t * 0.7 + p.ph) * 0.3; if (p.legL) { p.legL.rotation.x = Math.sin(t * 8 + p.ph) * 0.15; p.legR.rotation.x = Math.cos(t * 8 + p.ph) * 0.15; } });
   cars.forEach(c => {
@@ -2478,9 +2879,11 @@ function tick() {
   // hero fly-bys disabled
 
   if (!window.__LOCK_CAM) {
-    if (focusY != null) controls.target.y += (focusY - controls.target.y) * 0.06;
+    if (!(ceoBlend > 0.004 && !userTook) && focusY != null) controls.target.y += (focusY - controls.target.y) * 0.06;
     controls.update();
   }
+  updateLift(dt);
+  updateAndrew(dt, t);
 
   // project labels — keep floor tags clear of top HUD (y > 90)
   labels.forEach(l => {
