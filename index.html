@@ -333,14 +333,50 @@ function facadeMat(tintIdx, rx, ry) {
     roughness: 0.42, metalness: 0.72
   });
 }
-function addNeonSign(x, y, z, hSign, face, idx) {
-  const crop = neonCrops[idx % 6];
-  const plane = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.8, hSign),
-    new THREE.MeshBasicMaterial({ map: crop, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })
-  );
-  plane.position.set(x, y, z); plane.rotation.y = face > 0 ? 0.08 : -0.08;
+// Portrait cells on the sheet are about 1:3.4. A 26m plane stretched one banner
+// into smeared stacked strokes, and a second banner sat on the same corner.
+const NEON_W = 2.45, NEON_H = 8.25;
+const neonSlots = [];
+function addNeonSign(x, y, z, idx) {
+  const list = window.__neons || (window.__neons = []);
+  for (const p of list) if (Math.hypot(p.x - x, p.y - y, p.z - z) < 8) return;
+  const mat = new THREE.MeshBasicMaterial({
+    transparent: true, opacity: 0, depthWrite: true, alphaTest: 0.18,
+    toneMapped: false, side: THREE.DoubleSide,
+  });
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(NEON_W, NEON_H), mat);
+  plane.position.set(x, y, z);
+  plane.rotation.y = 0;
   megaGroup.add(plane); neonFlickers.push(plane);
+  neonSlots.push({ mesh: plane, idx: idx % 6 });
+  list.push({ x, y, z, h: NEON_H, idx: idx % 6 });
+}
+function commitNeon() {
+  const img = texNeonSheet.image;
+  if (!img || !img.width) return false;
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  const im = ctx.getImageData(0, 0, c.width, c.height);
+  const px = im.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const lum = 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+    px[i + 3] = lum < 18 ? 0 : Math.min(255, (lum - 18) * 1.45);
+  }
+  ctx.putImageData(im, 0, 0);
+  const sheet = new THREE.CanvasTexture(c);
+  sheet.colorSpace = THREE.SRGBColorSpace;
+  sheet.needsUpdate = true;
+  const crops = [];
+  for (let i = 0; i < 6; i++) crops.push(cropSheet(sheet, i / 6 + 0.02, 0.035, (i + 1) / 6 - 0.02, 0.965));
+  for (const slot of neonSlots) {
+    slot.mesh.material.map = crops[slot.idx];
+    slot.mesh.material.opacity = 1;
+    slot.mesh.material.needsUpdate = true;
+    slot.mesh.userData.ready = true;
+  }
+  return true;
 }
 function addBillboard(x, y, z, rotY, idx, w = 10, h = 5.5) {
   const crop = billCrops[idx % 4];
@@ -386,10 +422,11 @@ function makeMega(x, z, h, w0, d0, tintIdx, depth) {
     box(0.25 + rng() * 0.2, ah, 0.25, M(0x555a70, { metalness: 0.85 }), x + (rng() - 0.5) * w, y + ah / 2, z + (rng() - 0.5) * d, megaGroup);
     if (rng() > 0.4) blinkers.push(glow(GLOW.red, x + (rng() - 0.5) * w * 0.5, y + ah, z, 2.2, 2.2, 0.85));
   }
-  // vertical Chinese neon on near/mid towers
+  // One street-facing banner on the near face of the base. The old second
+  // banner shared this corner; rng() stays so the rest of the city does not move.
   if (depth <= 1) {
-    addNeonSign(x + face * (w0 / 2 + 0.2), Math.min(h * 0.35, 28), z + d0 / 2 + 0.1, Math.min(h * 0.5, 26), face, tintIdx);
-    if (rng() > 0.35) addNeonSign(x + face * (w0 / 2 + 0.25), Math.min(h * 0.55, 40), z - d0 / 2, Math.min(h * 0.35, 18), face, tintIdx + 2);
+    addNeonSign(x + face * w0 * 0.18, 13.2 + (tintIdx % 3) * 1.6, z + d0 / 2 + 0.7, tintIdx + depth);
+    rng();
   }
   // rooftop + mid billboards
   if (depth <= 1 || rng() > 0.4) {
@@ -450,10 +487,9 @@ for (let i = 0; i < 3; i++) {
     box(3.4, 0.35, 1.5, M(0x1a2030, { metalness: 0.7 }), x, y, z, megaGroup);
   }
 }
-// more vertical neon on every near mega front
+// Side billboards only. A second vertical neon here used to ghost through the first.
 megas.filter(m => m.depth === 0).forEach((m, i) => {
   const face = m.x >= 0 ? -1 : 1;
-  addNeonSign(m.x + face * (m.w / 2 + 0.35), Math.min(m.h * 0.25, 35), m.z + m.d / 2 + 0.2, Math.min(m.h * 0.45, 30), face, i + 3);
   if (i % 2 === 0) addBillboard(m.x + face * (m.w / 2 + 0.4), Math.min(m.topY * 0.55, 50), m.z, face > 0 ? Math.PI / 2 : -Math.PI / 2, i, 12, 6.5);
 });
 
@@ -659,31 +695,63 @@ const colors = [0xf2b84b, 0x4bb3f2, 0xe25c8a, 0x7bd36a, 0xb48cf2, 0x5fd3c4];
 let execBundle = null;
 const floorGroups = [];
 
-function person(parent, x, z, color, name, floor, rotY = 0) {
+const cast = [], castById = {};
+function whoId(name) {
+  const raw = String(name || '');
+  const known = ['Andrew', 'Mandy', 'Penny', 'Hailey', 'Holly', 'Hazel', 'Routinizer', 'Crypto', '風控官', '大市監察'];
+  const hit = known.find(k => raw.includes(k));
+  const map = { Andrew: 'andrew', Mandy: 'mandy', Penny: 'penny', Hailey: 'hailey', Holly: 'holly', Hazel: 'hazel', Routinizer: 'routinizer', Crypto: 'crypto', '風控官': 'risk', '大市監察': 'market' };
+  return hit ? map[hit] : '';
+}
+function makeWalker(color) {
   const g = new THREE.Group();
-  const accent = color;
-  const hips = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.1, 4, 8), M(0x141820)); hips.position.y = 0.55; g.add(hips);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.38, 4, 10), M(color, { metalness: 0.3, roughness: 0.4 }));
-  torso.position.y = 1.05; torso.castShadow = true; g.add(torso);
-  const trim = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.022, 6, 14), E(accent, 2.0));
-  trim.rotation.x = Math.PI / 2; trim.position.y = 1.2; g.add(trim);
-  const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.05, 3, 6), M(0xe8b896)); neck.position.y = 1.38; g.add(neck);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 12), M(0xe8b896)); head.position.y = 1.55; g.add(head);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.145, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), M(0x1a1210));
-  hair.position.y = 1.62; g.add(hair);
-  // seated: upper legs forward, lower legs down
-  const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.28, 3, 6), M(color)); armL.position.set(-0.28, 1.1, 0.15); armL.rotation.x = -0.6; g.add(armL);
-  const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.28, 3, 6), M(color)); armR.position.set(0.28, 1.1, 0.15); armR.rotation.x = -0.5; g.add(armR);
-  const thighL = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.28, 3, 6), M(0x12161e)); thighL.position.set(-0.12, 0.55, 0.2); thighL.rotation.x = Math.PI / 2.2; g.add(thighL);
-  const thighR = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.28, 3, 6), M(0x12161e)); thighR.position.set(0.12, 0.55, 0.2); thighR.rotation.x = Math.PI / 2.2; g.add(thighR);
-  const shinL = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.26, 3, 6), M(0x12161e)); shinL.position.set(-0.12, 0.25, 0.42); g.add(shinL);
-  const shinR = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.26, 3, 6), M(0x12161e)); shinR.position.set(0.12, 0.25, 0.42); g.add(shinR);
-  const footL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.16), M(0x0a0c10)); footL.position.set(-0.12, 0.05, 0.5); g.add(footL);
-  const footR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.16), M(0x0a0c10)); footR.position.set(0.12, 0.05, 0.5); g.add(footR);
-  g.position.set(x, 0, z); g.rotation.y = rotY; parent.add(g);
-  typers.push({ armL, armR, head, ph: Math.random() * 6 });
+  const suit = M(color, { metalness: 0.28, roughness: 0.48 });
+  const trouser = M(0x12141c, { roughness: 0.72 });
+  const skin = M(0xd0a07a, { roughness: 0.62 });
+  const shoe = M(0x0c0c10, { metalness: 0.25, roughness: 0.5 });
+  const hang = (parent, len, rad, mat) => {
+    const pivot = new THREE.Group(); parent.add(pivot);
+    const m = new THREE.Mesh(new THREE.CapsuleGeometry(rad, len, 3, 5), mat);
+    m.position.y = -(len * 0.5 + rad); m.castShadow = m.receiveShadow = false; pivot.add(m);
+    return pivot;
+  };
+  const legL = hang(g, 0.34, 0.065, trouser); legL.position.set(-0.09, 0.88, 0);
+  const shinL = hang(legL, 0.32, 0.05, trouser); shinL.position.y = -0.42;
+  const legR = hang(g, 0.34, 0.065, trouser); legR.position.set(0.09, 0.88, 0);
+  const shinR = hang(legR, 0.32, 0.05, trouser); shinR.position.y = -0.42;
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.38, 4, 8), suit);
+  torso.position.y = 1.16; torso.castShadow = false; g.add(torso);
+  const armL = hang(g, 0.28, 0.045, suit); armL.position.set(-0.26, 1.4, 0);
+  const armR = hang(g, 0.28, 0.045, suit); armR.position.set(0.26, 1.4, 0);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), skin);
+  head.position.y = 1.52; g.add(head);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.125, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), M(0x1a120c));
+  hair.position.y = 1.58; g.add(hair);
+  const footL = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.045, 0.15), shoe);
+  footL.position.set(0, -0.42, 0.04); shinL.add(footL);
+  const footR = footL.clone(); shinR.add(footR);
+  g.userData = { legL, legR, shinL, shinR, armL, armR, head, torso };
+  return g;
+}
+function registerAgent(id, floor, group, rig, x, z, rot) {
+  const agent = {
+    id, lv: floor.lv, floorId: floor.id, group, rig,
+    home: { x, z, rot }, phase: 'home', pose: 'type',
+    route: [], ri: 0, busy: false, arriveYaw: rot, arrivePose: 'type',
+  };
+  rig.position.set(x, 0, z); rig.rotation.y = rot;
+  cast.push(agent); castById[id] = agent;
+  return agent;
+}
+function person(parent, x, z, color, name, floor, rotY = 0) {
+  const id = whoId(name);
+  if (!id || castById[id]) return;
+  const rig = makeWalker(color);
+  parent.add(rig);
+  const { torso, head } = rig.userData;
   [torso, head].forEach(m => { m.userData.floor = floor; pickables.push(m); });
   if (name) labels.push({ obj: head, text: name, floor });
+  registerAgent(id, floor, parent, rig, x, z, rotY);
 }
 const screenBank = {};
 let screenCursor = 0, screenAcc = 0;
@@ -911,7 +979,7 @@ function plaque(text, ink, w, h, parent, x, y, z, ry = 0) {
   return m;
 }
 const LIFT_X = -8.15, LIFT_Z = FD / 2 + 1.45;
-const lift = { doors: [], cabin: null, target: 6, open: 1, openTarget: 1, hold: false, idleT: 0, lv: 6, destQueue: [] };
+const lift = { doors: [], cabin: null, target: 6, open: 0, openTarget: 0, wantOpen: false, hold: false, idleT: 0, lv: 6, destQueue: [] };
 let restCount = 0;
 function liftY(lv) { return (lv - 1) * FH + 0.2; }
 function addFloorLanding(parent, f) {
@@ -978,8 +1046,10 @@ function addGamingRoom(parent, f) {
   prop(0.45, 0.7, 0.4, shell, 1.15, 0.4, -0.7, g);
   prop(0.38, 0.06, 0.04, B(0xff2a6d), 1.15, 0.62, -0.48, g);
   prop(0.38, 0.04, 0.04, B(0x00f0ff), 1.15, 0.28, -0.48, g);
-  prop(0.55, 0.1, 0.5, M(0x141820), 0, 0.5, 0.45, g);
-  prop(0.5, 0.55, 0.08, M(0x141820), 0, 0.78, 0.68, g);
+  for (const sx of [-0.5, 0.5]) {
+    prop(0.46, 0.1, 0.46, M(0x141820), sx, 0.5, 0.42, g);
+    prop(0.4, 0.5, 0.08, M(0x141820), sx, 0.76, 0.64, g);
+  }
   plaque('GAME\nLOUNGE', '#ff4d8d', 1.5, 0.55, g, 0, 1.9, -1.02);
   g.traverse(o => { if (o.isMesh) { o.userData.kind = 'gaming-zone'; o.userData.floor = f; } });
 }
@@ -1066,220 +1136,432 @@ for (const { g, f } of floorGroups) {
   if (f.id === 'exec') { addGamingRoom(g, f); execBundle = { g, f }; }
 }
 buildLiftCabin();
-const andrew = {
-  rig: null, at: 'desk', activity: 'desk', phase: 'dwell', dwell: 5,
-  route: [], ri: 0, want: null, rideTo: 3, pose: 'type',
-};
+let andrewAgent = null;
 if (execBundle) {
-  andrew.rig = makeAndrew(execBundle.f);
-  execBundle.g.add(andrew.rig);
+  const rig = makeAndrew(execBundle.f);
+  execBundle.g.add(rig);
   prop(0.55, 0.1, 0.5, M(0x141820), -4, 0.5, 0.85, execBundle.g);
   prop(0.48, 0.5, 0.08, M(0x141820), -4, 0.75, 1.08, execBundle.g);
+  andrewAgent = registerAgent('andrew', execBundle.f, execBundle.g, rig, -4, 0.9, Math.PI);
 }
 function markRoom(root) {
   root.traverse(o => { if (o.isMesh) o.layers.enable(LAYER_ROOM); });
 }
 for (const { g } of floorGroups) markRoom(g);
 if (lift.cabin) markRoom(lift.cabin);
-const ANDREW_SPOT = {
-  desk: { rot: Math.PI, pose: 'type', dwell: [8, 14], via: [[-4, 2.5], [-4, 0.9]] },
-  rest: { rot: Math.PI, pose: 'sit', dwell: [8, 13], via: [[2.2, 2.6], [6.6, 2.6], [6.6, 4.15], [8.05, 4.42]] },
-  game: { rot: Math.PI, pose: 'play', dwell: [10, 16], via: [[2.2, 2.6], [6.6, 2.6], [6.6, -1.9], [8.35, -1.9]] },
-  look: { rot: 0, pose: 'look', dwell: [6, 10], via: [[-1.2, 2.6], [-1.2, 5.35]] },
-  liftLobby: { rot: 0, pose: 'stand', dwell: [0.4, 0.4], via: [[-6.2, 2.6], [-6.2, 5.5]] },
-};
-function routeBackAndForth(fromId, toId) {
-  const back = (ANDREW_SPOT[fromId]?.via || []).slice().reverse();
-  const fwd = ANDREW_SPOT[toId]?.via || [];
-  return back.concat(fwd);
+
+// Ambient office life. One shared routine at a time so partners actually meet.
+// The lift moves only when someone is visiting another floor, then brings them home.
+const LANES = { andrew: 2.12, mandy: 2.52, hailey: 2.18, holly: 2.55, hazel: 2.16, penny: 2.36, routinizer: 2.42, crypto: 2.14, risk: 2.5, market: 2.62 };
+const BEATS = [
+  { kind: 'chat', a: 'hailey', b: 'holly', hold: 8 },
+  { kind: 'consult', a: 'crypto', b: 'risk', hold: 8 },
+  { kind: 'rest', a: 'market', b: 'crypto', hold: 9 },
+  { kind: 'visit', guest: 'andrew', host: 'routinizer', mode: 'consult', hold: 8 },
+  { kind: 'chat', a: 'hazel', b: 'hailey', hold: 7 },
+  { kind: 'game', a: 'andrew', b: 'mandy', hold: 10 },
+  { kind: 'visit', guest: 'andrew', host: 'penny', mode: 'chat', hold: 8 },
+  { kind: 'rest', a: 'holly', b: 'hazel', hold: 8 },
+  { kind: 'consult', a: 'market', b: 'risk', hold: 7 },
+  { kind: 'visit', guest: 'andrew', host: 'hailey', mode: 'consult', hold: 8 },
+  { kind: 'rest', a: 'andrew', b: 'mandy', hold: 9 },
+  { kind: 'chat', a: 'holly', b: 'hazel', hold: 7 },
+  { kind: 'visit', guest: 'andrew', host: 'crypto', mode: 'consult', hold: 8 },
+];
+const director = { paused: false, index: 0, phase: 'gap', gap: 2.4, beat: null, hold: 0, t: 0, liftLock: 0, spots: null };
+const lifeTrace = [];
+let lifeT = 0, traceAcc = 0, tracePhase = '';
+function laneOf(a) { return LANES[a.id] ?? 2.35; }
+function hereLv(a) {
+  if (a.rig.parent === lift.cabin) return lift.lv;
+  const py = a.rig.parent && a.rig.parent.position ? a.rig.parent.position.y : 0;
+  return Math.round(py / FH) + 1;
 }
 function faceYaw(rig, yaw, dt) {
   let d = yaw - rig.rotation.y;
   while (d > Math.PI) d -= Math.PI * 2;
   while (d < -Math.PI) d += Math.PI * 2;
-  rig.rotation.y += d * Math.min(1, dt * 8);
+  rig.rotation.y += d * Math.min(1, (dt || 0.016) * 8);
 }
-function walkRoute(dt) {
-  const rig = andrew.rig;
-  const tgt = andrew.route[andrew.ri];
-  if (!tgt) return true;
+function lookAt(a, b, dt) {
+  if (!a || !b || a.rig.parent !== b.rig.parent) return;
+  const dx = b.rig.position.x - a.rig.position.x, dz = b.rig.position.z - a.rig.position.z;
+  if (Math.hypot(dx, dz) < 0.08) return;
+  faceYaw(a.rig, Math.atan2(dx, dz), dt);
+}
+function pathTo(agent, dest) {
+  const lane = laneOf(agent);
+  const pts = [];
+  let x = agent.rig.position.x, z = agent.rig.position.z;
+  const push = (px, pz) => {
+    const prev = pts.length ? pts[pts.length - 1] : [x, z];
+    if (Math.hypot(prev[0] - px, prev[1] - pz) < 0.08) return;
+    pts.push([px, pz]);
+  };
+  if (z > 4.9) { push(x, 5.45); push(-6.4, 5.45); }
+  const zx = pts.length ? pts[pts.length - 1][0] : x;
+  push(zx, lane);
+  push(dest[0], lane);
+  push(dest[0], dest[1]);
+  return pts;
+}
+function sendAlong(agent, points, yaw, pose) {
+  agent.arriveYaw = yaw;
+  agent.arrivePose = pose;
+  agent.route = points;
+  agent.ri = 0;
+  agent.phase = points.length ? 'walk' : 'there';
+  agent.pose = points.length ? 'walk' : pose;
+  if (!points.length && yaw != null) agent.rig.rotation.y = yaw;
+}
+function sendTo(agent, dest, yaw, pose) { sendAlong(agent, pathTo(agent, dest), yaw, pose); }
+function sendHome(agent) { sendTo(agent, [agent.home.x, agent.home.z], agent.home.rot, 'type'); }
+function pairSpots(beat) {
+  if (beat.kind === 'chat') return { a: [-0.72, 2.72], aYaw: Math.PI / 2, b: [0.72, 2.72], bYaw: -Math.PI / 2, pose: 'talk' };
+  if (beat.kind === 'rest') return { a: [7.68, 4.46], aYaw: Math.PI, b: [8.58, 4.46], bYaw: Math.PI, pose: 'sit' };
+  if (beat.kind === 'game') return { a: [7.85, -1.93], aYaw: Math.PI, b: [8.85, -1.93], bYaw: Math.PI, pose: 'play' };
+  const h = castById[beat.a].home;
+  return { a: [h.x + 1.62, h.z - 1.15], aYaw: Math.PI, b: [h.x + 1.62, h.z + 0.15], bYaw: Math.PI, pose: 'look' };
+}
+function visitSpots(host, mode) {
+  if (mode === 'consult') {
+    const h = host.home;
+    return { h: [h.x + 1.62, h.z - 1.15], hYaw: Math.PI, g: [h.x + 1.62, h.z + 0.15], gYaw: Math.PI, pose: 'look' };
+  }
+  return { h: [-0.72, 2.72], hYaw: Math.PI / 2, g: [0.72, 2.72], gYaw: -Math.PI / 2, pose: 'talk' };
+}
+function walkAgent(agent, dt) {
+  const rig = agent.rig;
+  const tgt = agent.route[agent.ri];
+  if (!tgt) { agent.phase = 'there'; return true; }
   const dx = tgt[0] - rig.position.x, dz = tgt[1] - rig.position.z;
   const dist = Math.hypot(dx, dz);
-  if (dist < 0.06) { rig.position.x = tgt[0]; rig.position.z = tgt[1]; andrew.ri++; return andrew.ri >= andrew.route.length; }
+  if (dist < 0.07) {
+    rig.position.x = tgt[0]; rig.position.z = tgt[1];
+    agent.ri++;
+    if (agent.ri < agent.route.length) return false;
+    agent.phase = 'there';
+    agent.pose = agent.arrivePose || 'stand';
+    if (agent.arriveYaw != null) rig.rotation.y = agent.arriveYaw;
+    if (agent.arrivePose === 'type') {
+      rig.position.x = agent.home.x; rig.position.z = agent.home.z; rig.rotation.y = agent.home.rot;
+    }
+    return true;
+  }
   const yaw = Math.atan2(dx, dz);
   let turn = yaw - rig.rotation.y;
   while (turn > Math.PI) turn -= Math.PI * 2;
   while (turn < -Math.PI) turn += Math.PI * 2;
-  if (Math.abs(turn) > 0.45 && dist > 0.25) {
-    rig.rotation.y += Math.sign(turn) * Math.min(Math.abs(turn), 2.4 * dt);
+  if (Math.abs(turn) > 0.4 && dist > 0.22) {
+    rig.rotation.y += Math.sign(turn) * Math.min(Math.abs(turn), 2.6 * dt);
     return false;
   }
-  const step = Math.min(dist, 1.25 * dt);
-  rig.position.x += dx / dist * step; rig.position.z += dz / dist * step;
+  const step = Math.min(dist, 1.15 * dt);
+  rig.position.x += dx / dist * step;
+  rig.position.z += dz / dist * step;
   faceYaw(rig, yaw, dt);
   return false;
 }
-function poseAndrew(kind, t) {
-  const u = andrew.rig.userData;
-  const plant = () => { u.legL.rotation.x = u.legR.rotation.x = u.shinL.rotation.x = u.shinR.rotation.x = 0; u.head.rotation.x = 0; };
+function poseAgent(agent, kind, t) {
+  const u = agent.rig.userData, rig = agent.rig;
+  if (!u.legL) return;
+  const plant = () => { u.legL.rotation.x = u.legR.rotation.x = u.shinL.rotation.x = u.shinR.rotation.x = 0; };
   if (kind === 'walk') {
-    const s = Math.sin(t * 7.2);
-    u.legL.rotation.x = s * 0.65; u.legR.rotation.x = -s * 0.65;
-    u.shinL.rotation.x = Math.max(0, -s) * 0.9; u.shinR.rotation.x = Math.max(0, s) * 0.9;
-    u.armL.rotation.x = -s * 0.4; u.armR.rotation.x = s * 0.4;
-    andrew.rig.position.y = Math.abs(Math.sin(t * 7.2)) * 0.03;
+    const s = Math.sin(t * 7.2 + agent.home.x);
+    u.legL.rotation.x = s * 0.7; u.legR.rotation.x = -s * 0.7;
+    u.shinL.rotation.x = Math.max(0, -s) * 0.95; u.shinR.rotation.x = Math.max(0, s) * 0.95;
+    u.armL.rotation.x = -s * 0.45; u.armR.rotation.x = s * 0.45;
+    rig.position.y = Math.abs(s) * 0.03;
     u.head.rotation.x = 0; u.head.rotation.y = 0;
   } else if (kind === 'type' || kind === 'sit' || kind === 'play') {
-    u.legL.rotation.x = u.legR.rotation.x = 1.2;
-    u.shinL.rotation.x = u.shinR.rotation.x = -1.25;
-    andrew.rig.position.y = -0.38;
+    u.legL.rotation.x = u.legR.rotation.x = 1.15;
+    u.shinL.rotation.x = u.shinR.rotation.x = -1.2;
+    rig.position.y = -0.38;
     u.head.rotation.y = 0;
     if (kind === 'type') {
-      u.armL.rotation.x = -0.85 + Math.sin(t * 8) * 0.16;
-      u.armR.rotation.x = -0.8 + Math.cos(t * 8.4) * 0.16;
-      u.head.rotation.x = 0.35;
+      u.armL.rotation.x = -0.9 + Math.sin(t * 8 + agent.home.x) * 0.18;
+      u.armR.rotation.x = -0.85 + Math.cos(t * 8.5 + agent.home.x) * 0.18;
+      u.head.rotation.x = 0.32;
     } else if (kind === 'play') {
-      u.armL.rotation.x = -1.15 + Math.sin(t * 6) * 0.07;
-      u.armR.rotation.x = -1.05 + Math.sin(t * 7) * 0.09;
-      u.head.rotation.x = 0.42;
+      u.armL.rotation.x = -1.2 + Math.sin(t * 6 + agent.home.x) * 0.08;
+      u.armR.rotation.x = -1.05 + Math.sin(t * 7 + agent.home.x) * 0.1;
+      u.head.rotation.x = 0.4;
     } else {
-      u.armL.rotation.x = -0.25; u.armR.rotation.x = -0.2; u.head.rotation.x = 0.12;
+      u.armL.rotation.x = -0.35; u.armR.rotation.x = -0.28; u.head.rotation.x = 0.08;
     }
+  } else if (kind === 'talk') {
+    plant(); rig.position.y = 0;
+    u.armL.rotation.x = -1.4 + Math.sin(t * 3.1 + agent.home.x) * 0.28;
+    u.armR.rotation.x = -0.35;
+    u.head.rotation.x = Math.sin(t * 1.6 + agent.home.x) * 0.07;
+    u.head.rotation.y = 0;
   } else if (kind === 'look') {
-    plant(); andrew.rig.position.y = 0;
-    u.armL.rotation.x = -0.12; u.armR.rotation.x = -0.08;
-    u.head.rotation.x = -0.1; u.head.rotation.y = Math.sin(t * 0.35) * 0.4;
+    plant(); rig.position.y = 0;
+    u.armR.rotation.x = -1.28; u.armL.rotation.x = -0.3;
+    u.head.rotation.x = 0.28;
+    u.head.rotation.y = Math.sin(t * 1.2 + agent.home.x) * 0.2;
   } else {
-    plant(); andrew.rig.position.y = 0;
-    u.armL.rotation.x = Math.sin(t * 0.7) * 0.06; u.armR.rotation.x = -0.08;
-    u.head.rotation.y = Math.sin(t * 0.45) * 0.15;
+    plant(); rig.position.y = 0;
+    u.armL.rotation.x = Math.sin(t * 0.8 + agent.home.x) * 0.06;
+    u.armR.rotation.x = -0.1;
+    u.head.rotation.x = 0; u.head.rotation.y = 0;
   }
 }
-function chooseAndrewActivity() {
-  const pool = ['desk', 'rest', 'game', 'look', 'lift'].filter(id => id !== andrew.activity);
-  return pool[(Math.random() * pool.length) | 0];
+function liftReady(lv) {
+  return lift.target === lv && Math.abs(lift.cabin.position.y - liftY(lv)) < 0.08 && lift.open > 0.9;
 }
-function beginAndrewTrip(id) {
-  if (!andrew.rig) return;
-  const from = andrew.at;
-  andrew.activity = id;
-  andrew.headingTo = id === 'lift' ? 'liftLobby' : id;
-  andrew.route = routeBackAndForth(from, andrew.headingTo);
-  andrew.ri = 0;
-  andrew.phase = 'walk';
-  if (!andrew.route.length) andrew.phase = 'arrive';
+function beatIds(beat) { return beat.kind === 'visit' ? [beat.guest, beat.host] : [beat.a, beat.b]; }
+function startBeat(beat) {
+  const ids = beatIds(beat);
+  if (ids.some(id => !castById[id])) return 'skip';
+  if (ids.some(id => castById[id].busy)) return false;
+  if (beat.kind === 'visit' && director.liftLock > 0) return false;
+  director.beat = beat;
+  director.hold = beat.hold;
+  for (const id of ids) castById[id].busy = true;
+  if (beat.kind === 'visit') {
+    director.phase = 'toLift';
+    director.spots = null;
+    sendTo(castById[beat.guest], [-6.4, 5.55], 0, 'stand');
+  } else {
+    const spots = pairSpots(beat);
+    director.spots = spots;
+    director.phase = 'go';
+    sendTo(castById[beat.a], spots.a, spots.aYaw, spots.pose);
+    sendTo(castById[beat.b], spots.b, spots.bYaw, spots.pose);
+  }
+  return true;
+}
+function finishBeat() {
+  const beat = director.beat;
+  if (!beat) { director.phase = 'gap'; director.gap = 4; return; }
+  for (const id of beatIds(beat)) {
+    const a = castById[id];
+    if (!a) continue;
+    a.busy = false; a.pose = 'type'; a.phase = 'home';
+  }
+  if (beat.kind === 'visit') director.liftLock = 10;
+  director.beat = null;
+  director.phase = 'gap';
+  director.gap = 6;
+}
+function updatePair(dt) {
+  const beat = director.beat;
+  const A = castById[beat.a], B = castById[beat.b];
+  if (director.phase === 'go') {
+    if (A.phase !== 'walk' && B.phase !== 'walk') { director.phase = 'hold'; director.hold = beat.hold; }
+  } else if (director.phase === 'hold') {
+    if (beat.kind === 'chat') { lookAt(A, B, dt); lookAt(B, A, dt); }
+    director.hold -= dt;
+    if (director.hold <= 0) { sendHome(A); sendHome(B); director.phase = 'back'; }
+  } else if (director.phase === 'back') {
+    if (A.phase !== 'walk' && B.phase !== 'walk') finishBeat();
+  }
+}
+function boardPath() { return [[-8.15, 5.7], [-8.15, 8.22]]; }
+function updateVisit(dt) {
+  const beat = director.beat;
+  const G = castById[beat.guest], H = castById[beat.host];
+  const mode = beat.mode || 'chat';
+  if (director.phase === 'toLift') {
+    if (G.phase !== 'walk') {
+      lift.target = G.lv;
+      lift.wantOpen = Math.abs(lift.cabin.position.y - liftY(G.lv)) < 0.1;
+      if (liftReady(G.lv)) { sendAlong(G, boardPath(), 0, 'stand'); director.phase = 'board'; }
+    }
+  } else if (director.phase === 'board') {
+    lift.target = G.lv; lift.wantOpen = true;
+    if (G.phase !== 'walk' && liftReady(G.lv)) {
+      lift.cabin.attach(G.rig);
+      G.rig.position.set(0, 0, -0.12);
+      G.rig.rotation.y = Math.PI;
+      G.phase = 'there'; G.pose = 'stand';
+      lift.wantOpen = false; lift.target = H.lv;
+      const spots = visitSpots(H, mode);
+      director.spots = spots;
+      sendTo(H, spots.h, spots.hYaw, spots.pose);
+      director.phase = 'ride';
+    }
+  } else if (director.phase === 'ride') {
+    const parked = Math.abs(lift.cabin.position.y - liftY(H.lv)) < 0.08;
+    lift.wantOpen = parked;
+    if (parked && lift.open > 0.9) {
+      H.group.attach(G.rig);
+      G.rig.position.set(-8.15, 0, 6.5);
+      G.rig.rotation.y = Math.PI;
+      const spots = director.spots || visitSpots(H, mode);
+      sendTo(G, spots.g, spots.gYaw, spots.pose);
+      lift.wantOpen = false;
+      director.phase = 'toMeet';
+    }
+  } else if (director.phase === 'toMeet') {
+    if (G.phase !== 'walk' && H.phase !== 'walk') { director.phase = 'meet'; director.hold = beat.hold; }
+  } else if (director.phase === 'meet') {
+    if (mode === 'chat') { lookAt(G, H, dt); lookAt(H, G, dt); }
+    director.hold -= dt;
+    if (director.hold <= 0) {
+      sendHome(H);
+      sendTo(G, [-6.4, 5.55], 0, 'stand');
+      director.phase = 'toLiftHome';
+    }
+  } else if (director.phase === 'toLiftHome') {
+    if (G.phase !== 'walk') {
+      lift.target = H.lv;
+      lift.wantOpen = Math.abs(lift.cabin.position.y - liftY(H.lv)) < 0.1;
+      if (liftReady(H.lv)) { sendAlong(G, boardPath(), 0, 'stand'); director.phase = 'reboard'; }
+    }
+  } else if (director.phase === 'reboard') {
+    lift.target = H.lv; lift.wantOpen = true;
+    if (G.phase !== 'walk' && liftReady(H.lv)) {
+      lift.cabin.attach(G.rig);
+      G.rig.position.set(0, 0, -0.12);
+      G.rig.rotation.y = Math.PI;
+      G.phase = 'there'; G.pose = 'stand';
+      lift.wantOpen = false; lift.target = G.lv;
+      director.phase = 'rideHome';
+    }
+  } else if (director.phase === 'rideHome') {
+    const parked = Math.abs(lift.cabin.position.y - liftY(G.lv)) < 0.08;
+    lift.wantOpen = parked;
+    if (parked && lift.open > 0.9) {
+      G.group.attach(G.rig);
+      G.rig.position.set(-8.15, 0, 6.5);
+      G.rig.rotation.y = Math.PI;
+      lift.wantOpen = false;
+      sendHome(G);
+      director.phase = 'back';
+    }
+  } else if (director.phase === 'back') {
+    if (G.phase !== 'walk' && H.phase !== 'walk') finishBeat();
+  }
+}
+function updateDirector(dt) {
+  if (director.phase === 'gap') {
+    director.gap -= dt;
+    if (director.gap > 0) return;
+    const beat = BEATS[director.index % BEATS.length];
+    const started = startBeat(beat);
+    if (started === 'skip') { director.index++; director.gap = 0.2; return; }
+    if (!started) { director.gap = 0.6; return; }
+    director.index++;
+    return;
+  }
+  if (!director.beat) { director.phase = 'gap'; director.gap = 2; return; }
+  if (director.beat.kind === 'visit') updateVisit(dt);
+  else updatePair(dt);
+}
+function poseName(a) { return a.phase === 'walk' ? 'walk' : a.pose; }
+function pushTrace(reason) {
+  if (lifeTrace.length > 2400) return;
+  lifeTrace.push({
+    t: +director.t.toFixed(2), reason, phase: director.phase,
+    beat: director.beat ? director.beat.kind + ':' + (director.beat.host || director.beat.a || '') : '',
+    hold: director.beat ? +Math.max(0, director.hold).toFixed(2) : 0,
+    lift: { lv: lift.lv, y: +lift.cabin.position.y.toFixed(2), open: +lift.open.toFixed(2), target: lift.target },
+    people: cast.map(a => ({
+      id: a.id, x: +a.rig.position.x.toFixed(2), z: +a.rig.position.z.toFixed(2),
+      yaw: +a.rig.rotation.y.toFixed(2), pose: poseName(a), phase: a.phase,
+      parent: a.rig.parent === lift.cabin ? 'cabin' : 'floor', lv: hereLv(a),
+    })),
+  });
+}
+function updateLife(dt, t) {
+  director.t += dt;
+  if (director.liftLock > 0) director.liftLock = Math.max(0, director.liftLock - dt);
+  for (const a of cast) {
+    if (a.phase === 'walk') {
+      walkAgent(a, dt);
+      poseAgent(a, 'walk', t);
+    } else poseAgent(a, a.pose || 'type', t);
+  }
+  if (!director.paused) updateDirector(dt);
+  if (director.phase !== tracePhase) { tracePhase = director.phase; pushTrace('phase'); traceAcc = 0; }
+  else if (director.phase === 'hold' || director.phase === 'meet' || director.phase === 'ride' || director.phase === 'board') {
+    traceAcc += dt;
+    if (traceAcc >= 0.5) { traceAcc = 0; pushTrace('sample'); }
+  }
 }
 function updateLift(dt) {
+  if (!lift.cabin) return;
   const destY = liftY(lift.target);
   const dy = destY - lift.cabin.position.y;
-  if (Math.abs(dy) > 0.08) {
-    if (lift.open > 0.06) lift.openTarget = 0;
-    else lift.cabin.position.y += Math.sign(dy) * Math.min(Math.abs(dy), 2.6 * dt);
+  if (Math.abs(dy) > 0.06) {
+    if (lift.open > 0.04) lift.openTarget = 0;
+    else lift.cabin.position.y += Math.sign(dy) * Math.min(Math.abs(dy), 2.5 * dt);
   } else {
     lift.cabin.position.y = destY;
     lift.lv = lift.target;
-    lift.openTarget = 1;
-    if (!lift.hold && andrew.phase !== 'waitCabin' && andrew.phase !== 'ride') {
-      lift.idleT += dt;
-      if (lift.open > 0.92 && lift.idleT > 9) {
-        let n = 1 + ((Math.random() * 6) | 0);
-        if (n === lift.lv) n = n === 6 ? 2 : n + 1;
-        lift.target = n;
-        lift.idleT = 0;
-      }
-    }
+    lift.openTarget = lift.wantOpen ? 1 : 0;
   }
-  lift.open += (lift.openTarget - lift.open) * Math.min(1, dt * 4);
+  lift.open += (lift.openTarget - lift.open) * Math.min(1, dt * 3.4);
   const shown = Math.min(6, Math.max(1, Math.round((lift.cabin.position.y - 0.2) / FH) + 1));
   setCabinFloor(shown);
+  const parked = Math.abs(lift.cabin.position.y - liftY(shown)) < 0.25;
   for (const d of lift.doors) {
-    const gap = d.lv === shown && Math.abs(lift.cabin.position.y - liftY(d.lv)) < 0.35 ? lift.open : 0;
+    const gap = d.lv === shown && parked ? lift.open : 0;
     d.left.position.x = d.cx - 0.46 - gap * 0.48;
     d.right.position.x = d.cx + 0.46 + gap * 0.48;
   }
 }
-function updateAndrew(dt, t) {
-  if (!andrew.rig || !execBundle) return;
-  if (andrew.want) { const w = andrew.want; andrew.want = null; beginAndrewTrip(w); }
-  if (andrew.phase === 'dwell') {
-    andrew.dwell -= dt;
-    const spot = ANDREW_SPOT[andrew.at];
-    if (spot) faceYaw(andrew.rig, spot.rot, dt);
-    poseAndrew(spot ? spot.pose : 'stand', t);
-    if (andrew.dwell <= 0) beginAndrewTrip(chooseAndrewActivity());
-  } else if (andrew.phase === 'walk') {
-    poseAndrew('walk', t);
-    if (walkRoute(dt)) {
-      andrew.at = andrew.headingTo || andrew.at;
-      if (andrew.activity === 'lift') andrew.phase = 'waitCabin';
-      else {
-        andrew.phase = 'dwell';
-        const spot = ANDREW_SPOT[andrew.at];
-        andrew.dwell = spot ? spot.dwell[0] + Math.random() * (spot.dwell[1] - spot.dwell[0]) : 6;
-        if (spot) andrew.rig.rotation.y = spot.rot;
-      }
-    }
-  } else if (andrew.phase === 'waitCabin') {
-    poseAndrew('stand', t);
-    faceYaw(andrew.rig, 0, dt);
-    lift.hold = true;
-    lift.target = 6;
-    if (lift.lv === 6 && Math.abs(lift.cabin.position.y - liftY(6)) < 0.12 && lift.open > 0.9) {
-      andrew.phase = 'board';
-      andrew.route = [[LIFT_X, 6.15], [LIFT_X, LIFT_Z - 0.15]];
-      andrew.ri = 0;
-    }
-  } else if (andrew.phase === 'board') {
-    poseAndrew('walk', t);
-    if (walkRoute(dt)) {
-      lift.cabin.attach(andrew.rig);
-      andrew.rig.position.set(0, 0.02, -0.05);
-      andrew.rig.rotation.y = Math.PI;
-      andrew.phase = 'ride';
-      andrew.rideTo = 1 + ((Math.random() * 5) | 0);
-      if (andrew.rideTo === 6) andrew.rideTo = 3;
-      lift.target = andrew.rideTo;
-      andrew.rideBack = false;
-    }
-  } else if (andrew.phase === 'ride') {
-    poseAndrew('stand', t);
-    const parked = Math.abs(lift.cabin.position.y - liftY(lift.target)) < 0.12 && lift.open > 0.9;
-    if (parked && !andrew.rideBack) {
-      andrew.rideWait = (andrew.rideWait || 0) + dt;
-      if (andrew.rideWait > 2.4) { andrew.rideBack = true; andrew.rideWait = 0; lift.target = 6; }
-    } else if (parked && andrew.rideBack && lift.target === 6) {
-      execBundle.g.attach(andrew.rig);
-      andrew.rig.position.set(-6.2, 0, 5.5);
-      andrew.rig.rotation.y = Math.PI;
-      lift.hold = false;
-      andrew.at = 'liftLobby';
-      andrew.activity = 'lift';
-      beginAndrewTrip(chooseAndrewActivity());
-    } else andrew.rideWait = 0;
-  }
+function stepLife(dt) {
+  const d = Math.max(0, Math.min(dt, 0.2));
+  lifeT += d;
+  updateLift(d);
+  updateLife(d, lifeT);
 }
+for (const a of cast) poseAgent(a, 'type', 1);
+function lifeStatus() {
+  const people = cast.map(a => ({
+    id: a.id, x: +a.rig.position.x.toFixed(2), z: +a.rig.position.z.toFixed(2),
+    y: +a.rig.position.y.toFixed(2), yaw: +a.rig.rotation.y.toFixed(2),
+    pose: poseName(a), phase: a.phase,
+    parent: a.rig.parent === lift.cabin ? 'cabin' : 'floor', lv: hereLv(a),
+  }));
+  return {
+    t: +director.t.toFixed(2), phase: director.phase,
+    beat: director.beat ? director.beat.kind : '',
+    who: director.beat ? (director.beat.host || director.beat.a) : '',
+    hold: director.beat ? +Math.max(0, director.hold).toFixed(2) : 0,
+    lift: { lv: lift.lv, y: +lift.cabin.position.y.toFixed(2), open: +lift.open.toFixed(2), target: lift.target, want: lift.wantOpen },
+    people,
+  };
+}
+window.__life = {
+  step(dt) { stepLife(dt); },
+  status: lifeStatus,
+  get trace() { return lifeTrace; },
+  ids: () => cast.map(a => a.id),
+  pause(v) { director.paused = v !== false; },
+};
 window.__ceo = {
-  get activity() { return andrew.activity; },
-  get phase() { return andrew.phase; },
-  get pose() { return andrew.phase === 'walk' || andrew.phase === 'board' ? 'walk' : (ANDREW_SPOT[andrew.at]?.pose || andrew.phase); },
+  get activity() { return director.beat ? director.beat.kind : 'work'; },
+  get phase() { return andrewAgent ? andrewAgent.phase : director.phase; },
+  get pose() { return andrewAgent ? poseName(andrewAgent) : 'type'; },
   get lift() { return lift.lv; },
   get open() { return +lift.open.toFixed(2); },
   rests: () => restCount,
   doors: () => lift.doors.length,
   pointLights() { let n = 0; scene.traverse(o => { if (o.isPointLight) n++; }); return n; },
-  goto(id) { andrew.want = id; },
+  goto(id) { this.snap(id); },
   snap(id) {
-    const spot = ANDREW_SPOT[id];
-    if (!spot || !andrew.rig || !execBundle) return;
-    if (andrew.rig.parent !== execBundle.g) execBundle.g.attach(andrew.rig);
-    const p = spot.via[spot.via.length - 1];
-    andrew.at = id; andrew.activity = id; andrew.phase = 'dwell'; andrew.dwell = 30; lift.hold = false;
-    andrew.rig.position.set(p[0], 0, p[1]);
-    andrew.rig.rotation.y = spot.rot;
-    poseAndrew(spot.pose, 2);
+    const spots = {
+      desk: [-4, 0.9, Math.PI, 'type'],
+      rest: [7.68, 4.46, Math.PI, 'sit'],
+      game: [7.85, -1.93, Math.PI, 'play'],
+      look: [-1.2, 5.2, 0, 'stand'],
+      liftLobby: [-6.4, 5.55, 0, 'stand'],
+    };
+    const s = spots[id];
+    if (!s || !andrewAgent) return;
+    director.paused = true;
+    if (andrewAgent.rig.parent !== andrewAgent.group) andrewAgent.group.attach(andrewAgent.rig);
+    andrewAgent.phase = 'there'; andrewAgent.pose = s[3]; andrewAgent.busy = true;
+    andrewAgent.rig.position.set(s[0], 0, s[1]); andrewAgent.rig.rotation.y = s[2];
+    poseAgent(andrewAgent, s[3], 2);
   },
   showLift(lv) {
-    lift.target = lv; lift.lv = lv; lift.cabin.position.y = liftY(lv); lift.open = lift.openTarget = 1; setCabinFloor(lv);
+    lift.target = lv; lift.lv = lv; lift.cabin.position.y = liftY(lv);
+    lift.open = lift.openTarget = 1; lift.wantOpen = true; setCabinFloor(lv);
   },
 };
 
@@ -2982,7 +3264,7 @@ function tick() {
   dancer.position.y = 16 + Math.sin(t * 0.5) * 0.8;
   dancer.material.opacity = 0.7 + Math.sin(t * 3.5) * 0.18;
   if (window.__corpEmblem) window.__corpEmblem.material.opacity = 0.85 + Math.sin(t * 4.2) * 0.12;
-  neonFlickers.forEach((p, i) => { p.material.opacity = 0.75 + Math.sin(t * 5 + i) * 0.2; });
+  neonFlickers.forEach((p, i) => { if (!p.userData.ready) return; p.material.opacity = 0.94 + Math.sin(t * 1.5 + i) * 0.05; });
   if (rain) { const a = rain.geometry.attributes.position; for (let i = 1; i < a.array.length; i += 3) { a.array[i] -= 50 * dt; if (a.array[i] < 0) a.array[i] = 95; } a.needsUpdate = true; }
   if (window.__rainLines) { const a = window.__rainLines.geometry.attributes.position; for (let i = 1; i < a.array.length; i += 3) { a.array[i] -= 65 * dt; if (a.array[i] < 0) a.array[i] = 95; } a.needsUpdate = true; }
   steams.forEach((p, i) => { const a = p.geometry.attributes.position; for (let j = 1; j < a.array.length; j += 3) { a.array[j] += (0.9 + i * 0.05) * dt; if (a.array[j] > 4.5) a.array[j] = 0; } a.needsUpdate = true; });
@@ -3001,8 +3283,8 @@ function tick() {
     if (!(ceoBlend > 0.004 && !userTook) && focusY != null) controls.target.y += (focusY - controls.target.y) * 0.06;
     controls.update();
   }
-  updateLift(dt);
-  updateAndrew(dt, t);
+  if (!window.__neonReady) window.__neonReady = commitNeon();
+  if (!window.__PAUSE_LIFE) stepLife(window.__SIM_DT > 0 ? window.__SIM_DT : dt);
   updateScreens(dt);
 
   // project labels — keep floor tags clear of top HUD (y > 90)
