@@ -932,10 +932,21 @@ function makeOfficePerson(id) {
   const trimM = E(look.trim, id === 'andrew' ? 1.05 : 0.5);
   const beltM = M(0x10141c, { roughness: 0.35, metalness: 0.55 });
 
+  const female = id === 'mandy' || id === 'hailey' || id === 'holly' || id === 'hazel' || id === 'penny';
   const torso = quietMesh(jacketGeo(look.jacket), suit);
   torso.position.y = 0.88;
-  torso.scale.x = look.shoulder;
+  torso.scale.x = female ? look.shoulder * 0.78 : look.shoulder;
+  if (female) torso.scale.z = 0.82;
   rig.add(torso);
+  if (female) {
+    // Clothed chest on the jacket, same fabric. Slimmer waist is the lathe scale above.
+    for (const sx of [-1, 1]) {
+      const bust = quietMesh(new THREE.SphereGeometry(0.06, 12, 10), suit);
+      bust.scale.set(0.95, 0.76, 0.58);
+      bust.position.set(sx * 0.06, 0.4, 0.15);
+      torso.add(bust);
+    }
+  }
   const lapelTint = new THREE.Color(look.suit);
   lapelTint.offsetHSL(0, -0.04, 0.14);
   const lapels = quietMesh(lapelGeo(), M(lapelTint.getHex(), { roughness: 0.4, metalness: 0.22 }));
@@ -1001,6 +1012,7 @@ function makeOfficePerson(id) {
     pivot.position.set(side * (0.19 + (look.shoulder - 1) * 0.05), 1.4, 0);
     rig.add(pivot);
     const upper = quietMesh(limbGeo('upper'), suit);
+    if (female) upper.scale.set(0.74, 1, 0.74);
     pivot.add(upper);
     const fore = new THREE.Group();
     fore.position.y = -0.18;
@@ -1015,7 +1027,9 @@ function makeOfficePerson(id) {
     const hip = new THREE.Group();
     hip.position.set(side * 0.085, 0.9, 0);
     rig.add(hip);
-    hip.add(quietMesh(limbGeo('thigh'), cloth));
+    const thigh = quietMesh(limbGeo('thigh'), cloth);
+    if (female) thigh.scale.set(0.78, 1, 0.78);
+    hip.add(thigh);
     const shin = new THREE.Group();
     shin.position.y = -0.4;
     hip.add(shin);
@@ -2016,6 +2030,56 @@ function car(color, lane, speed, x, hover = false) {
 // fewer procedural ground cars (dark); Kenney GLBs carry most traffic
 car(0x12151c, 42, 4, -28); car(0x0e1016, 44, -4, 26);
 
+// Low futuristic racer. Origin sits on the road; nose is +X.
+function raceCar(accent = 0x00f0ff) {
+  const g = new THREE.Group();
+  const shell = M(0x10141c, { metalness: 0.88, roughness: 0.22 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0x071018, metalness: 0.2, roughness: 0.05, transparent: true, opacity: 0.72 });
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.22, 0.72), shell);
+  nose.position.set(1.85, 0.32, 0); nose.scale.set(1, 0.7, 1); g.add(nose);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.34, 1.72), shell);
+  body.position.set(0.15, 0.38, 0); g.add(body);
+  const sideL = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.16, 0.28), shell);
+  sideL.position.set(0.05, 0.28, 0.98); g.add(sideL);
+  const sideR = sideL.clone(); sideR.position.z = -0.98; g.add(sideR);
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.32, 0.78), glass);
+  canopy.position.set(0.15, 0.68, 0); g.add(canopy);
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.06, 2.15), shell);
+  wing.position.set(-1.55, 0.92, 0); g.add(wing);
+  box(0.08, 0.48, 0.08, shell, -1.55, 0.68, 0.7, g);
+  box(0.08, 0.48, 0.08, shell, -1.55, 0.68, -0.7, g);
+  box(0.12, 0.1, 1.55, E(accent, 3.2), 2.35, 0.36, 0, g);
+  box(2.8, 0.04, 0.06, E(accent, 2.2), 0.1, 0.16, 0.9, g);
+  box(2.8, 0.04, 0.06, E(accent, 2.2), 0.1, 0.16, -0.9, g);
+  glow(GLOW.white, 2.45, 0.36, 0.42, 1.6, 0.7, 0.7, g);
+  glow(GLOW.white, 2.45, 0.36, -0.42, 1.6, 0.7, 0.7, g);
+  glow(GLOW.red, -1.7, 0.4, 0.55, 1.1, 0.55, 0.6, g);
+  glow(GLOW.red, -1.7, 0.4, -0.55, 1.1, 0.55, 0.6, g);
+  for (const dx of [-1.15, 1.25]) for (const dz of [-0.82, 0.82]) {
+    const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.22, 14), M(0x0a0c10, { metalness: 0.7 }));
+    wh.rotation.z = Math.PI / 2; wh.position.set(dx, 0.34, dz); g.add(wh);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.03, 6, 12), E(accent, 1.4));
+    rim.rotation.y = Math.PI / 2; rim.position.set(dx, 0.34, dz + Math.sign(dz) * 0.1); g.add(rim);
+  }
+  return g;
+}
+{
+  const g = raceCar(0xfcee0a);
+  g.position.set(-8, 0, 43);
+  scene.add(g);
+  cars.push({ g, speed: 13, hover: false, hero: true });
+}
+// Flying car. Circuits, sets down on the roof pad, waits, then lifts off.
+const roofFlyer = raceCar(0x00f0ff);
+roofFlyer.traverse(o => { if (o.isMesh) o.layers.enable(LAYER_ROOM); });
+for (const dx of [-1.05, 1.15]) for (const dz of [-0.55, 0.55]) {
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.1, 10), E(0x00f0ff, 2.2));
+  pad.position.set(dx, 0.08, dz); roofFlyer.add(pad);
+}
+scene.add(roofFlyer);
+window.__roofFlyer = roofFlyer;
+const ROOF_PAD = new THREE.Vector3(0, ROOF + 0.78, 3.5);
+
 
 // ---- people variants: ?people=a (rigged civilian GLB) | ?people=b (procedural+) ----
 const PEOPLE_VARIANT = (new URLSearchParams(location.search).get('people') || 'a').toLowerCase();
@@ -2767,11 +2831,20 @@ function styleQuaternius(root, accent, opts = {}) {
 function makeHumanoid(color, accent, opts = {}) {
   const g = new THREE.Group();
   const scale = opts.scale || (0.92 + Math.random() * 0.22);
-  const build = opts.build || 1; // 0.85 slim … 1.15 heavy
+  const fem = !!opts.feminine;
+  const build = fem ? 0.78 : (opts.build || 1); // women: narrow waist and limbs
   const hips = new THREE.Mesh(new THREE.CapsuleGeometry(0.15 * build, 0.12, 4, 8), M(0x141820));
   hips.position.y = 0.92; g.add(hips);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.19 * build, 0.38, 4, 10), M(color, { metalness: 0.35, roughness: 0.4 }));
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry((fem ? 0.145 : 0.19) * (opts.build || 1), 0.38, 4, 10), M(color, { metalness: 0.35, roughness: 0.4 }));
   torso.position.y = 1.3; g.add(torso);
+  if (fem) {
+    for (const sx of [-1, 1]) {
+      const bust = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), M(color, { metalness: 0.35, roughness: 0.42 }));
+      bust.scale.set(0.9, 0.72, 0.58);
+      bust.position.set(sx * 0.07, 1.42, 0.12);
+      g.add(bust);
+    }
+  }
   // neon jacket / coat trim
   const trim = new THREE.Mesh(new THREE.TorusGeometry(0.21 * build, 0.022, 6, 16), E(accent, 2.4));
   trim.rotation.x = Math.PI / 2; trim.position.y = 1.48; g.add(trim);
@@ -2959,6 +3032,7 @@ function spawnBackgroundCrowd(makeFn, count = 36) {
       const g = makeFn({
         cyber: true, visor: n % 5 === 0, phone: mode === 'phone', holoWrist: mode === 'phone',
         mantis: n % 11 === 0, mask: n % 9 === 0,
+        feminine: n % 2 === 0,
         mode, scale: 0.98 + (n % 4) * 0.04,
         archetype: archs[n % archs.length],
       });
@@ -3256,8 +3330,53 @@ function loadGltf(base, name) {
         return clips.walk || clips.idle;
       }
 
+      function sculptSlimFrame(root) {
+        let body = null, best = 0;
+        root.traverse(o => {
+          if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+          const n = o.geometry.attributes.position.count;
+          if (n > best) { best = n; body = o; }
+        });
+        if (!body || best < 80) return;
+        const g = body.geometry.clone();
+        body.geometry = g;
+        const pos = g.attributes.position;
+        g.computeBoundingBox();
+        const bb = g.boundingBox;
+        const h = Math.max(0.001, bb.max.y - bb.min.y);
+        const cx = (bb.max.x + bb.min.x) / 2;
+        const cz = (bb.max.z + bb.min.z) / 2;
+        let topZ = 0, topN = 0;
+        for (let i = 0; i < pos.count; i++) {
+          if ((pos.getY(i) - bb.min.y) / h > 0.84) { topZ += pos.getZ(i); topN++; }
+        }
+        const frontSign = topN && ((topZ / topN) - cz) < 0 ? -1 : 1;
+        for (let i = 0; i < pos.count; i++) {
+          let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+          const yn = (y - bb.min.y) / h;
+          const dx = x - cx, dz = z - cz;
+          if (yn > 0.47 && yn < 0.63) {
+            const s = Math.sin((yn - 0.47) / 0.16 * Math.PI);
+            x = cx + dx * (1 - 0.30 * s);
+            z = cz + dz * (1 - 0.10 * s);
+          }
+          if (yn > 0.65 && yn < 0.78 && (z - cz) * frontSign > -h * 0.02) {
+            const t = Math.sin((yn - 0.65) / 0.13 * Math.PI);
+            const side = Math.min(1, Math.abs(dx) / (h * 0.09));
+            z += frontSign * h * 0.055 * t * (0.3 + 0.7 * side);
+          }
+          if (yn > 0.55 && yn < 0.86 && Math.abs(dx) > h * 0.11) x = cx + dx * 0.86;
+          pos.setXYZ(i, x, y, z);
+        }
+        pos.needsUpdate = true;
+        g.computeVertexNormals();
+      }
       function makeRigged(opts = {}) {
         let chosen = templates[(Math.random() * templates.length) | 0];
+        if (opts.feminine || opts.longHair) {
+          const fem = templates.filter(t => /woman/.test(t.name));
+          if (fem.length) chosen = fem[(Math.random() * fem.length) | 0];
+        }
         if (opts.hero) {
           const prefer = templates.filter(t => /scifi|casual|woman_casual|woman3/.test(t.name));
           if (prefer.length) chosen = prefer[(Math.random() * prefer.length) | 0];
@@ -3267,6 +3386,7 @@ function loadGltf(base, name) {
           if (fem.length) chosen = fem[(Math.random() * fem.length) | 0];
         }
         const root = SkeletonUtils.clone(chosen.scene);
+        if (opts.feminine || /woman/.test(chosen.name)) sculptSlimFrame(root);
         const accent = opts.accentForce || accentCols[(Math.random() * accentCols.length) | 0];
         const arch = opts.archetype || pick(CP_ARCHETYPES);
         // Scale first so cyberware attachProp sees correct bone world scale
@@ -3554,6 +3674,40 @@ function tick() {
   }
 
   monoCar.position.x += 11 * dt; if (monoCar.position.x > 48) monoCar.position.x = -48;
+  if (window.__roofFlyer) {
+    const f = window.__roofFlyer;
+    const cyc = 26;
+    const u = window.__flyerU != null ? window.__flyerU : (t % cyc) / cyc;
+    const pad = ROOF_PAD;
+    const hover = pad.y + 16;
+    let x = pad.x, y = hover, z = pad.z, yaw = 0;
+    if (u < 0.28) {
+      const k = u / 0.28;
+      x = -42 + (pad.x + 6 - -42) * k;
+      y = hover + 6 * (1 - k);
+      z = pad.z + 10 * (1 - k);
+      yaw = 0.4;
+    } else if (u < 0.46) {
+      const k = (u - 0.28) / 0.18;
+      const e = k * k * (3 - 2 * k);
+      x = pad.x + 6 * (1 - e);
+      y = hover + (pad.y - hover) * e;
+      z = pad.z;
+      yaw = 0.15 * (1 - e);
+    } else if (u < 0.70) {
+      x = pad.x; y = pad.y; z = pad.z; yaw = 0;
+    } else {
+      const k = (u - 0.70) / 0.30;
+      const e = k * k;
+      x = pad.x + 48 * e;
+      y = pad.y + (hover + 8 - pad.y) * e;
+      z = pad.z - 6 * e;
+      yaw = -0.3 * k;
+    }
+    f.position.set(x, y, z);
+    f.rotation.y = yaw;
+    f.rotation.z = (y > pad.y + 1) ? Math.sin(t * 1.4) * 0.04 : 0;
+  }
   avs.forEach(a => {
     a.g.position.x += a.speed * dt * (a.side || 1);
     if (a.side && a.side < 0) { if (a.g.position.x > -30) a.g.position.x = -55; if (a.g.position.x < -55) a.g.position.x = -30; }
@@ -3698,9 +3852,63 @@ window.__frame = (id, clip, phase, view) => {
   const cam = look.clone();
   if (view === 'close') { cam.z += 1.15; }
   else if (view === 'side') { cam.x += 3.15; cam.z += 0.35; }
+  else if (view === 'feet') {
+    cam.set(wp.x + 1.35, wp.y + 1.25, wp.z + 2.05);
+    look.set(wp.x, wp.y + 0.16, wp.z + 0.2);
+  }
   else { cam.z += 3.6; cam.y += 0.05; }
   window.__LOCK_CAM = { pos: cam, tgt: look };
+  if (!window.__proofKey) {
+    const key = new THREE.DirectionalLight(0xfff4e8, 2.4);
+    key.position.set(3, 8, 6);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xc9d7ff, 0.9);
+    fill.position.set(-4, 4, -2);
+    scene.add(fill);
+    window.__proofKey = key;
+  }
   return info;
+};
+window.__meshBounds = (id) => {
+  const entry = proofHumans.find(p => p.id === id);
+  if (!entry) return null;
+  entry.model.updateWorldMatrix(true, true);
+  const feet = [];
+  let minY = 1e9, maxY = -1e9;
+  const v = new THREE.Vector3();
+  const p = new THREE.Vector3();
+  const acc = new THREE.Vector3();
+  const m4 = new THREE.Matrix4();
+  entry.model.traverse(o => {
+    if (!o.isSkinnedMesh) return;
+    const g = o.geometry;
+    const pos = g.attributes.position;
+    const si = g.attributes.skinIndex;
+    const sw = g.attributes.skinWeight;
+    if (!pos || !si || !sw) return;
+    o.skeleton.update();
+    const bones = o.skeleton.boneMatrices;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix);
+      acc.set(0, 0, 0);
+      for (let k = 0; k < 4; k++) {
+        const w = sw.getComponent(i, k);
+        if (w <= 0) continue;
+        const bi = si.getComponent(i, k);
+        m4.fromArray(bones, bi * 16);
+        p.copy(v).applyMatrix4(m4).multiplyScalar(w);
+        acc.add(p);
+      }
+      acc.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld);
+      if (acc.y < minY) minY = acc.y;
+      if (acc.y > maxY) maxY = acc.y;
+      if (acc.y < 0.25) feet.push([+acc.x.toFixed(3), +acc.y.toFixed(3), +acc.z.toFixed(3)]);
+    }
+  });
+  feet.sort((a, b) => a[1] - b[1]);
+  const left = feet.filter(f => f[0] >= 0).slice(0, 1)[0] || null;
+  const right = feet.filter(f => f[0] < 0).slice(0, 1)[0] || null;
+  return { minY: +minY.toFixed(4), maxY: +maxY.toFixed(4), left, right, low: feet.slice(0, 6) };
 };
 window.__chairShot = () => {
   window.__HOLD_LIFE = true;
