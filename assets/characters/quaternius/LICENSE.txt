@@ -1,0 +1,12 @@
+Universal Animation Library (Standard)
+Author: Quaternius
+License: CC0 1.0 Universal
+https://quaternius.com/packs/universalanimationlibrary.html
+
+The glTF in this folder is the free Standard pack (Godot export) mirrored from
+https://github.com/J-Ponzo/gltf-universal-animation-library
+which redistributes the itch.io release of 2025-06-10.
+
+Penny uses A_TPose as the source rest pose, plus Idle_Loop, Walk_Loop and
+Sitting_Idle_Loop. The clips are retargeted onto her skeleton in the page.
+The mannequin mesh is not shown.

@@ -1267,7 +1267,17 @@ FLOORS.forEach((f, idx) => {
     workstation(g, 4.5, -1.2, 0x7a8aa8, (hollyIdx >= 0 ? ppl[bIdx] + ' 準備中' : ppl[bIdx]), f, 0x7a8aa8);
     box(0.5, 1.6, 0.5, E(0xfcee0a, 1.2), 0, 0.9, 2.5, g);
   } else if (!isVac(f)) {
-    workstation(g, -2, -1.5, c, (f.people && f.people[0]) || f.name, f);
+    const who = (f.people && f.people[0]) || f.name;
+    if (/Penny/i.test(who)) {
+      // Her sit drops the hips to about 0.50 m above the soles. The cushion
+      // top has to meet that, with the backrest behind the shoulders.
+      workstation(g, -2, -1.5, c, who, f, 0x00f0ff, 0.86, {
+        deskShift: 0.18, deskY: 1.08, personZ: 1.38, seatZ: 1.32, backZ: 1.50,
+        seatD: 0.74, seatW: 0.64, backW: 0.56, backH: 0.62, backD: 0.07, backY: 1.08,
+      });
+    } else {
+      workstation(g, -2, -1.5, c, who, f);
+    }
     workstation(g, 4.5, -1.5, c, null, f);
   }
   floorGroups.push({ g, f });
@@ -4194,7 +4204,7 @@ const proofHumans = [];
 // Fictional adults. Fully clothed. Not likenesses of any real person.
 // Halfords (Hailey, Holly, Hazel) and bookings (Mandy, Penny) are women.
 // Andrew and the other staff are men. Andrew, Mandy, and Penny are skinned.
-// Penny is the Lucy rig (A-pose). Her clips are retargeted from Mandy.
+// Penny is the Lucy rig. Her clips are retargeted from the Quaternius CC0 set.
 const CAST_DESIGN = {
   female: ['mandy', 'hailey', 'holly', 'hazel', 'penny'],
   male: ['andrew', 'routinizer', 'crypto', 'risk', 'market'],
@@ -4327,151 +4337,171 @@ attachProof('andrew', 'assets/characters/andrew.glb');
 attachProof('mandy', 'assets/characters/mandy.glb');
 
 // Penny: Lucy rig, used as-is (do not re-export; that breaks the skin).
-// Bone names contain spaces. PropertyBinding turns those into underscores on
-// both the track and the node, so the tracks keep the original names.
-// Her rest pose is an A-pose and Mandy's clips are relative to a T-pose, so
-// each limb is aimed to match Mandy's bone direction while the A-pose roll
-// stays. That is the rest-pose offset: arms are not copied as raw T-pose locals.
-const MIXAMO_TO_BIP = {
-  mixamorigHips: 'Bip01 Pelvis',
-  mixamorigSpine: 'Bip01 Spine',
-  mixamorigSpine1: 'Bip01 Spine1',
-  mixamorigSpine2: 'Bip01 Spine2',
-  mixamorigNeck: 'Bip01 Neck',
-  mixamorigHead: 'Bip01 Head',
-  mixamorigLeftShoulder: 'Bip01 L Clavicle',
-  mixamorigLeftArm: 'Bip01 L UpperArm',
-  mixamorigLeftForeArm: 'Bip01 L Forearm',
-  mixamorigLeftHand: 'Bip01 L Hand',
-  mixamorigLeftUpLeg: 'Bip01 L Thigh',
-  mixamorigLeftLeg: 'Bip01 L Calf',
-  mixamorigLeftFoot: 'Bip01 L Foot',
-  mixamorigLeftToeBase: 'Bip01 L Toe0',
-  mixamorigRightShoulder: 'Bip01 R Clavicle',
-  mixamorigRightArm: 'Bip01 R UpperArm',
-  mixamorigRightForeArm: 'Bip01 R Forearm',
-  mixamorigRightHand: 'Bip01 R Hand',
-  mixamorigRightUpLeg: 'Bip01 R Thigh',
-  mixamorigRightLeg: 'Bip01 R Calf',
-  mixamorigRightFoot: 'Bip01 R Foot',
-  mixamorigRightToeBase: 'Bip01 R Toe0',
+// The GLB root already stands her upright. syncProof writes yaw onto the
+// object it moves, so that root rotation stays on an inner node.
+// Clips are Quaternius CC0 Universal Animation Library (standard):
+// Idle_Loop, Walk_Loop, Sitting_Idle_Loop, with A_TPose as the source rest.
+// bone-map-mixamo.json names the humanoid bones. Jacket, coat tails, hair
+// and twist bones are not in that map and are never keyed.
+// For each mapped bone the world swing is the rotation that takes the
+// source bind direction onto the posed direction, applied to her own bind
+// direction. That drops the A-pose arms without copying foreign local axes.
+const UAL_TO_MIXAMO = {
+  'DEF-hips': 'mixamorigHips',
+  'DEF-spine.001': 'mixamorigSpine',
+  'DEF-spine.002': 'mixamorigSpine1',
+  'DEF-spine.003': 'mixamorigSpine2',
+  'DEF-neck': 'mixamorigNeck',
+  'DEF-head': 'mixamorigHead',
+  'DEF-shoulder.L': 'mixamorigLeftShoulder',
+  'DEF-upper_arm.L': 'mixamorigLeftArm',
+  'DEF-forearm.L': 'mixamorigLeftForeArm',
+  'DEF-hand.L': 'mixamorigLeftHand',
+  'DEF-thigh.L': 'mixamorigLeftUpLeg',
+  'DEF-shin.L': 'mixamorigLeftLeg',
+  'DEF-foot.L': 'mixamorigLeftFoot',
+  'DEF-toe.L': 'mixamorigLeftToeBase',
+  'DEF-shoulder.R': 'mixamorigRightShoulder',
+  'DEF-upper_arm.R': 'mixamorigRightArm',
+  'DEF-forearm.R': 'mixamorigRightForeArm',
+  'DEF-hand.R': 'mixamorigRightHand',
+  'DEF-thigh.R': 'mixamorigRightUpLeg',
+  'DEF-shin.R': 'mixamorigRightLeg',
+  'DEF-foot.R': 'mixamorigRightFoot',
+  'DEF-toe.R': 'mixamorigRightToeBase',
+};
+const UAL_CHILD = {
+  'DEF-hips': 'DEF-spine.001',
+  'DEF-spine.001': 'DEF-spine.002',
+  'DEF-spine.002': 'DEF-spine.003',
+  'DEF-spine.003': 'DEF-neck',
+  'DEF-neck': 'DEF-head',
+  'DEF-shoulder.L': 'DEF-upper_arm.L',
+  'DEF-upper_arm.L': 'DEF-forearm.L',
+  'DEF-forearm.L': 'DEF-hand.L',
+  'DEF-thigh.L': 'DEF-shin.L',
+  'DEF-shin.L': 'DEF-foot.L',
+  'DEF-foot.L': 'DEF-toe.L',
+  'DEF-shoulder.R': 'DEF-upper_arm.R',
+  'DEF-upper_arm.R': 'DEF-forearm.R',
+  'DEF-forearm.R': 'DEF-hand.R',
+  'DEF-thigh.R': 'DEF-shin.R',
+  'DEF-shin.R': 'DEF-foot.R',
+  'DEF-foot.R': 'DEF-toe.R',
 };
 function pennySoleY(model) {
+  // The skinned-vertex sample used for Mandy reads this mesh's indices wrong
+  // and reports a shin as the sole, which plants her knees on the slab.
+  // The ankle joint sits about 10 cm above the boot sole in the bind pose.
   model.updateWorldMatrix(true, true);
   model.getWorldPosition(_soleOrigin);
-  const ys = [];
-  model.traverse(o => {
-    if (!o.isSkinnedMesh) return;
-    const pos = o.geometry.attributes.position;
-    const si = o.geometry.attributes.skinIndex;
-    const sw = o.geometry.attributes.skinWeight;
-    if (!pos || !si || !sw || typeof sw.getX !== 'function') return;
-    o.skeleton.update();
-    const bones = o.skeleton.boneMatrices;
-    const step = Math.max(1, Math.floor(pos.count / 2500));
-    const comp = (attr, i, k) => k === 0 ? attr.getX(i) : k === 1 ? attr.getY(i) : k === 2 ? attr.getZ(i) : attr.getW(i);
-    for (let i = 0; i < pos.count; i += step) {
-      _soleV.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix);
-      _soleAcc.set(0, 0, 0);
-      for (let k = 0; k < 4; k++) {
-        const w = comp(sw, i, k);
-        if (w <= 0) continue;
-        _soleM.fromArray(bones, comp(si, i, k) * 16);
-        _soleP.copy(_soleV).applyMatrix4(_soleM).multiplyScalar(w);
-        _soleAcc.add(_soleP);
-      }
-      _soleAcc.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld);
-      ys.push(_soleAcc.y);
-    }
-  });
-  if (!ys.length) return null;
-  ys.sort((a, b) => a - b);
-  return ys[Math.min(ys.length - 1, Math.floor(ys.length * 0.04))] - _soleOrigin.y;
+  let min = Infinity;
+  for (const name of ['Left_ankle_023', 'Right_ankle_023', 'Left_toe_024', 'Right_toe_047']) {
+    const bone = model.getObjectByName(name);
+    if (!bone) continue;
+    const y = bone.getWorldPosition(_soleV).y - _soleOrigin.y;
+    if (y < min) min = y;
+  }
+  if (!Number.isFinite(min)) return null;
+  return min - 0.10;
 }
-function retargetPennyClip(sourceRoot, clip, targetRoot, pairs) {
+const _rtV = new THREE.Vector3();
+const _rtS = new THREE.Vector3();
+const _rtQ = new THREE.Quaternion();
+const _rtParent = new THREE.Quaternion();
+const _rtDelta = new THREE.Quaternion();
+function _worldQ(o, out) {
+  o.updateWorldMatrix(true, false);
+  o.matrixWorld.decompose(_rtV, out, _rtS);
+  return out;
+}
+function retargetPennyClip(sourceRoot, clip, outName, pairs, byUal) {
   const fps = 30;
   const frames = Math.max(2, Math.round(clip.duration * fps));
-  pairs.forEach(p => {
-    p.source.quaternion.copy(p.srcRestLocalQ);
-    p.source.position.copy(p.srcRestLocalP);
-  });
-  sourceRoot.updateMatrixWorld(true);
+  const times = new Float32Array(frames + 1);
+  pairs.forEach(p => { p.quats = new Float32Array((frames + 1) * 4); p.prev = null; });
+  const hip = byUal['DEF-hips'];
+  hip.pos = new Float32Array((frames + 1) * 3);
   const mixer = new THREE.AnimationMixer(sourceRoot);
   const action = mixer.clipAction(clip);
+  action.setLoop(THREE.LoopRepeat, Infinity);
   action.play();
-  const qSrc = new THREE.Quaternion();
-  const qDelta = new THREE.Quaternion();
-  const qWorld = new THREE.Quaternion();
-  const qLocal = new THREE.Quaternion();
-  const aim = new THREE.Vector3();
-  const from = new THREE.Vector3();
-  const pos = new THREE.Vector3();
+  const srcPos = new THREE.Vector3();
   const childPos = new THREE.Vector3();
-  const desired = new THREE.Vector3();
-  const hip = pairs.find(p => p.source.name === 'Bip01 Pelvis');
-  const srcRestHipY = hip ? hip.source.getWorldPosition(new THREE.Vector3()).y : 0;
-  const times = new Float32Array(frames + 1);
-  pairs.forEach(p => {
-    p.quats = new Float32Array((frames + 1) * 4);
-    if (p === hip) p.pos = new Float32Array((frames + 1) * 3);
-    p.target.quaternion.copy(p.restLocalQ);
-    p.target.position.copy(p.restLocalP);
-  });
-  targetRoot.updateMatrixWorld(true);
+  const world = new THREE.Vector3();
   for (let i = 0; i <= frames; i++) {
-    const time = Math.min(clip.duration, i / fps);
+    const time = Math.min(clip.duration, (i / fps));
     times[i] = time;
     mixer.setTime(time === 0 ? 1e-4 : time);
+    sourceRoot.updateMatrixWorld(true);
     for (const p of pairs) {
-      p.target.quaternion.copy(p.restLocalQ);
-      p.target.position.copy(p.restLocalP);
+      p.srcW = _worldQ(p.source, new THREE.Quaternion());
+      p.srcPos = p.source.getWorldPosition(new THREE.Vector3());
+      p.target.quaternion.copy(p.restLocal);
+      p.target.position.copy(p.restPos);
     }
-    // Mandy's local axes are not Penny's. Copying those quaternions lays the
-    // A-pose on its face. The clip still supplies the timing. The swing is
-    // applied on Penny's own hinge, local X, which moves the limbs in the
-    // sagittal plane without twisting the shoulders.
-    const swing = Math.sin((time / Math.max(clip.duration, 0.001)) * Math.PI * 2);
-    const hinge = (prefix, angle) => {
-      const p = pairs.find(q => q.target.name.startsWith(prefix));
-      if (!p) return;
-      qDelta.setFromAxisAngle(_soleV.set(1, 0, 0), angle);
-      p.target.quaternion.copy(p.restLocalQ).multiply(qDelta);
-    };
-    if (clip.name === 'walk') {
-      hinge('Left_arm', -swing * 0.28);
-      hinge('Right_arm', swing * 0.28);
-      hinge('Left_elbow', -0.4);
-      hinge('Right_elbow', -0.4);
-      hinge('Left_leg', swing * 0.42);
-      hinge('Right_leg', -swing * 0.42);
-      hinge('Left_knee', Math.max(0, -swing) * 0.7);
-      hinge('Right_knee', Math.max(0, swing) * 0.7);
-    } else if (clip.name === 'sit') {
-      hinge('Left_leg', 1.05);
-      hinge('Right_leg', 1.05);
-      hinge('Left_knee', 1.15);
-      hinge('Right_knee', 1.15);
-      hinge('Left_arm', -0.15);
-      hinge('Right_arm', -0.15);
-      hinge('Left_elbow', -0.45);
-      hinge('Right_elbow', -0.45);
-    }
+    let root = pairs[0].target;
+    while (root.parent) root = root.parent;
+    root.updateMatrixWorld(true);
     for (const p of pairs) {
-      p.target.quaternion.toArray(p.quats, i * 4);
+      const childName = UAL_CHILD[p.ual];
+      const child = childName ? byUal[childName] : null;
+      let tgtW;
+      if (child && p.restSrcDir) {
+        srcPos.copy(p.srcPos);
+        childPos.copy(child.srcPos);
+        const cur = childPos.sub(srcPos);
+        if (cur.lengthSq() > 1e-8) {
+          cur.normalize();
+          _rtDelta.setFromUnitVectors(p.restSrcDir, cur);
+          tgtW = _rtDelta.clone().multiply(p.restW);
+        } else tgtW = p.restW.clone();
+      } else if (p.ual === 'DEF-head') {
+        tgtW = p.srcW.clone().multiply(_rtQ.copy(p.srcRest).invert()).multiply(p.restW);
+      } else {
+        // Hands and toes keep the bind local, so they follow the limb
+        // instead of taking on the source rig's wrist axes.
+        tgtW = null;
+      }
+      if (tgtW) {
+        const parent = p.target.parent;
+        if (parent) _worldQ(parent, _rtParent);
+        else _rtParent.identity();
+        p.target.quaternion.copy(_rtParent.invert()).multiply(tgtW);
+      }
+      p.target.updateMatrixWorld(true);
     }
+    const dy = (hip.srcPos.y - hip.srcRestPos.y) * hip.yScale;
+    const parent = hip.target.parent;
+    parent.updateWorldMatrix(true, false);
+    world.copy(hip.target.getWorldPosition(_rtV));
+    world.y += dy;
+    parent.worldToLocal(world);
+    hip.target.position.copy(world);
+    hip.target.updateMatrixWorld(true);
+    for (const p of pairs) {
+      const q = p.target.quaternion;
+      if (p.prev && p.prev.dot(q) < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+      p.prev = q.clone();
+      q.toArray(p.quats, i * 4);
+    }
+    hip.target.position.toArray(hip.pos, i * 3);
   }
   action.stop();
-  pairs.forEach(p => {
-    p.target.quaternion.copy(p.restLocalQ);
-    p.target.position.copy(p.restLocalP);
-  });
-  targetRoot.updateMatrixWorld(true);
+  mixer.stopAllAction();
+  for (const p of pairs) {
+    p.target.quaternion.copy(p.restLocal);
+    p.target.position.copy(p.restPos);
+  }
   const tracks = [];
   for (const p of pairs) {
     tracks.push(new THREE.QuaternionKeyframeTrack(p.target.name + '.quaternion', times, p.quats));
+    if (p === hip) tracks.push(new THREE.VectorKeyframeTrack(p.target.name + '.position', times, p.pos));
     p.quats = null;
+    p.pos = null;
+    p.prev = null;
   }
-  return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+  return new THREE.AnimationClip(outName, clip.duration, tracks);
 }
 function attachPenny() {
   const agent = castById.penny;
@@ -4480,7 +4510,7 @@ function attachPenny() {
   Promise.all([
     fetch('assets/characters/bone-map-mixamo.json').then(r => r.json()),
     loadGltf('assets/characters/penny.glb'),
-    loadGltf('assets/characters/mandy.glb'),
+    loadGltf('assets/characters/quaternius/AnimationLibrary_Godot_Standard.gltf'),
   ]).then(([map, pennyGltf, srcGltf]) => {
     const model = pennyGltf.scene;
     const source = srcGltf.scene;
@@ -4503,118 +4533,61 @@ function attachPenny() {
         }
       });
     });
+    const sane = THREE.PropertyBinding.sanitizeNodeName;
     const pairs = [];
-    Object.entries(map).forEach(([mix, lucy]) => {
-      const bip = MIXAMO_TO_BIP[mix];
-      if (!bip) return;
-      const sane = THREE.PropertyBinding.sanitizeNodeName;
-      const target = model.getObjectByName(sane(lucy)) || model.getObjectByName(lucy);
-      const srcBone = source.getObjectByName(sane(bip)) || source.getObjectByName(bip);
+    Object.entries(UAL_TO_MIXAMO).forEach(([ual, mix]) => {
+      const lucy = map[mix];
+      if (!lucy) return;
+      const target = model.getObjectByName(sane(lucy));
+      const srcBone = source.getObjectByName(sane(ual));
       if (!target || !srcBone || !target.isBone || !srcBone.isBone) {
-        console.info('[penny] skip', mix, !!target, target && target.type, !!srcBone, srcBone && srcBone.type);
+        console.info('[penny] skip', ual, !!target, !!srcBone);
         return;
       }
-      pairs.push({ target, source: srcBone });
+      pairs.push({ ual, target, source: srcBone });
     });
-    const bySource = new Map(pairs.map(p => [p.source.name, p]));
-    const byTarget = new Map(pairs.map(p => [p.target, p]));
-    pairs.forEach(p => {
-      let child = p.source.children.find(c => c.isBone && bySource.has(c.name));
-      if (!child) {
-        const wanted = {
-          'Bip01 Pelvis': 'Bip01 Spine',
-          'Bip01 Spine': 'Bip01 Spine1',
-          'Bip01 Spine1': 'Bip01 Spine2',
-          'Bip01 Spine2': 'Bip01 Neck',
-          'Bip01 L Clavicle': 'Bip01 L UpperArm',
-          'Bip01 L UpperArm': 'Bip01 L Forearm',
-          'Bip01 L Forearm': 'Bip01 L Hand',
-          'Bip01 R Clavicle': 'Bip01 R UpperArm',
-          'Bip01 R UpperArm': 'Bip01 R Forearm',
-          'Bip01 R Forearm': 'Bip01 R Hand',
-          'Bip01 L Thigh': 'Bip01 L Calf',
-          'Bip01 L Calf': 'Bip01 L Foot',
-          'Bip01 L Foot': 'Bip01 L Toe0',
-          'Bip01 R Thigh': 'Bip01 R Calf',
-          'Bip01 R Calf': 'Bip01 R Foot',
-          'Bip01 R Foot': 'Bip01 R Toe0',
-        }[p.source.name];
-        if (wanted && bySource.has(wanted)) child = bySource.get(wanted).source;
-      }
-      const tChild = child ? bySource.get(child.name).target : null;
-      p.childSource = child || null;
-      p.childTarget = tChild;
-      p.restLocalQ = p.target.quaternion.clone();
-      p.restLocalP = p.target.position.clone();
-      p.srcRestLocalQ = p.source.quaternion.clone();
-      p.srcRestLocalP = p.source.position.clone();
-      p.childSource = child || null;
-      p.childTarget = tChild;
+    pairs.sort((a, b) => {
+      const depth = (bone) => { let d = 0; for (let p = bone.parent; p; p = p.parent) d++; return d; };
+      return depth(a.target) - depth(b.target);
     });
-    const ordered = [];
-    const visit = (bone) => {
-      const p = byTarget.get(bone);
-      if (!p || p._ordered) return;
-      if (bone.parent && bone.parent.isBone) visit(bone.parent);
-      p._ordered = true;
-      ordered.push(p);
-    };
-    pairs.forEach(p => visit(p.target));
-    // Bind pose lies along Z. Stand her up in the scene graph, not by
-    // re-exporting the file, then retarget against that upright rest.
-    const stand = new THREE.Group();
-    stand.name = 'penny-stand';
-    stand.rotation.x = Math.PI / 2;
-    stand.add(model);
-    source.updateMatrixWorld(true);
+    const byUal = {};
+    pairs.forEach(p => { byUal[p.ual] = p; });
     model.updateMatrixWorld(true);
-    model.traverse(o => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.pose(); });
-    ordered.forEach(p => {
-      p.restLocalQ = p.target.quaternion.clone();
-      p.restLocalP = p.target.position.clone();
+    source.updateMatrixWorld(true);
+    pairs.forEach(p => {
+      p.restLocal = p.target.quaternion.clone();
+      p.restPos = p.target.position.clone();
+      p.restW = _worldQ(p.target, new THREE.Quaternion());
     });
-    ordered.forEach(p => {
-      p.restWorldQ = new THREE.Quaternion().setFromRotationMatrix(p.target.matrixWorld);
-      p.srcRestWorldQ = new THREE.Quaternion().setFromRotationMatrix(p.source.matrixWorld);
-      p.restWorldPos = p.target.getWorldPosition(new THREE.Vector3());
-      p.localAim = new THREE.Vector3(0, 1, 0);
-      if (p.childTarget) {
-        const a = p.target.getWorldPosition(new THREE.Vector3());
-        const b = p.childTarget.getWorldPosition(new THREE.Vector3());
-        p.localAim.copy(b.sub(a));
-        if (p.localAim.lengthSq() > 1e-8) {
-          p.localAim.normalize().applyQuaternion(p.restWorldQ.clone().invert());
-        } else p.localAim.set(0, 1, 0);
-      }
+    const srcClips = {};
+    srcGltf.animations.forEach(c => { srcClips[c.name] = c; });
+    const restMixer = new THREE.AnimationMixer(source);
+    const restAction = restMixer.clipAction(srcClips.A_TPose);
+    restAction.play();
+    restMixer.setTime(0.05);
+    source.updateMatrixWorld(true);
+    pairs.forEach(p => {
+      p.srcRest = _worldQ(p.source, new THREE.Quaternion());
+      p.srcRestPos = p.source.getWorldPosition(new THREE.Vector3());
     });
+    pairs.forEach(p => {
+      const child = byUal[UAL_CHILD[p.ual]];
+      if (!child) { p.restSrcDir = null; return; }
+      const d = child.srcRestPos.clone().sub(p.srcRestPos);
+      p.restSrcDir = d.lengthSq() > 1e-8 ? d.normalize() : null;
+    });
+    const hip = byUal['DEF-hips'];
+    hip.yScale = hip.target.getWorldPosition(new THREE.Vector3()).y / hip.srcRestPos.y;
+    restAction.stop();
+    const wanted = [['Idle_Loop', 'idle'], ['Walk_Loop', 'walk'], ['Sitting_Idle_Loop', 'sit']];
     const clips = {};
-    // Mandy's clips sit about 150° off the mesh bind. Use her idle frame
-    // as the shared neutral so Penny's A-pose is that neutral.
-    {
-      const idleClip = srcGltf.animations.find(c => c.name === 'idle');
-      const neutral = new THREE.AnimationMixer(source);
-      const act = neutral.clipAction(idleClip);
-      act.play();
-      neutral.setTime(1e-4);
-      source.updateMatrixWorld(true);
-      ordered.forEach(p => {
-        p.srcRestLocalQ = p.source.quaternion.clone();
-        p.srcRestWorldQ = new THREE.Quaternion().setFromRotationMatrix(p.source.matrixWorld);
-      });
-      act.stop();
-    }
-    srcGltf.animations.forEach(clip => {
-      if (clip.name !== 'idle' && clip.name !== 'walk' && clip.name !== 'sit') return;
-      const baked = retargetPennyClip(source, clip, model, ordered);
-      clips[clip.name] = baked;
+    wanted.forEach(([srcName, outName]) => {
+      clips[outName] = retargetPennyClip(source, srcClips[srcName], outName, pairs, byUal);
     });
     agent.rig.traverse(o => { if (o.isMesh) o.visible = false; });
-    // The GLB root carries the Z-up to Y-up rotation and the unit scale.
-    // syncProof writes yaw onto the object it moves, so that rotation has to
-    // stay on an inner node or she is laid on her back every frame.
     const pivot = new THREE.Group();
     pivot.name = 'penny-pivot';
-    pivot.add(stand);
+    pivot.add(model);
     const mixer = new THREE.AnimationMixer(model);
     const actions = {};
     Object.entries(clips).forEach(([name, clip]) => { actions[name] = mixer.clipAction(clip); });
@@ -4623,14 +4596,10 @@ function attachPenny() {
     window.__penny = entry;
     window.__pennyReady = true;
     const box = new THREE.Box3().setFromObject(model);
-    console.info('[penny]', Object.keys(actions).join(','), 'bones', ordered.length, 'h', +(box.max.y - box.min.y).toFixed(3));
-    if (ordered.length < 10) {
-      const sample = [];
-      model.traverse(o => { if (o.isBone && sample.length < 12) sample.push(o.name); });
-      console.info('[penny] bone sample', sample.join(' | '));
-    }
+    console.info('[penny]', Object.keys(actions).join(','), 'bones', pairs.length, 'h', +(box.max.y - box.min.y).toFixed(3));
   }).catch(err => console.error('[penny]', err));
 }
+
 attachPenny();
 window.__proof = proofHumans;
 window.__frame = (id, clip, phase, view) => {
