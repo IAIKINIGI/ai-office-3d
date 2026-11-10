@@ -1155,7 +1155,7 @@ function addMonitor(parent, x, y, z, key) {
   m.position.set(x, y, z); m.castShadow = m.receiveShadow = false; parent.add(m);
   box(1.1, 0.72, 0.04, frameMat, x, y, z - 0.03, parent);
 }
-function workstation(parent, x, z, color, name, floor, monCol = 0x00f0ff) {
+function workstation(parent, x, z, color, name, floor, monCol = 0x00f0ff, seatTop = 0.60) {
   // desk top + legs
   box(2.6, 0.1, 1.35, deskMat, x, 1.02, z, parent);
   for (const dx of [-1.15, 1.15]) box(0.12, 1.0, 1.1, deskMat, x + dx, 0.5, z, parent);
@@ -1169,10 +1169,16 @@ function workstation(parent, x, z, color, name, floor, monCol = 0x00f0ff) {
   glow(gTex, x + 0.55, 1.55, z - 0.62, 1.5, 1.0, 0.22, parent);
   // keyboard + mouse pad
   box(0.9, 0.04, 0.35, M(0x1a1e28), x, 1.1, z + 0.15, parent);
-  // office chair
-  box(0.7, 0.1, 0.7, chairMat, x, 0.55, z + 1.15, parent);
-  box(0.65, 0.7, 0.1, chairMat, x, 0.95, z + 1.45, parent);
-  box(0.12, 0.5, 0.12, frameMat, x, 0.28, z + 1.15, parent);
+  // office chair. Default seat top is 0.60. Mandy's desk is higher so her
+  // seated pelvis, with feet on the slab, rests on the cushion.
+  const seatLift = seatTop - 0.60;
+  box(0.7, 0.1, 0.7, chairMat, x, 0.55 + seatLift, z + 1.15, parent);
+  box(0.65, 0.7, 0.1, chairMat, x, 0.95 + seatLift, z + 1.45, parent);
+  if (seatLift === 0) box(0.12, 0.5, 0.12, frameMat, x, 0.28, z + 1.15, parent);
+  else {
+    const postTop = seatTop - 0.1, postBottom = 0.38, postH = postTop - postBottom;
+    box(0.12, postH, 0.12, frameMat, x, postBottom + postH / 2, z + 1.15, parent);
+  }
   if (name) person(parent, x, z + 1.05, color, name, floor, Math.PI);
 }
 
@@ -1235,7 +1241,7 @@ FLOORS.forEach((f, idx) => {
     box(4.2, 0.15, 2, M(gold, { metalness: 0.55, roughness: 0.35 }), -4, 1.05, -1, g);
     box(4, 0.9, 1.8, M(0x8a6a28, { metalness: 0.4 }), -4, 0.5, -1, g);
     { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), screenMat('ceo')); scr.position.set(-4, 1.55, -1.55); scr.castShadow = scr.receiveShadow = false; g.add(scr); }
-    workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a);
+    workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a, 0.78);
     strip.material.color.set(0xfcee0a); strip.material.emissive.set(0xfcee0a); strip.material.emissiveIntensity = 3;
   } else if ((f.people || []).length >= 3) {
     const ppl = f.people;
@@ -1318,17 +1324,18 @@ function addRestCorner(parent, f) {
   const x = 8.05, z = 4.35;
   const g = new THREE.Group(); g.position.set(x, 0, z); g.userData.kind = 'rest-corner'; g.userData.floorId = f.id; parent.add(g); restCount++;
   prop(2.4, 0.04, 1.5, cloth, 0, 0.04, 0, g);
-  prop(2.1, 0.36, 0.7, cloth, 0, 0.32, 0.15, g);
-  prop(2.1, 0.7, 0.16, cloth, 0, 0.75, 0.48, g);
-  prop(0.16, 0.42, 0.7, cloth, -1.05, 0.4, 0.15, g);
-  prop(0.16, 0.42, 0.7, cloth, 1.05, 0.4, 0.15, g);
-  prop(2.15, 0.06, 0.08, B(s.accent), 0, 0.48, 0.52, g);
+  // Seat top 0.78: Mandy's sit pose, feet on the slab, puts her pelvis here.
+  prop(2.1, 0.36, 0.7, cloth, 0, 0.60, 0.15, g);
+  prop(2.1, 0.7, 0.16, cloth, 0, 1.03, 0.48, g);
+  prop(0.16, 0.42, 0.7, cloth, -1.05, 0.68, 0.15, g);
+  prop(0.16, 0.42, 0.7, cloth, 1.05, 0.68, 0.15, g);
+  prop(2.15, 0.06, 0.08, B(s.accent), 0, 0.76, 0.52, g);
   prop(0.7, 0.08, 0.45, metal, 0.15, 0.32, -0.55, g);
   const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.22, 8), metal);
   pot.position.set(-0.85, 0.16, -0.35); pot.castShadow = pot.receiveShadow = false; g.add(pot);
   const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), B(s.accent));
   leaf.position.set(-0.85, 0.48, -0.35); g.add(leaf);
-  const sign = plaque(s.label, s.ink, 1.35, 0.48, g, 0, 1.35, 0.62);
+  const sign = plaque(s.label, s.ink, 1.35, 0.48, g, 0, 1.62, 0.62);
   sign.userData.kind = 'rest-corner';
   g.traverse(o => { if (o.isMesh) o.userData.kind = 'rest-corner'; });
 }
@@ -1352,8 +1359,9 @@ function addGamingRoom(parent, f) {
   prop(0.38, 0.06, 0.04, B(0xff2a6d), 1.15, 0.62, -0.48, g);
   prop(0.38, 0.04, 0.04, B(0x00f0ff), 1.15, 0.28, -0.48, g);
   for (const sx of [-0.5, 0.5]) {
-    prop(0.46, 0.1, 0.46, M(0x141820), sx, 0.5, 0.42, g);
-    prop(0.4, 0.5, 0.08, M(0x141820), sx, 0.76, 0.64, g);
+    prop(0.08, 0.30, 0.08, M(0x141820), sx, 0.53, 0.42, g);
+    prop(0.46, 0.1, 0.46, M(0x141820), sx, 0.73, 0.42, g);
+    prop(0.4, 0.5, 0.08, M(0x141820), sx, 0.94, 0.64, g);
   }
   plaque('GAME\nLOUNGE', '#ff4d8d', 1.5, 0.55, g, 0, 1.9, -1.02);
   g.traverse(o => { if (o.isMesh) { o.userData.kind = 'gaming-zone'; o.userData.floor = f; } });
@@ -1560,7 +1568,8 @@ function poseAgent(agent, kind, t) {
   } else if (kind === 'type' || kind === 'sit' || kind === 'play') {
     u.legL.rotation.x = u.legR.rotation.x = 1.15;
     u.shinL.rotation.x = u.shinR.rotation.x = -1.2;
-    rig.position.y = -0.38;
+    // Desk chairs stay at the original height. Lounge seats were raised.
+    rig.position.y = kind === 'type' ? -0.38 : -0.10;
     u.head.rotation.y = 0;
     if (kind === 'type') {
       u.armL.rotation.x = -0.62 + Math.sin(t * 8 + agent.home.x) * 0.08;
@@ -3807,7 +3816,10 @@ function attachProof(id, url) {
 // The office slab is 0.38 m thick, centered at local y 0.19, so the walkable top is 0.38.
 // Mandy's soles are at the model origin, which put her legs through that slab.
 // The walk cycle plants about 6 cm lower still. Lift only her skinned model.
+// In the lift the floor plate top is 0.08, not the office slab.
 const MANDY_FLOOR = 0.383;
+const MANDY_CABIN_FLOOR = 0.084;
+const ANDREW_LOUNGE_Y = 0.43;
 const _soleV = new THREE.Vector3();
 const _soleP = new THREE.Vector3();
 const _soleAcc = new THREE.Vector3();
@@ -3857,15 +3869,24 @@ function syncProof(dt) {
     }
     entry.mixer.update(dt);
     let y = 0;
+    const pose = entry.agent.pose;
+    const inCabin = rig.parent === lift.cabin;
     if (entry.id === 'mandy') {
-      const sole = mandySoleY(entry.model);
+      let sole = mandySoleY(entry.model);
+      // A bad skin sample (seen once inside the lift) would throw her a metre up.
+      if (!Number.isFinite(sole) || sole < -0.2 || sole > 0.2) sole = entry._soleOk != null ? entry._soleOk : -0.004;
+      else entry._soleOk = sole;
       if (Number.isFinite(sole)) {
-        const need = MANDY_FLOOR - sole;
+        const surface = inCabin ? MANDY_CABIN_FLOOR : MANDY_FLOOR;
+        const need = surface - sole;
         const prev = entry.footY;
         entry.footY = prev == null ? need : Math.max(need, prev + (need - prev) * 0.45);
         y = entry.footY;
       }
-      window.__mandyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null };
+      window.__mandyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin };
+    } else if (entry.id === 'andrew' && (pose === 'sit' || pose === 'play') && !inCabin) {
+      // Lounge seats were raised to Mandy's seated pelvis. His own desk stays at y = 0.
+      y = ANDREW_LOUNGE_Y;
     }
     entry.model.position.set(rig.position.x, y, rig.position.z);
   });
@@ -3908,6 +3929,57 @@ window.__frame = (id, clip, phase, view) => {
     window.__proofKey = key;
   }
   return info;
+};
+window.__place = (id, x, z, yaw, pose, phase, cam) => {
+  window.__HOLD_LIFE = true;
+  window.__DIAG_LIGHT = false;
+  const a = castById[id];
+  const other = castById[id === 'andrew' ? 'mandy' : 'andrew'];
+  a.phase = pose === 'walk' ? 'walk' : 'there';
+  a.pose = pose;
+  a.busy = true;
+  a.rig.position.set(x, 0, z);
+  a.rig.rotation.y = yaw;
+  if (other) { other.busy = true; other.rig.position.set(30, 0, 30); }
+  const entry = proofHumans.find(p => p.id === id);
+  if (entry) entry.footY = null;
+  const clip = (pose === 'type' || pose === 'sit' || pose === 'play') ? 'sit' : (pose === 'walk' ? 'walk' : 'idle');
+  window.__scrub(id, clip, phase || 0);
+  syncProof(0);
+  scene.updateMatrixWorld(true);
+  const wp = new THREE.Vector3();
+  entry.model.getWorldPosition(wp);
+  if (cam) {
+    window.__LOCK_CAM = {
+      pos: { x: wp.x + cam[0], y: wp.y + cam[1], z: wp.z + cam[2] },
+      tgt: { x: wp.x + cam[3], y: wp.y + cam[4], z: wp.z + cam[5] },
+    };
+  }
+  return { x: +wp.x.toFixed(3), y: +wp.y.toFixed(3), z: +wp.z.toFixed(3), foot: window.__mandyFoot || null, pose };
+};
+window.__cabinCheck = () => {
+  window.__HOLD_LIFE = true;
+  const a = castById.mandy;
+  lift.cabin.attach(a.rig);
+  a.rig.position.set(0, 0, -0.12);
+  a.rig.rotation.y = Math.PI;
+  a.pose = 'stand';
+  a.phase = 'there';
+  a.busy = true;
+  const entry = proofHumans.find(p => p.id === 'mandy');
+  entry.footY = null;
+  window.__scrub('mandy', 'idle', 0);
+  syncProof(0);
+  scene.updateMatrixWorld(true);
+  const wp = new THREE.Vector3();
+  entry.model.getWorldPosition(wp);
+  const cabin = new THREE.Vector3();
+  lift.cabin.getWorldPosition(cabin);
+  window.__LOCK_CAM = {
+    pos: { x: wp.x + 1.4, y: wp.y + 1.1, z: wp.z + 2.2 },
+    tgt: { x: wp.x, y: wp.y + 0.8, z: wp.z },
+  };
+  return { gap: +(wp.y - cabin.y).toFixed(3), foot: window.__mandyFoot };
 };
 window.__meshBounds = (id) => {
   const entry = proofHumans.find(p => p.id === id);

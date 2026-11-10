@@ -54,7 +54,9 @@ Andrew's color stays dark brown. The hairline is the card edge.
 Same knee fix as before: both thighs use local Z = +88° and both calves Z = -92°. The right bone is already mirrored, so the opposite sign folded that knee backward.
 Walk root travel on `Bip01` was about 1.5 m and is zeroed again after export.
 
-The office slab is 0.38 m thick and its top is the floor she stands on. The skinned model used to sit at the slab's bottom, so the legs disappeared into the floor. Mandy's model is lifted each frame so the lowest sole meets that top. Andrew is not lifted.
+The office slab is 0.38 m thick and its top is the floor she stands on. The skinned model used to sit at the slab's bottom, so the legs disappeared into the floor. Mandy's model is lifted each frame so the lowest sole meets that top. Inside the lift the target is the cabin plate, 0.08 m, not the office slab. Andrew stays at y = 0 on his own desk. On the raised lounge seats his model is lifted to 0.43 m so his pelvis meets the cushion.
+
+Her seated pelvis underside is 0.415 m up in the sit pose, and the feet are 0.013 m up, so with the feet on the slab the cushion has to be at 0.78 m. That is her desk chair, every rest-corner sofa, and the two gaming stools. Other desk chairs are still at 0.60 m. The procedural staff drop to rig y = -0.10 on the lounge seats and stay at -0.38 at a desk.
 
 In Blender, before that lift, the lowest body vertex is:
 
