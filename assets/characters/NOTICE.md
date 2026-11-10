@@ -2,7 +2,7 @@
 
 Fictional adults. Fully clothed. Mandy is not Karina, not a scan, and not an endorsement.
 The female silhouette is a slim adult frame with a fuller clothed chest.
-The face mesh was reshaped toward public photos of Karina (aespa). It is still the Rocketbox head, and it is not a portrait.
+The face mesh and Mandy's hair were reshaped toward public photos of Karina (aespa). It is still the Rocketbox head, and it is not a portrait.
 The cast split is in `cast.json`. Only Andrew and Mandy are skinned here.
 
 | File | Source | File size |
@@ -49,16 +49,18 @@ Measured on the head surface, world meters, after the smooth:
 | Mouth corner | 0.0321 m | 0.0275 m |
 | Upper-lid height | 1.6177 m | 1.6190 m |
 
-What actually moved: cheeks about 12% narrower, jaw about 17% narrower, nose tip back by 9 mm and narrower, mouth about 14% narrower, philtrum lifted a few millimetres with the teeth so the lips stay closed, upper lid up about 1.3 mm with a little extra on the outer corner, brows up a few millimetres. The iris drawing was recolored from hazel to dark brown. Purple eyeshadow pixels on the face UV were pulled toward the skin color. No neck band and no pasted photo.
+What the first sculpt moved: cheeks about 12% narrower, jaw about 17% narrower, nose tip back by 9 mm and narrower, mouth about 14% narrower, philtrum lifted a few millimetres with the teeth so the lips stay closed. The iris drawing was recolored from hazel to dark brown. Purple eyeshadow pixels on the face UV were pulled toward the skin color. No neck band and no pasted photo.
 
-What this does not do: it does not become her face. Eye spacing is still the eye bones at ±3 cm. The lid mesh cannot grow her eye shape or her double lid. The hair is still the pale pink cards, not a center part. There is no beauty mark. The render is a narrower Rocketbox woman, not a likeness.
+The eye bones were then moved, and the lids and socket skin moved with them. In the exported file the eye bones sit at x = ±0.0268 m (they were ±0.030 m, so the pair is about 6 mm closer) and 1.2 mm further forward. The outer corner of each upper lid is raised about 4 mm relative to the inner corner. A row of 38 new vertices was cut above the lash line and pushed back 1.8 mm as a crease. The existing dark pixels on the lid UV were darkened into the lash line, and a narrow band of skin pixels just above that UV was shaded as the crease. Brow bones were raised (outer about 2.6 mm, inner about 1.8 mm) and the inner brows moved 2 mm toward the nose.
+
+What this does not do: it does not become her face. The crease is one loop on the Rocketbox lid, not her double eyelid. The eyes are still that texture and that socket. There is no beauty mark. The render is still Mandy.
 
 ## Hair
 
 Hair is the model's own hair cards, skinned with the head, not a sphere parked on the neck.
 Andrew's cards stay a short crop on the scalp (world Z 1.588–1.794 m). A few millimetres of layering and a small sweep to one side were added on that same crop. It is not a new haircut and not a solid cap.
-Mandy's free card ends were extended. Their world Z is 1.126 m to 1.739 m: the top stays on the scalp and the length reaches the upper chest.
-The color is pale pink on Mandy and dark brown on Andrew. It is card hair, not strands. The hairline is the card edge.
+Mandy's cards were recolored from pale pink to near-black, with a faint rose only in the brightest texels. The crown verts within 2 cm of the midline were pushed apart to open a part. The bottom edges of the cards were extended straight down, then smoothed. The longest card verts reach world Z 1.032 m, about the waist, and the bulk still sits on the head and shoulders. It is still card hair: the part does not read as a clean center part, and some cards stay separated. A set of solid ribbons was tried and removed, because in the renderer they were flat bars, not hair.
+Andrew's color stays dark brown. The hairline is the card edge.
 
 ## Legs
 
