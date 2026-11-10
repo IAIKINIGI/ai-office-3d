@@ -4,6 +4,7 @@ Interactive Three.js office scene. Open `index.html` (or this GitHub Pages site)
 
 ## Credits
 
+- This work is based on "Cyberpunk Diner Sign (Japanese)" (https://sketchfab.com/3d-models/cyberpunk-diner-sign-japanese-6ffce0f168534501bdd9199847d57831) by LukeMarsh201 (https://sketchfab.com/LukeMarsh201), licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/). The lettering plate is swappable. See `assets/signs/NOTICE.txt`.
 - This work is based on "(FREE) Cyberpunk Hovercar" (https://sketchfab.com/3d-models/free-cyberpunk-hovercar-3205b1075bb44ffc826bce0c2a04d74c) by Karol Miklas (https://sketchfab.com/karolmiklas), licensed under CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Modified: wheels removed, hover pads added. The modified file stays under CC BY-SA 4.0. See `assets/vehicles/NOTICE.txt`.
 - This work is based on "Cyberpunk City - #1" (https://sketchfab.com/3d-models/cyberpunk-city-1-14d2eaa145ee42938e004115871adf6c) by born2012 (https://sketchfab.com/born2012), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). The centre block is cleared so the office tower sits on a plaza. See `assets/city/license.txt`.
 

@@ -3956,6 +3956,108 @@ function loadHovercars() {
   }, undefined, (err) => console.error('hovercar', err));
 }
 loadHovercars();
+
+// Diner signs: variant GLB + swappable white lettering, tinted by emissive colour.
+// Smaller and dimmer than the tower's H-Industry crown, and kept off the sightlines.
+const DINER_SIGNS = [
+  { variant: 'ramen', text: 'ramen.png', color: 0xff0dd9, angle: 32, y: 6.4 },
+  { variant: 'izakaya', text: 'izakaya.png', color: 0xff8c14, angle: 58, y: 8.2 },
+  { variant: '24h', text: '24h.png', color: 0x0ee6ff, angle: 112, y: 7.1 },
+  { variant: 'dennou', text: 'dennou.png', color: 0x73ff1f, angle: 148, y: 9.4 },
+  { variant: 'bar', text: 'bar.png', color: 0x8c1aff, angle: 198, y: 6.8 },
+  { variant: 'ramen', text: 'h-industry-mart.png', color: 0x0ee6ff, angle: 228, y: 10.2 },
+  { variant: 'izakaya', text: 'izakaya.png', color: 0xff0dd9, angle: 252, y: 7.6 },
+  { variant: 'bar', text: 'bar.png', color: 0xff8c14, angle: 292, y: 8.6 },
+  { variant: '24h', text: '24h.png', color: 0x73ff1f, angle: 318, y: 6.2 },
+  { variant: 'dennou', text: 'dennou.png', color: 0x8c1aff, angle: 348, y: 9.0 },
+];
+const dinerVariantCache = {};
+const dinerTextCache = {};
+function loadDinerVariant(name) {
+  if (!dinerVariantCache[name]) {
+    dinerVariantCache[name] = new Promise((resolve, reject) => {
+      gltfLoader.load('assets/signs/cyberpunk-diner-sign-' + name + '.glb', gltf => {
+        const src = gltf.scene;
+        src.traverse(o => {
+          if (!o.isMesh || !o.material || o.name === 'TextPlate') return;
+          const mats = [].concat(o.material);
+          mats.forEach(m => {
+            if (m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.15)
+              m.emissiveIntensity = Math.min(m.emissiveIntensity || 2, 2.2);
+          });
+        });
+        resolve(src);
+      }, undefined, reject);
+    });
+  }
+  return dinerVariantCache[name];
+}
+function loadDinerText(file) {
+  if (!dinerTextCache[file]) {
+    dinerTextCache[file] = new Promise((resolve, reject) => {
+      new THREE.TextureLoader().load('assets/signs/texts/' + file, tex => {
+        tex.flipY = false;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.needsUpdate = true;
+        resolve(tex);
+      }, undefined, reject);
+    });
+  }
+  return dinerTextCache[file];
+}
+function hangDinerSign(spec) {
+  const a = spec.angle * Math.PI / 180;
+  const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+  const origin = dir.clone().multiplyScalar(16);
+  origin.y = spec.y + 1.6;
+  const ray = new THREE.Raycaster(origin, dir, 0, 48);
+  const hits = window.__city ? ray.intersectObject(window.__city, true) : [];
+  const hit = hits.find(h => h.distance > 4);
+  const point = hit ? hit.point : origin.clone().addScaledVector(dir, 18);
+  // Sit just in front of the facade, lettering facing back toward the street.
+  point.addScaledVector(dir, hit ? -1.35 : 0);
+  point.y = spec.y;
+  const yaw = Math.atan2(-dir.x, -dir.z);
+  return { x: point.x, y: point.y, z: point.z, yaw };
+}
+function placeDinerSign(spec) {
+  return Promise.all([loadDinerVariant(spec.variant), loadDinerText(spec.text)]).then(([src, tex]) => {
+    const spot = hangDinerSign(spec);
+    const sign = src.clone(true);
+    sign.scale.setScalar(0.36);
+    sign.position.set(spot.x, spot.y, spot.z);
+    sign.rotation.y = spot.yaw;
+    const plate = sign.getObjectByName('TextPlate');
+    if (plate && plate.material) {
+      const mat = plate.material.clone();
+      plate.material = mat;
+      mat.map = tex;
+      mat.emissiveMap = tex;
+      mat.transparent = true;
+      mat.alphaTest = 0.04;
+      mat.emissive.set(spec.color);
+      mat.emissiveIntensity = spec.intensity == null ? 2.8 : spec.intensity;
+      mat.toneMapped = false;
+      mat.needsUpdate = true;
+    }
+    scene.add(sign);
+    return sign;
+  });
+}
+function whenCityReady() {
+  if (window.__city) return Promise.resolve();
+  return new Promise(resolve => {
+    const timer = setInterval(() => {
+      if (!window.__city) return;
+      clearInterval(timer);
+      resolve();
+    }, 80);
+  });
+}
+whenCityReady().then(() => Promise.all(DINER_SIGNS.map(placeDinerSign))).then(signs => {
+  window.__dinerSigns = signs;
+  console.info('[signs]', signs.length);
+}).catch(err => console.error('diner signs', err));
 const CITY_SCALE = 1;
 function applyStreetGraph(data) {
   window.__streets = data;
