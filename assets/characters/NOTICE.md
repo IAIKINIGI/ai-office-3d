@@ -2,7 +2,7 @@
 
 Fictional adults. Fully clothed. Mandy is not Karina, not a scan, and not an endorsement.
 The female silhouette is a slim adult frame with a fuller clothed chest.
-The face mesh and Mandy's hair were reshaped toward public photos of Karina (aespa). It is still the Rocketbox head, and it is not a portrait.
+Mandy's head, above the neck, is a MakeHuman base shaped with the CC0 young East Asian female target. The hair is MakeHuman `long01`. It is not a portrait of Karina.
 The cast split is in `cast.json`. Only Andrew and Mandy are skinned here.
 
 | File | Source | File size |
@@ -19,7 +19,7 @@ These replace the security uniforms. The larger files are the clothed color text
 
 The first sculpt pinched the waist from 0.146 m to 0.094 m half-width and pushed the chest 7 cm forward. That read as a warped torso, so it was redone.
 The current edit is an 8% waist ease, blended into the ribs and hips: half-width 0.146 m to 0.138 m.
-The clothed chest front moved from y = -0.100 m to y = -0.126 m (about 2.6 cm), with no sideways balloon. Normals were rebuilt after a smooth pass.
+The clothed chest front is now y = -0.138 m, from y = -0.100 m on the untouched torso (about 3.8 cm). The volume is an ellipsoid on each side, lighter in the cleavage and at the armpit, with a small tuck under the bust so the tank has a lower edge. It is still the same body mesh, so the cloth follows that surface. There is no separate draped fabric and no bounce. Arms were not moved.
 The top and the pants stay on. Shoulders and arms were not squeezed.
 
 ## Skin
@@ -37,29 +37,17 @@ Public photos used only as a proportion guide, not as a texture:
 
 Those frames show a small oval face, a soft jaw, large dark eyes with a slight outer-corner lift, a small straight nose, and a rose lip. The photos were not copied onto the mesh.
 
-The head is still Rocketbox `Female_Adult_03` (about 1,500 head vertices, eyelid and brow bones, a separate eyeball island). The edit is a smooth warp of that mesh. Ears and the neck below z = 1.48 m were left in place so the seam stays. Body, arms, hair cards, and Andrew were not part of this pass.
+The Rocketbox head above the neck was replaced. The new head is MakeHuman hm08 with the `asian-female-young` target at full weight, plus a small jaw narrow and a 6 mm reduction in nose projection. The skin is the CC0 `young_asian_female` texture, darkened slightly so the key light does not wipe it out. Eyeballs are the base-mesh eyes, colored dark brown. Lashes are MakeHuman `eyelashes01`. The neck join is an overlap, not a welded loop, and the edge is still jagged.
 
-Measured on the head surface, world meters, after the smooth:
+Public photos of Karina were used only as a proportion guide. They were not pasted on. The result is an East Asian young-adult head on this body. It is not her face.
 
-| | Before | After |
-| --- | --- | --- |
-| Cheek half-width | 0.0555 m | 0.0488 m |
-| Jaw half-width | 0.0311 m | 0.0259 m |
-| Nose tip, forward axis | -0.0711 m | -0.0619 m |
-| Mouth corner | 0.0321 m | 0.0275 m |
-| Upper-lid height | 1.6177 m | 1.6190 m |
-
-What the first sculpt moved: cheeks about 12% narrower, jaw about 17% narrower, nose tip back by 9 mm and narrower, mouth about 14% narrower, philtrum lifted a few millimetres with the teeth so the lips stay closed. The iris drawing was recolored from hazel to dark brown. Purple eyeshadow pixels on the face UV were pulled toward the skin color. No neck band and no pasted photo.
-
-The eye bones were then moved, and the lids and socket skin moved with them. In the exported file the eye bones sit at x = ±0.0268 m (they were ±0.030 m, so the pair is about 6 mm closer) and 1.2 mm further forward. The outer corner of each upper lid is raised about 4 mm relative to the inner corner. A row of 38 new vertices was cut above the lash line and pushed back 1.8 mm as a crease. The existing dark pixels on the lid UV were darkened into the lash line, and a narrow band of skin pixels just above that UV was shaded as the crease. Brow bones were raised (outer about 2.6 mm, inner about 1.8 mm) and the inner brows moved 2 mm toward the nose.
-
-What this does not do: it does not become her face. The crease is one loop on the Rocketbox lid, not her double eyelid. The eyes are still that texture and that socket. There is no beauty mark. The render is still Mandy.
+What still shows: the eyes sit deep and read small from the front. The neck edge is jagged where the two meshes overlap. The skin is fair and East Asian, and it is not a likeness of the reference photos. Mandy is the label.
 
 ## Hair
 
 Hair is the model's own hair cards, skinned with the head, not a sphere parked on the neck.
 Andrew's cards stay a short crop on the scalp (world Z 1.588–1.794 m). A few millimetres of layering and a small sweep to one side were added on that same crop. It is not a new haircut and not a solid cap.
-Mandy's cards were recolored from pale pink to near-black, with a faint rose only in the brightest texels. The crown verts within 2 cm of the midline were pushed apart to open a part. The bottom edges of the cards were extended straight down, then smoothed. The longest card verts reach world Z 1.032 m, about the waist, and the bulk still sits on the head and shoulders. It is still card hair: the part does not read as a clean center part, and some cards stay separated. A set of solid ribbons was tried and removed, because in the renderer they were flat bars, not hair.
+Mandy's hair is MakeHuman `long01`, recolored near-black with a faint rose in the highlights. It is a center-part fall past the waist, weighted to the head and, at the tips, to the upper spine. It is a game hair mesh, not strands.
 Andrew's color stays dark brown. The hairline is the card edge.
 
 ## Legs
