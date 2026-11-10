@@ -19,8 +19,7 @@ These replace the security uniforms. The larger files are the clothed color text
 
 The first sculpt pinched the waist from 0.146 m to 0.094 m half-width and pushed the chest 7 cm forward. That read as a warped torso, so it was redone.
 The current edit is an 8% waist ease, blended into the ribs and hips: half-width 0.146 m to 0.138 m.
-The clothed chest front is now y = -0.138 m, from y = -0.100 m on the untouched torso (about 3.8 cm). The volume is an ellipsoid on each side, lighter in the cleavage and at the armpit, with a small tuck under the bust so the tank has a lower edge. It is still the same body mesh, so the cloth follows that surface. There is no separate draped fabric and no bounce. Arms were not moved.
-The top and the pants stay on. Shoulders and arms were not squeezed.
+The clothed chest front is now y = -0.180 m. The previous ellipsoid stopped at y = -0.138 m (about 3.8 cm forward of the untouched rib) and did not read at a normal camera distance. The new volume is a teardrop on each side, fullest around z = 1.20 m, with the center of the tank coming forward as a low bridge and the underbust curving back toward y = -0.08 m. It is still the same body mesh, so the cloth follows that surface. There is no separate draped fabric and no bounce. The waist half-width is still 0.138 m. Shoulder half-width is still 0.194 m. Arms were not moved.
 
 ## Skin
 
@@ -37,11 +36,11 @@ Public photos used only as a proportion guide, not as a texture:
 
 Those frames show a small oval face, a soft jaw, large dark eyes with a slight outer-corner lift, a small straight nose, and a rose lip. The photos were not copied onto the mesh.
 
-The MakeHuman head, eyes, lashes, and hair were removed. Mandy is back on the Rocketbox head from before that swap: fair skin, the jaw and nose sculpt, the eye bones moved inward to x = ±0.0268 m, and the dark lengthened card hair.
+The MakeHuman head, eyes, lashes, and hair were removed. Mandy is the Rocketbox head: fair skin, the jaw and nose sculpt, the eye bones at x = ±0.0268 m, and the dark lengthened card hair.
 
-Measured on this restored mesh, crown of the skull to the soles is 1.731 m. Chin to crown is 0.216 m. That is 8.0 heads (1.731 / 0.216). The asked range is 7.5 to 8. The head is not oversized, so it was not scaled. Ear-to-ear half-width is 0.108 m. Shoulder half-width is 0.204 m.
+Measured on this mesh, crown of the skull to the soles is 1.731 m. Chin to crown is 0.217 m. That is 8.0 heads (1.731 / 0.217). The asked range is 7.5 to 8. The head was not scaled. Ear half-width on the head mesh is 0.094 m. Shoulder half-width is 0.194 m. Jaw half-width in the chin band is still 0.026 m.
 
-No further eye or skin edit was added on top of this. Another pass had already made the face worse.
+A small pass on top of that head: the iris is slightly larger, the lid opening is a little taller through the middle with the outer corner still raised, the nose tip is about 1 mm less projected, the lips are a few millimetres fuller with a rose tint on the lip texels, and the skin mix is warmer with a light cheek blush. The jaw was tapered toward the chin, but the widest point of that band did not move, so it does not read as a sharp V. The card hair is still a side-swept fringe. A center-part nudge was applied and does not read as a clean part.
 
 ## Hair
 
@@ -55,15 +54,17 @@ Andrew's color stays dark brown. The hairline is the card edge.
 Same knee fix as before: both thighs use local Z = +88° and both calves Z = -92°. The right bone is already mirrored, so the opposite sign folded that knee backward.
 Walk root travel on `Bip01` was about 1.5 m and is zeroed again after export.
 
-Measured lowest body-mesh vertex under 0.22 m, left foot and right foot:
+The office slab is 0.38 m thick and its top is the floor she stands on. The skinned model used to sit at the slab's bottom, so the legs disappeared into the floor. Mandy's model is lifted each frame so the lowest sole meets that top. Andrew is not lifted.
 
-| Pose | Andrew | Mandy |
-| --- | --- | --- |
-| Idle, start | -0.9 mm, -0.9 mm | -3.9 mm, -3.9 mm |
-| Idle, middle | -1.1 mm, -1.5 mm | -3.9 mm, -4.1 mm |
-| Sit | -0.7 mm, -0.7 mm (pelvis local X -40) | +10.1 mm, +10.3 mm (pelvis local X -36) |
+In Blender, before that lift, the lowest body vertex is:
 
-Andrew's sit soles graze the floor by under 1 mm. Mandy's sit soles are about 1 cm above it. Mandy's idle soles intersect by about 4 mm. The office floor plane hides that contact line in a low camera, so the stills are not a second measurement.
+| Pose | Mandy |
+| --- | --- |
+| Idle | -3.9 mm |
+| Walk, lowest frame | -59 mm |
+| Sit | +10 mm (pelvis local X -36) |
+
+The walk cycle plants through the origin, so the lift rises on those frames and the posed foot stays on the slab. Sitting keeps the feet on the slab. The office chair seat is only 0.22 m above that slab, so a normal sit with feet down does not also land in the chair.
 
 ## Clothes, still unfinished as cyberpunk
 

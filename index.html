@@ -3804,14 +3804,70 @@ function attachProof(id, url) {
     console.info('[proof]', id, Object.keys(clips));
   }, undefined, err => console.error('[proof]', id, err));
 }
+// The office slab is 0.38 m thick, centered at local y 0.19, so the walkable top is 0.38.
+// Mandy's soles are at the model origin, which put her legs through that slab.
+// The walk cycle plants about 6 cm lower still. Lift only her skinned model.
+const MANDY_FLOOR = 0.383;
+const _soleV = new THREE.Vector3();
+const _soleP = new THREE.Vector3();
+const _soleAcc = new THREE.Vector3();
+const _soleM = new THREE.Matrix4();
+const _soleOrigin = new THREE.Vector3();
+function mandySoleY(model) {
+  // Same skinning path as __meshBounds, which matches the picture.
+  // Toe bones sit above the heel once the foot flexes, so the mesh is the contact.
+  model.updateWorldMatrix(true, true);
+  model.getWorldPosition(_soleOrigin);
+  let min = Infinity;
+  model.traverse(o => {
+    if (!o.isSkinnedMesh) return;
+    const pos = o.geometry.attributes.position;
+    const si = o.geometry.attributes.skinIndex;
+    const sw = o.geometry.attributes.skinWeight;
+    if (!pos || !si || !sw) return;
+    o.skeleton.update();
+    const bones = o.skeleton.boneMatrices;
+    for (let i = 0; i < pos.count; i++) {
+      if (pos.getY(i) > 0.18) continue;
+      _soleV.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix);
+      _soleAcc.set(0, 0, 0);
+      for (let k = 0; k < 4; k++) {
+        const w = sw.getComponent(i, k);
+        if (w <= 0) continue;
+        _soleM.fromArray(bones, si.getComponent(i, k) * 16);
+        _soleP.copy(_soleV).applyMatrix4(_soleM).multiplyScalar(w);
+        _soleAcc.add(_soleP);
+      }
+      _soleAcc.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld);
+      if (_soleAcc.y < min) min = _soleAcc.y;
+    }
+  });
+  if (!Number.isFinite(min)) return null;
+  return min - _soleOrigin.y;
+}
 function syncProof(dt) {
   proofHumans.forEach(entry => {
     const rig = entry.agent.rig;
     if (entry.model.parent !== rig.parent) rig.parent.add(entry.model);
-    entry.model.position.set(rig.position.x, 0, rig.position.z);
     entry.model.rotation.set(0, rig.rotation.y, 0);
     playProof(entry, proofClip(entry.agent, entry.clips));
+    if (entry._footClip !== entry.current) {
+      entry._footClip = entry.current;
+      entry.footY = null;
+    }
     entry.mixer.update(dt);
+    let y = 0;
+    if (entry.id === 'mandy') {
+      const sole = mandySoleY(entry.model);
+      if (Number.isFinite(sole)) {
+        const need = MANDY_FLOOR - sole;
+        const prev = entry.footY;
+        entry.footY = prev == null ? need : Math.max(need, prev + (need - prev) * 0.45);
+        y = entry.footY;
+      }
+      window.__mandyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null };
+    }
+    entry.model.position.set(rig.position.x, y, rig.position.z);
   });
 }
 attachProof('andrew', 'assets/characters/andrew.glb');
