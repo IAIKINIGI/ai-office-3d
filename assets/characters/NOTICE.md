@@ -24,7 +24,7 @@ Diner signs: This work is based on "Cyberpunk Diner Sign (Japanese)" (https://sk
 
 Hovercar: This work is based on "(FREE) Cyberpunk Hovercar" (https://sketchfab.com/3d-models/free-cyberpunk-hovercar-3205b1075bb44ffc826bce0c2a04d74c) by Karol Miklas (https://sketchfab.com/karolmiklas), licensed under CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Modified: wheels removed, hover pads added. That derivative stays CC BY-SA 4.0. The file is `assets/vehicles/hovercar-nowheels.glb`.
 
-City: This work is based on "Cyberpunk City - #1" (https://sketchfab.com/3d-models/cyberpunk-city-1-14d2eaa145ee42938e004115871adf6c) by born2012 (https://sketchfab.com/born2012), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). The meshopt GLB is `assets/city/cyberpunk-city.glb`. The centre is cut out so the office tower stands on the plaza. Full credit line is in `assets/city/license.txt`.
+City: This work is based on "Cyberpunk City - #1" (https://sketchfab.com/3d-models/cyberpunk-city-1-14d2eaa145ee42938e004115871adf6c) by born2012 (https://sketchfab.com/born2012), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). The meshopt GLB is `assets/city/cyberpunk-city.glb`. It keeps the original triangles (no decimation) and adds roof caps on open-topped buildings. Full credit line is in `assets/city/license.txt`.
 
 These replace the security uniforms. The larger files are the clothed color textures.
 
