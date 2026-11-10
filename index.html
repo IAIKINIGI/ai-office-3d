@@ -4846,7 +4846,7 @@ function sealRoads() {
   console.info('[roads] avenueHits', avenueHits, 'hwDropped', dropped, 'overlap', overlap, '/', checked);
   window.__roadsReady = true;
 }
-window.__renderCityPlan = function (withRoads) {
+window.__renderCityPlan = function (withRoads, highwayOnly) {
   const W = 2048;
   const buildings = [];
   if (window.__city) {
@@ -4860,6 +4860,12 @@ window.__renderCityPlan = function (withRoads) {
   }
   const roads = [];
   scene.traverse(o => { if (o.isMesh && o.userData.planRoad) roads.push(o); });
+  const inHighway = (m) => {
+    let n = m;
+    while (n) { if (n === window.__hwGroup) return true; n = n.parent; }
+    return false;
+  };
+  const shownRoads = highwayOnly ? roads.filter(inHighway) : roads;
   const bounds = new THREE.Box3();
   buildings.forEach(m => bounds.expandByObject(m));
   bounds.expandByPoint(new THREE.Vector3(-FW / 2, 0, -FD / 2));
@@ -4903,10 +4909,11 @@ window.__renderCityPlan = function (withRoads) {
   const roadFlat = new THREE.MeshBasicMaterial({ color: 0x4e5966 });
   const walkFlat = new THREE.MeshBasicMaterial({ color: 0xb7c0c8 });
   const markFlat = new THREE.MeshBasicMaterial({ color: 0xf7f4ea });
-  if (withRoads) {
-    roads.forEach(m => {
+  const hwyFlat = new THREE.MeshBasicMaterial({ color: 0xff7a18 });
+  if (withRoads || highwayOnly) {
+    shownRoads.forEach(m => {
       savedRoad.push([m, m.material]);
-      m.material = m.userData.planRoad === 'walk' ? walkFlat : (m.userData.planRoad === 'mark' ? markFlat : roadFlat);
+      m.material = highwayOnly ? hwyFlat : (m.userData.planRoad === 'walk' ? walkFlat : (m.userData.planRoad === 'mark' ? markFlat : roadFlat));
       show(m);
     });
   }
