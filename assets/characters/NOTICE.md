@@ -14,6 +14,8 @@ License: MIT, Copyright (c) 2020 Microsoft. Full text in `LICENSE.md`.
 
 Mandy: This work is based on "Mai Shiranui | Anime Hot GIrl | Street fighter" (https://sketchfab.com/3d-models/mai-shiranui-anime-hot-girl-street-fighter-2bdc3c3111ea492bba9a33eac0a6dfc7) by lawlietrecluze (https://sketchfab.com/lawlietrecluze), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). Modified: decimated, arms separated, rigged and animated. The file in `mandy.glb` is that rig, about 1.68 m, feet at the origin, with Idle, Walk, and Sit embedded. The office uses those clips directly.
 
+City: This work is based on "Cyberpunk City - #1" (https://sketchfab.com/3d-models/cyberpunk-city-1-14d2eaa145ee42938e004115871adf6c) by born2012 (https://sketchfab.com/born2012), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). The meshopt GLB is `assets/city/cyberpunk-city.glb`. The centre is cut out so the office tower stands on the plaza. Full credit line is in `assets/city/license.txt`.
+
 These replace the security uniforms. The larger files are the clothed color textures.
 
 ## Body

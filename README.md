@@ -4,6 +4,8 @@ Interactive Three.js office scene. Open `index.html` (or this GitHub Pages site)
 
 ## Credits
 
+- This work is based on "Cyberpunk City - #1" (https://sketchfab.com/3d-models/cyberpunk-city-1-14d2eaa145ee42938e004115871adf6c) by born2012 (https://sketchfab.com/born2012), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). The centre block is cleared so the office tower sits on a plaza. See `assets/city/license.txt`.
+
 - Rocketbox Andrew: MIT, Microsoft Rocketbox. See `assets/characters/NOTICE.md`.
 - This work is based on "Mai Shiranui | Anime Hot GIrl | Street fighter" (https://sketchfab.com/3d-models/mai-shiranui-anime-hot-girl-street-fighter-2bdc3c3111ea492bba9a33eac0a6dfc7) by lawlietrecluze (https://sketchfab.com/lawlietrecluze), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). Modified: decimated, arms separated, rigged and animated. Used as Mandy.
 - "Wuthering Waves Lucy (downloadable)" by Spessartite, https://sketchfab.com/3d-models/wuthering-waves-lucy-downloadable-4e5ee86e11e8470a8f621f6cc754bc40, Sketchfab Standard license. Used as Penny. Gold cables and whips are not in this file. The GLB was not re-exported through Blender.

@@ -62,6 +62,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from './assets/city/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -124,7 +125,7 @@ document.body.appendChild(renderer.domElement);
 const LAYER_ACTOR = 1; // people / cars — local rim lights must not enter city shaders
 const LAYER_ROOM = 2;  // office interiors only
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x140828, 0.0021);
+scene.fog = new THREE.FogExp2(0x140828, 0.0034);
 scene.background = new THREE.Color(0x0a0618);
 
 const loader = new THREE.TextureLoader();
@@ -259,7 +260,7 @@ const streetWide3 = new THREE.PointLight(0xfcee0a, 40, 60, 1.6); streetWide3.pos
     new THREE.PlaneGeometry(220, 90),
     new THREE.MeshBasicMaterial({ map: texSkyline, transparent: true, opacity: 0.85, fog: false, toneMapped: false, depthWrite: false })
   );
-  far.position.set(0, 48, -95); scene.add(far);
+  far.position.set(0, 58, -175); scene.add(far);
 }
 // purple/cyan night dome (not pure black)
 { const dome = new THREE.Mesh(
@@ -447,6 +448,7 @@ for (const side of [-1, 1]) {
     const x = side * (46 + i * 16 + rng() * 4);
     const z = 6 - i * 18 - rng() * 4;
     if (Math.abs(x) < 38) continue;
+    if (Math.hypot(x, z) < 112) continue;
     const h = 85 + rng() * 55;
     megas.push(makeMega(x, z, h, 11 + rng() * 8, 10 + rng() * 7, i + (side > 0 ? 3 : 0), 0));
   }
@@ -456,6 +458,7 @@ for (const side of [-1, 1]) {
   for (let i = 0; i < 6; i++) {
     const x = side * (58 + rng() * 40);
     const z = -15 - rng() * 55;
+    if (Math.hypot(x, z) < 112) continue;
     megas.push(makeMega(x, z, 70 + rng() * 80, 9 + rng() * 11, 9 + rng() * 9, i + 4, 1));
   }
 }
@@ -467,12 +470,13 @@ for (let i = 0; i < 36; i++) {
   if (z > 10) continue;
   if (Math.hypot(x - 22, z + 22) < 35) continue; // HQ clearance
   if (Math.abs(x) < 30 && z < 5 && z > -40) continue; // center corridor
+  if (Math.hypot(x, z) < 118) continue;
   megas.push(makeMega(x, z, 50 + rng() * 95, 8 + rng() * 12, 8 + rng() * 10, i, 2));
 }
 
 // Skybridges — offset to sides so they frame rather than wall the shot
 for (let i = 0; i < 3; i++) {
-  const y = 28 + i * 14, z = -20 - i * 16;
+  const y = 36 + i * 12, z = -132 - i * 8;
   const len = 40 + rng() * 20;
   const sx0 = (i % 2 ? 1 : -1) * 42;
   box(len, 0.8, 2.4, M(0x1a2030, { metalness: 0.8, roughness: 0.35 }), sx0, y, z, megaGroup);
@@ -481,7 +485,7 @@ for (let i = 0; i < 3; i++) {
 }
 // elevated highways deeper — dark deck only, no neon rails banding the frame
 for (let i = 0; i < 3; i++) {
-  const y = 16 + i * 11, z = -35 - i * 18;
+  const y = 22 + i * 10, z = -155 - i * 8;
   for (let x = -100; x <= 100; x += 4) {
     if (Math.abs(x) < 22) continue; // keep clear of tower + HQ sightline
     box(3.4, 0.35, 1.5, M(0x1a2030, { metalness: 0.7 }), x, y, z, megaGroup);
@@ -1461,10 +1465,12 @@ if (lift.cabin) markRoom(lift.cabin);
 // The lift moves only when someone is visiting another floor, then brings them home.
 const LANES = { andrew: 2.12, mandy: 2.52, hailey: 2.18, holly: 2.55, hazel: 2.16, penny: 2.36, routinizer: 2.42, crypto: 2.14, risk: 2.5, market: 2.62 };
 const BEATS = [
+  { kind: 'errand', who: 'penny', spot: 'stroll', hold: 5, pose: 'look' },
   { kind: 'chat', a: 'hailey', b: 'holly', hold: 8 },
   { kind: 'consult', a: 'crypto', b: 'risk', hold: 8 },
   { kind: 'rest', a: 'market', b: 'crypto', hold: 9 },
   { kind: 'visit', guest: 'andrew', host: 'routinizer', mode: 'consult', hold: 8 },
+  { kind: 'errand', who: 'hailey', spot: 'food', hold: 6, pose: 'look' },
   { kind: 'chat', a: 'hazel', b: 'hailey', hold: 7 },
   { kind: 'game', a: 'andrew', b: 'mandy', hold: 10 },
   { kind: 'visit', guest: 'andrew', host: 'penny', mode: 'chat', hold: 8 },
@@ -1472,6 +1478,7 @@ const BEATS = [
   { kind: 'consult', a: 'market', b: 'risk', hold: 7 },
   { kind: 'visit', guest: 'andrew', host: 'hailey', mode: 'consult', hold: 8 },
   { kind: 'rest', a: 'andrew', b: 'mandy', hold: 9 },
+  { kind: 'errand', who: 'mandy', spot: 'meet', hold: 5, pose: 'look' },
   { kind: 'chat', a: 'holly', b: 'hazel', hold: 7 },
   { kind: 'visit', guest: 'andrew', host: 'crypto', mode: 'consult', hold: 8 },
 ];
@@ -1632,7 +1639,20 @@ function poseAgent(agent, kind, t) {
 function liftReady(lv) {
   return lift.target === lv && Math.abs(lift.cabin.position.y - liftY(lv)) < 0.08 && lift.open > 0.9;
 }
-function beatIds(beat) { return beat.kind === 'visit' ? [beat.guest, beat.host] : [beat.a, beat.b]; }
+function beatIds(beat) {
+  if (beat.kind === 'visit') return [beat.guest, beat.host];
+  if (beat.kind === 'errand') return [beat.who];
+  return [beat.a, beat.b];
+}
+function errandRoute(beat) {
+  // Sidewalk on the carved plaza, outside the tower footprint (22 x 14).
+  const loops = {
+    food: [[0, 10.4], [15, 10.4], [15, 0]],
+    meet: [[0, 10.4], [-15, 10.4], [-15, -10.2], [0, -10.2]],
+    stroll: [[0, 10.4], [15, 10.4], [15, -10.2], [-15, -10.2], [-15, 10.4], [0, 10.4]],
+  };
+  return loops[beat.spot] || loops.stroll;
+}
 function startBeat(beat) {
   const ids = beatIds(beat);
   if (ids.some(id => !castById[id])) return 'skip';
@@ -1641,10 +1661,11 @@ function startBeat(beat) {
   director.beat = beat;
   director.hold = beat.hold;
   for (const id of ids) castById[id].busy = true;
-  if (beat.kind === 'visit') {
+  if (beat.kind === 'visit' || beat.kind === 'errand') {
     director.phase = 'toLift';
     director.spots = null;
-    sendTo(castById[beat.guest], [-6.4, 5.55], 0, 'stand');
+    const who = beat.kind === 'visit' ? beat.guest : beat.who;
+    sendTo(castById[who], [-6.4, 5.55], 0, 'stand');
   } else {
     const spots = pairSpots(beat);
     director.spots = spots;
@@ -1757,6 +1778,98 @@ function updateVisit(dt) {
     if (G.phase !== 'walk' && H.phase !== 'walk') finishBeat();
   }
 }
+function updateErrand(dt) {
+  const beat = director.beat;
+  const A = castById[beat.who];
+  const lobby = floorGroups.find(f => f.f.lv === 1);
+  if (!A || !lobby) { finishBeat(); return; }
+  if (director.phase === 'toLift') {
+    if (A.phase !== 'walk') {
+      lift.target = A.lv;
+      lift.wantOpen = Math.abs(lift.cabin.position.y - liftY(A.lv)) < 0.1;
+      if (liftReady(A.lv)) { sendAlong(A, boardPath(), 0, 'stand'); director.phase = 'board'; }
+    }
+  } else if (director.phase === 'board') {
+    lift.target = A.lv; lift.wantOpen = true;
+    if (A.phase !== 'walk' && liftReady(A.lv)) {
+      lift.cabin.attach(A.rig);
+      A.rig.position.set(0, 0, -0.12);
+      A.rig.rotation.y = Math.PI;
+      A.phase = 'there'; A.pose = 'stand';
+      lift.wantOpen = false; lift.target = 1;
+      director.phase = 'rideOut';
+    }
+  } else if (director.phase === 'rideOut') {
+    const parked = Math.abs(lift.cabin.position.y - liftY(1)) < 0.08;
+    lift.wantOpen = parked;
+    if (parked && lift.open > 0.9) {
+      lobby.g.attach(A.rig);
+      A.rig.position.set(-8.15, 0, 6.5);
+      A.rig.rotation.y = 0;
+      sendAlong(A, [[-4, 6.2], [0, 7.6], [0, 10.4]], 0, 'walk');
+      lift.wantOpen = false;
+      director.phase = 'exit';
+    }
+  } else if (director.phase === 'exit') {
+    if (A.phase !== 'walk') {
+      const wp = new THREE.Vector3();
+      A.rig.getWorldPosition(wp);
+      scene.attach(A.rig);
+      A.rig.position.set(wp.x, 0, wp.z);
+      sendAlong(A, errandRoute(beat), 0, 'walk');
+      director.phase = 'street';
+    }
+  } else if (director.phase === 'street') {
+    if (A.phase !== 'walk') {
+      director.phase = 'outHold';
+      director.hold = beat.hold;
+      A.pose = beat.pose || 'look';
+    }
+  } else if (director.phase === 'outHold') {
+    director.hold -= dt;
+    if (director.hold <= 0) {
+      sendAlong(A, [[0, 10.4], [0, 7.4]], Math.PI, 'walk');
+      director.phase = 'returnDoor';
+    }
+  } else if (director.phase === 'returnDoor') {
+    if (A.phase !== 'walk') {
+      lobby.g.attach(A.rig);
+      A.rig.position.set(0, 0, 7.2);
+      A.rig.rotation.y = Math.PI;
+      sendTo(A, [-6.4, 5.55], 0, 'stand');
+      director.phase = 'toLiftHome';
+    }
+  } else if (director.phase === 'toLiftHome') {
+    if (A.phase !== 'walk') {
+      lift.target = 1;
+      lift.wantOpen = Math.abs(lift.cabin.position.y - liftY(1)) < 0.1;
+      if (liftReady(1)) { sendAlong(A, boardPath(), 0, 'stand'); director.phase = 'reboard'; }
+    }
+  } else if (director.phase === 'reboard') {
+    lift.target = 1; lift.wantOpen = true;
+    if (A.phase !== 'walk' && liftReady(1)) {
+      lift.cabin.attach(A.rig);
+      A.rig.position.set(0, 0, -0.12);
+      A.rig.rotation.y = Math.PI;
+      A.phase = 'there'; A.pose = 'stand';
+      lift.wantOpen = false; lift.target = A.lv;
+      director.phase = 'rideHome';
+    }
+  } else if (director.phase === 'rideHome') {
+    const parked = Math.abs(lift.cabin.position.y - liftY(A.lv)) < 0.08;
+    lift.wantOpen = parked;
+    if (parked && lift.open > 0.9) {
+      A.group.attach(A.rig);
+      A.rig.position.set(-8.15, 0, 6.5);
+      A.rig.rotation.y = Math.PI;
+      lift.wantOpen = false;
+      sendHome(A);
+      director.phase = 'back';
+    }
+  } else if (director.phase === 'back') {
+    if (A.phase !== 'walk') finishBeat();
+  }
+}
 function updateDirector(dt) {
   if (director.phase === 'gap') {
     director.gap -= dt;
@@ -1770,6 +1883,7 @@ function updateDirector(dt) {
   }
   if (!director.beat) { director.phase = 'gap'; director.gap = 2; return; }
   if (director.beat.kind === 'visit') updateVisit(dt);
+  else if (director.beat.kind === 'errand') updateErrand(dt);
   else updatePair(dt);
 }
 function poseName(a) { return a.phase === 'walk' ? 'walk' : a.pose; }
@@ -1783,7 +1897,7 @@ function pushTrace(reason) {
     people: cast.map(a => ({
       id: a.id, x: +a.rig.position.x.toFixed(2), z: +a.rig.position.z.toFixed(2),
       yaw: +a.rig.rotation.y.toFixed(2), pose: poseName(a), phase: a.phase,
-      parent: a.rig.parent === lift.cabin ? 'cabin' : 'floor', lv: hereLv(a),
+      parent: a.rig.parent === lift.cabin ? 'cabin' : a.rig.parent === scene ? 'street' : 'floor', lv: hereLv(a),
     })),
   });
 }
@@ -1825,6 +1939,7 @@ function updateLift(dt) {
     d.right.position.x = d.cx + 0.46 + gap * 0.48;
   }
 }
+window.__stepLife = (dt) => stepLife(dt);
 function stepLife(dt) {
   if (window.__HOLD_LIFE) return;
   const d = Math.max(0, Math.min(dt, 0.2));
@@ -1838,12 +1953,12 @@ function lifeStatus() {
     id: a.id, x: +a.rig.position.x.toFixed(2), z: +a.rig.position.z.toFixed(2),
     y: +a.rig.position.y.toFixed(2), yaw: +a.rig.rotation.y.toFixed(2),
     pose: poseName(a), phase: a.phase,
-    parent: a.rig.parent === lift.cabin ? 'cabin' : 'floor', lv: hereLv(a),
+    parent: a.rig.parent === lift.cabin ? 'cabin' : a.rig.parent === scene ? 'street' : 'floor', lv: hereLv(a),
   }));
   return {
     t: +director.t.toFixed(2), phase: director.phase,
     beat: director.beat ? director.beat.kind : '',
-    who: director.beat ? (director.beat.host || director.beat.a) : '',
+    who: director.beat ? (director.beat.who || director.beat.host || director.beat.a) : '',
     hold: director.beat ? +Math.max(0, director.hold).toFixed(2) : 0,
     lift: { lv: lift.lv, y: +lift.cabin.position.y.toFixed(2), open: +lift.open.toFixed(2), target: lift.target, want: lift.wantOpen },
     people,
@@ -2052,8 +2167,55 @@ function car(color, lane, speed, x, hover = false) {
   scene.add(g); cars.push({ g, speed, hover });
   return g;
 }
-// fewer procedural ground cars (dark); Kenney GLBs carry most traffic
-car(0x12151c, 42, 4, -28); car(0x0e1016, 44, -4, 26);
+// Closed lanes around the tower plaza. A later wheel-less hovercar GLB
+// slots in by setting `model` on a fleet entry; kind 'air' already hovers.
+const VEHICLE_ROUTES = {
+  plaza: [
+    { x: -17, y: 0, z: 13 }, { x: 17, y: 0, z: 13 },
+    { x: 17, y: 0, z: -13 }, { x: -17, y: 0, z: -13 },
+  ],
+  airLow: [
+    { x: -36, y: 22, z: 28 }, { x: 36, y: 24, z: 28 },
+    { x: 40, y: 26, z: -30 }, { x: -34, y: 22, z: -32 },
+  ],
+  airHigh: [
+    { x: -48, y: 40, z: -8 }, { x: 8, y: 44, z: -42 },
+    { x: 52, y: 38, z: 6 }, { x: 6, y: 42, z: 36 },
+  ],
+};
+const VEHICLE_FLEET = [
+  { id: 'lane-a', kind: 'ground', route: 'plaza', speed: 0.055, color: 0xff2a6d, offset: 0.02 },
+  { id: 'lane-b', kind: 'ground', route: 'plaza', speed: 0.042, color: 0x00f0ff, offset: 0.52 },
+  { id: 'air-a', kind: 'air', route: 'airLow', speed: 0.032, color: 0xff2a6d, offset: 0.15 },
+  { id: 'air-b', kind: 'air', route: 'airHigh', speed: 0.024, color: 0x7fe3ff, offset: 0.6 },
+];
+function pointOnLoop(pts, u) {
+  const n = pts.length;
+  const f = (((u % 1) + 1) % 1) * n;
+  const i = Math.floor(f) % n;
+  const t = f - Math.floor(f);
+  const a = pts[i], b = pts[(i + 1) % n];
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t };
+}
+function addRouteVehicle(spec) {
+  const hover = spec.kind === 'air';
+  car(spec.color, 0, 0, 0, hover);
+  const rec = cars[cars.length - 1];
+  rec.id = spec.id;
+  rec.kind = spec.kind;
+  rec.model = spec.model || null;
+  rec.speed = 0;
+  rec.route = VEHICLE_ROUTES[spec.route];
+  rec.routeSpeed = spec.speed;
+  rec.u = spec.offset || 0;
+  rec.fly = hover;
+  const p = pointOnLoop(rec.route, rec.u);
+  rec.g.position.set(p.x, p.y, p.z);
+  return rec;
+}
+VEHICLE_FLEET.forEach(addRouteVehicle);
+window.__cars = cars;
+window.__VEHICLE_FLEET = VEHICLE_FLEET;
 
 // Fifth-generation coupe proportions, lofted from cross-sections (not sphere pods).
 // Long flat hood, cabin behind the front axle, hips wider than the doors,
@@ -3511,6 +3673,48 @@ if (PEOPLE_VARIANT === 'b') {
 const __gltfMgr = new THREE.LoadingManager();
 __gltfMgr.setURLModifier(remapGltfUrl);
 const gltfLoader = new GLTFLoader(__gltfMgr);
+gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+const CITY_SCALE = 0.149716333;
+function addStreetLights() {
+  const spots = [[-16, 13], [16, 13], [17, 0], [-17, 0], [16, -13], [-16, -13], [0, 14.5], [0, -14.5]];
+  spots.forEach(([x, z], i) => {
+    const col = i % 2 ? 0xff2a6d : 0x00f0ff;
+    box(0.16, 4.4, 0.16, M(0x12161e, { metalness: 0.7, roughness: 0.4 }), x, 2.2, z);
+    box(0.85, 0.08, 0.18, E(col, 3.2), x, 4.35, z);
+    const L = new THREE.PointLight(col, 22, 18, 1.8);
+    L.position.set(x, 4.2, z);
+    scene.add(L);
+  });
+}
+function loadCyberCity() {
+  gltfLoader.load('assets/city/cyberpunk-city.glb', (gltf) => {
+    const city = gltf.scene;
+    city.name = 'cyber-city';
+    city.scale.setScalar(CITY_SCALE);
+    city.position.y = 0.05;
+    city.traverse(o => {
+      if (!o.isMesh) return;
+      o.castShadow = false;
+      o.receiveShadow = true;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(m => {
+        if (!m || !m.emissive) return;
+        const e = m.emissive.r + m.emissive.g + m.emissive.b;
+        if (e > 0.12) {
+          m.emissiveIntensity = 2.6;
+          m.toneMapped = false;
+        } else {
+          m.roughness = Math.max(m.roughness == null ? 0.62 : m.roughness, 0.5);
+          m.metalness = Math.min(m.metalness || 0, 0.2);
+        }
+      });
+    });
+    scene.add(city);
+    addStreetLights();
+    window.__city = city;
+  }, undefined, (err) => { console.error('city', err); });
+}
+loadCyberCity();
 const MODEL_BASE_CITY = 'models/runtime/city/';
 const MODEL_BASE_CARS = 'models/runtime/cars/';
 /** Resolve GLB path to embedded data URI when present (file:// offline), else relative URL */
@@ -3608,6 +3812,7 @@ function loadGltf(base, name) {
     });
     // A few mid-rise Kenney buildings deeper
     [[-70, -40, 12, 0x00f0ff], [72, -45, 11, 0xff2a6d], [-75, -70, 14, 0x7fe3ff], [78, -75, 13, 0xff5fa2]].forEach(([x, z, sc, neon], i) => {
+      if (Math.hypot(x, z) < 112) return;
       const src = mids[i % mids.length];
       if (!src) return;
       const b = src.clone(true);
@@ -3622,7 +3827,7 @@ function loadGltf(base, name) {
     const lanes = [
       { z: 34, speed: 0, x: -16, paint: 0x2a2038, neon: 0xff2a6d }, // left kerb
       { z: 33, speed: 0, x: 16, paint: 0x1a2830, neon: 0x00f0ff },  // right kerb
-      { z: 40, speed: 4.5, x: -20, paint: 0x221828, neon: 0xff2a6d }, // crossing left lane
+      { z: 40, speed: 0, x: -20, paint: 0x221828, neon: 0xff2a6d }, // parked; city lanes carry traffic
     ];
     lanes.forEach((ln, i) => {
       const src = carScenes[i % carScenes.length];
@@ -3708,8 +3913,10 @@ function loadGltf(base, name) {
       streak.position.set(fs.spd >= 0 ? -3.5 : 3.5, 0.2, 0);
       streak.rotation.y = Math.PI / 2; c.add(streak);
       scene.add(c);
-      kenneyCars.push({ g: c, speed: fs.spd, fly: true, baseY: fs.y, ph: i, laneMin: fs.x < 0 ? -55 : 30, laneMax: fs.x < 0 ? -30 : 55 });
-      cars.push({ g: c, speed: fs.spd, hover: true, fly: true, baseY: fs.y, ph: i, hero: true, laneMin: fs.x < 0 ? -55 : 30, laneMax: fs.x < 0 ? -30 : 55 });
+      const routeName = i === 0 ? 'airLow' : 'airHigh';
+      const rec = { g: c, speed: 0, hover: true, fly: true, baseY: fs.y, ph: i, hero: true, route: VEHICLE_ROUTES[routeName], routeSpeed: 0.02 + i * 0.006, u: 0.28 + i * 0.4, kind: 'air', id: 'kenney-air-' + i, yaw0: 0 };
+      kenneyCars.push(rec);
+      cars.push(rec);
     });
     
     window.__CARS_READY = true; window.__cars = cars; window.__kenneyCars = kenneyCars;
@@ -4035,6 +4242,16 @@ function tick() {
 
   typers.forEach(p => { p.armL.rotation.x = Math.sin(t * 10 + p.ph) * 0.25; p.armR.rotation.x = Math.cos(t * 10 + p.ph) * 0.25; p.head.rotation.y = Math.sin(t * 0.7 + p.ph) * 0.3; if (p.legL) { p.legL.rotation.x = Math.sin(t * 8 + p.ph) * 0.15; p.legR.rotation.x = Math.cos(t * 8 + p.ph) * 0.15; } });
   cars.forEach(c => {
+    if (c.route) {
+      c.u = (c.u + dt * c.routeSpeed) % 1;
+      const p = pointOnLoop(c.route, c.u);
+      const n = pointOnLoop(c.route, c.u + 0.012);
+      const bob = c.fly ? Math.sin(t * 1.3 + c.u * 8) * 0.35 : 0;
+      c.g.position.set(p.x, p.y + bob, p.z);
+      const dx = n.x - p.x, dz = n.z - p.z;
+      if (dx * dx + dz * dz > 1e-6) c.g.rotation.y = Math.atan2(dx, dz) + (c.yaw0 == null ? -Math.PI / 2 : c.yaw0);
+      return;
+    }
     if (!c.speed) return;
     c.g.position.x += c.speed * dt;
     // hero ground cars stay in close-shot band
@@ -4340,6 +4557,7 @@ function syncProof(dt) {
     let y = 0;
     const pose = entry.agent.pose;
     const inCabin = rig.parent === lift.cabin;
+    const outside = rig.parent === scene;
     if (entry.id === 'mandy' && pose === 'sit' && !inCabin) flattenMandyFeet(entry.model);
     if (entry.id === 'mandy' || entry.id === 'penny') {
       let sole = entry.id === 'penny' ? pennySoleY(entry.model) : mandySoleY(entry.model);
@@ -4350,7 +4568,7 @@ function syncProof(dt) {
       if (soleBad) sole = entry._soleOk != null ? entry._soleOk : -0.004;
       else entry._soleOk = sole;
       if (Number.isFinite(sole)) {
-        const surface = inCabin ? MANDY_CABIN_FLOOR : MANDY_FLOOR;
+        const surface = outside ? 0.02 : (inCabin ? MANDY_CABIN_FLOOR : MANDY_FLOOR);
         const need = surface - sole;
         const prev = entry.footY;
         entry.footY = prev == null ? need : Math.max(need, prev + (need - prev) * 0.45);
