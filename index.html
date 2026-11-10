@@ -250,18 +250,12 @@ const streetWide1 = new THREE.PointLight(0x00f0ff, 50, 70, 1.5); streetWide1.pos
 const streetWide2 = new THREE.PointLight(0xff2a6d, 50, 70, 1.5); streetWide2.position.set(12, 5, 95); scene.add(streetWide2);
 const streetWide3 = new THREE.PointLight(0xfcee0a, 40, 60, 1.6); streetWide3.position.set(0, 4, 115); scene.add(streetWide3);
 
-// ---- skyline backdrop cylinder ----
+// ---- skyline surround: one tall cylinder, no flat billboard edge ----
 { const sky = new THREE.Mesh(
-    new THREE.CylinderGeometry(320, 320, 160, 64, 1, true),
+    new THREE.CylinderGeometry(380, 380, 520, 96, 1, true),
     new THREE.MeshBasicMaterial({ map: texSkyline, side: THREE.BackSide, fog: false, toneMapped: false })
   );
-  sky.position.y = 55; scene.add(sky);
-  // flat far skyline billboard behind HQ for clear read
-  const far = new THREE.Mesh(
-    new THREE.PlaneGeometry(220, 90),
-    new THREE.MeshBasicMaterial({ map: texSkyline, transparent: true, opacity: 0.85, fog: false, toneMapped: false, depthWrite: false })
-  );
-  far.position.set(0, 58, -175); scene.add(far);
+  sky.position.y = 40; scene.add(sky);
 }
 // purple/cyan night dome (not pure black)
 { const dome = new THREE.Mesh(
@@ -3957,37 +3951,31 @@ function loadHovercars() {
 }
 loadHovercars();
 
-// Diner signs: variant GLB + swappable white lettering, tinted by emissive colour.
-// Smaller and dimmer than the tower's H-Industry crown, and kept off the sightlines.
+// Shopfront signs, all the same size. Bottom sits at 3 m so the lettering
+// stays in the 3–6 m band. Districts are on measured facades, off the
+// tower's north/south and east/west sightlines.
+const SIGN_SCALE = 0.32;
+const MAGENTA = 0xff2a9a;
+const CYAN = 0x00e5ff;
+const AMBER = 0xff8c14;
 const DINER_SIGNS = [
-  { variant: 'ramen', text: 'ramen.png', color: 0xff0dd9, angle: 32, y: 6.4 },
-  { variant: 'izakaya', text: 'izakaya.png', color: 0xff8c14, angle: 58, y: 8.2 },
-  { variant: '24h', text: '24h.png', color: 0x0ee6ff, angle: 112, y: 7.1 },
-  { variant: 'dennou', text: 'dennou.png', color: 0x73ff1f, angle: 148, y: 9.4 },
-  { variant: 'bar', text: 'bar.png', color: 0x8c1aff, angle: 198, y: 6.8 },
-  { variant: 'ramen', text: 'h-industry-mart.png', color: 0x0ee6ff, angle: 228, y: 10.2 },
-  { variant: 'izakaya', text: 'izakaya.png', color: 0xff0dd9, angle: 252, y: 7.6 },
-  { variant: 'bar', text: 'bar.png', color: 0xff8c14, angle: 292, y: 8.6 },
-  { variant: '24h', text: '24h.png', color: 0x73ff1f, angle: 318, y: 6.2 },
-  { variant: 'dennou', text: 'dennou.png', color: 0x8c1aff, angle: 348, y: 9.0 },
+  // Food street: south face of the block the north walk runs past.
+  { variant: 'ramen', text: 'ramen.png', color: MAGENTA, x: -17.2, y: 3, z: 29.15, yaw: 0 },
+  { variant: 'izakaya', text: 'izakaya.png', color: AMBER, x: -9.2, y: 3, z: 29.15, yaw: 0 },
+  // Tech block: east face, two adjacent fronts.
+  { variant: 'dennou', text: 'dennou.png', color: CYAN, x: 33.55, y: 3, z: 2.4, yaw: Math.PI / 2 },
+  { variant: '24h', text: '24h.png', color: MAGENTA, x: 33.55, y: 3, z: 7.6, yaw: Math.PI / 2 },
+  // Nightlife corner: one BAR on the east face of the west block.
+  { variant: 'bar', text: 'bar.png', color: MAGENTA, x: -31.45, y: 3, z: 29, yaw: Math.PI / 2 },
+  // Company store, street level on the plaza-side facade.
+  { variant: 'ramen', text: 'h-industry-mart.png', color: CYAN, x: 16.55, y: 3, z: 24.4, yaw: Math.PI / 2 },
 ];
 const dinerVariantCache = {};
 const dinerTextCache = {};
 function loadDinerVariant(name) {
   if (!dinerVariantCache[name]) {
     dinerVariantCache[name] = new Promise((resolve, reject) => {
-      gltfLoader.load('assets/signs/cyberpunk-diner-sign-' + name + '.glb', gltf => {
-        const src = gltf.scene;
-        src.traverse(o => {
-          if (!o.isMesh || !o.material || o.name === 'TextPlate') return;
-          const mats = [].concat(o.material);
-          mats.forEach(m => {
-            if (m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.15)
-              m.emissiveIntensity = Math.min(m.emissiveIntensity || 2, 2.2);
-          });
-        });
-        resolve(src);
-      }, undefined, reject);
+      gltfLoader.load('assets/signs/cyberpunk-diner-sign-' + name + '.glb', gltf => resolve(gltf.scene), undefined, reject);
     });
   }
   return dinerVariantCache[name];
@@ -4005,28 +3993,26 @@ function loadDinerText(file) {
   }
   return dinerTextCache[file];
 }
-function hangDinerSign(spec) {
-  const a = spec.angle * Math.PI / 180;
-  const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
-  const origin = dir.clone().multiplyScalar(16);
-  origin.y = spec.y + 1.6;
-  const ray = new THREE.Raycaster(origin, dir, 0, 48);
-  const hits = window.__city ? ray.intersectObject(window.__city, true) : [];
-  const hit = hits.find(h => h.distance > 4);
-  const point = hit ? hit.point : origin.clone().addScaledVector(dir, 18);
-  // Sit just in front of the facade, lettering facing back toward the street.
-  point.addScaledVector(dir, hit ? -1.35 : 0);
-  point.y = spec.y;
-  const yaw = Math.atan2(-dir.x, -dir.z);
-  return { x: point.x, y: point.y, z: point.z, yaw };
-}
 function placeDinerSign(spec) {
   return Promise.all([loadDinerVariant(spec.variant), loadDinerText(spec.text)]).then(([src, tex]) => {
-    const spot = hangDinerSign(spec);
     const sign = src.clone(true);
-    sign.scale.setScalar(0.36);
-    sign.position.set(spot.x, spot.y, spot.z);
-    sign.rotation.y = spot.yaw;
+    sign.scale.setScalar(SIGN_SCALE);
+    sign.position.set(spec.x, spec.y, spec.z);
+    sign.rotation.y = spec.yaw;
+    sign.traverse(o => {
+      if (!o.isMesh || o.name === 'TextPlate' || !o.material) return;
+      const list = [].concat(o.material);
+      const next = list.map(m => {
+        if (!m.emissive || (m.emissive.r + m.emissive.g + m.emissive.b) < 0.15) return m;
+        const copy = m.clone();
+        copy.emissive.set(spec.color);
+        copy.color && copy.color.set(spec.color);
+        copy.emissiveIntensity = 1.5;
+        copy.toneMapped = false;
+        return copy;
+      });
+      o.material = Array.isArray(o.material) ? next : next[0];
+    });
     const plate = sign.getObjectByName('TextPlate');
     if (plate && plate.material) {
       const mat = plate.material.clone();
@@ -4195,6 +4181,7 @@ function loadGltf(base, name) {
       { x: 58, z: 32, s: 14, neon: 0x39ff14 },
     ];
     slots.forEach((slot, i) => {
+      if (Math.hypot(slot.x, slot.z) < 85) return;
       const src = skies[i % skies.length];
       if (!src) return;
       const b = src.clone(true);
