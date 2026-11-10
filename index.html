@@ -1015,7 +1015,8 @@ function makeOfficePerson(id) {
     const hip = new THREE.Group();
     hip.position.set(side * 0.085, 0.9, 0);
     rig.add(hip);
-    hip.add(quietMesh(limbGeo('thigh'), cloth));
+    const thigh = quietMesh(limbGeo('thigh'), cloth);
+    hip.add(thigh);
     const shin = new THREE.Group();
     shin.position.y = -0.4;
     hip.add(shin);
@@ -1154,25 +1155,40 @@ function addMonitor(parent, x, y, z, key) {
   m.position.set(x, y, z); m.castShadow = m.receiveShadow = false; parent.add(m);
   box(1.1, 0.72, 0.04, frameMat, x, y, z - 0.03, parent);
 }
-function workstation(parent, x, z, color, name, floor, monCol = 0x00f0ff) {
-  // desk top + legs
-  box(2.6, 0.1, 1.35, deskMat, x, 1.02, z, parent);
-  for (const dx of [-1.15, 1.15]) box(0.12, 1.0, 1.1, deskMat, x + dx, 0.5, z, parent);
+function workstation(parent, x, z, color, name, floor, monCol = 0x00f0ff, seatTop = 0.60, fit) {
+  // fit is only set for Mandy. It slides her desk toward the chair, raises the
+  // desktop so the seat is not a stool at a counter, and parks her hips on the cushion.
+  fit = fit || {};
+  const dz = fit.deskShift || 0;
+  const deskY = fit.deskY != null ? fit.deskY : 1.02;
+  const dy = deskY - 1.02;
+  box(2.6, 0.1, 1.35, deskMat, x, deskY, z + dz, parent);
+  for (const dx of [-1.15, 1.15]) box(0.12, 1.0, 1.1, deskMat, x + dx, 0.5 + dy * 0.45, z + dz, parent);
   const key = screenKeyFor(floor);
-  addMonitor(parent, x - 0.55, 1.55, z - 0.42, key);
-  addMonitor(parent, x + 0.55, 1.55, z - 0.42, key);
-  box(0.08, 0.35, 0.08, frameMat, x - 0.55, 1.15, z - 0.4, parent);
-  box(0.08, 0.35, 0.08, frameMat, x + 0.55, 1.15, z - 0.4, parent);
+  addMonitor(parent, x - 0.55, 1.55 + dy, z + dz - 0.42, key);
+  addMonitor(parent, x + 0.55, 1.55 + dy, z + dz - 0.42, key);
+  box(0.08, 0.35, 0.08, frameMat, x - 0.55, 1.15 + dy, z + dz - 0.4, parent);
+  box(0.08, 0.35, 0.08, frameMat, x + 0.55, 1.15 + dy, z + dz - 0.4, parent);
   const gTex = monCol === 0xff2a6d ? GLOW.mag : (monCol === 0xfcee0a ? GLOW.yel : GLOW.cyan);
-  glow(gTex, x - 0.55, 1.55, z - 0.62, 1.5, 1.0, 0.22, parent);
-  glow(gTex, x + 0.55, 1.55, z - 0.62, 1.5, 1.0, 0.22, parent);
-  // keyboard + mouse pad
-  box(0.9, 0.04, 0.35, M(0x1a1e28), x, 1.1, z + 0.15, parent);
-  // office chair
-  box(0.7, 0.1, 0.7, chairMat, x, 0.55, z + 1.15, parent);
-  box(0.65, 0.7, 0.1, chairMat, x, 0.95, z + 1.45, parent);
-  box(0.12, 0.5, 0.12, frameMat, x, 0.28, z + 1.15, parent);
-  if (name) person(parent, x, z + 1.05, color, name, floor, Math.PI);
+  glow(gTex, x - 0.55, 1.55 + dy, z + dz - 0.62, 1.5, 1.0, 0.22, parent);
+  glow(gTex, x + 0.55, 1.55 + dy, z + dz - 0.62, 1.5, 1.0, 0.22, parent);
+  box(0.9, 0.04, 0.35, M(0x1a1e28), x, 1.1 + dy, z + dz + 0.15, parent);
+  const seatLift = seatTop - 0.60;
+  const seatZ = fit.seatZ != null ? fit.seatZ : 1.15;
+  const backZ = fit.backZ != null ? fit.backZ : 1.45;
+  const seatD = fit.seatD || 0.7;
+  const seatW = fit.seatW || 0.7;
+  const backH = fit.backH || 0.7;
+  const backD = fit.backD || 0.1;
+  box(seatW, 0.1, seatD, chairMat, x, 0.55 + seatLift, z + seatZ, parent);
+  box(fit.backW || (seatW - 0.05), backH, backD, chairMat, x, (fit.backY != null ? fit.backY : 0.95) + seatLift, z + backZ, parent);
+  if (seatLift === 0 && !fit.seatZ) box(0.12, 0.5, 0.12, frameMat, x, 0.28, z + seatZ, parent);
+  else {
+    const postTop = seatTop - 0.1, postBottom = 0.38, postH = Math.max(0.12, postTop - postBottom);
+    box(0.12, postH, 0.12, frameMat, x, postBottom + postH / 2, z + seatZ, parent);
+  }
+  const personZ = fit.personZ != null ? fit.personZ : 1.05;
+  if (name) person(parent, x, z + personZ, color, name, floor, Math.PI);
 }
 
 FLOORS.forEach((f, idx) => {
@@ -1234,7 +1250,9 @@ FLOORS.forEach((f, idx) => {
     box(4.2, 0.15, 2, M(gold, { metalness: 0.55, roughness: 0.35 }), -4, 1.05, -1, g);
     box(4, 0.9, 1.8, M(0x8a6a28, { metalness: 0.4 }), -4, 0.5, -1, g);
     { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), screenMat('ceo')); scr.position.set(-4, 1.55, -1.55); scr.castShadow = scr.receiveShadow = false; g.add(scr); }
-    workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a);
+    workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a, 0.74, {
+      deskShift: 0.34, deskY: 1.12, personZ: 1.16, seatZ: 1.39, backZ: 1.66, seatD: 0.42, seatW: 0.62, backW: 0.50, backH: 0.36, backD: 0.06, backY: 0.84,
+    });
     strip.material.color.set(0xfcee0a); strip.material.emissive.set(0xfcee0a); strip.material.emissiveIntensity = 3;
   } else if ((f.people || []).length >= 3) {
     const ppl = f.people;
@@ -1249,7 +1267,17 @@ FLOORS.forEach((f, idx) => {
     workstation(g, 4.5, -1.2, 0x7a8aa8, (hollyIdx >= 0 ? ppl[bIdx] + ' 準備中' : ppl[bIdx]), f, 0x7a8aa8);
     box(0.5, 1.6, 0.5, E(0xfcee0a, 1.2), 0, 0.9, 2.5, g);
   } else if (!isVac(f)) {
-    workstation(g, -2, -1.5, c, (f.people && f.people[0]) || f.name, f);
+    const who = (f.people && f.people[0]) || f.name;
+    if (/Penny/i.test(who)) {
+      // Her sit drops the hips to about 0.50 m above the soles. The cushion
+      // top has to meet that, with the backrest behind the shoulders.
+      workstation(g, -2, -1.5, c, who, f, 0x00f0ff, 0.98, {
+        deskShift: 0.28, deskY: 1.20, personZ: 1.16, seatZ: 1.08, backZ: 1.33,
+        seatD: 0.42, seatW: 0.60, backW: 0.50, backH: 0.32, backD: 0.06, backY: 0.74,
+      });
+    } else {
+      workstation(g, -2, -1.5, c, who, f);
+    }
     workstation(g, 4.5, -1.5, c, null, f);
   }
   floorGroups.push({ g, f });
@@ -1317,17 +1345,18 @@ function addRestCorner(parent, f) {
   const x = 8.05, z = 4.35;
   const g = new THREE.Group(); g.position.set(x, 0, z); g.userData.kind = 'rest-corner'; g.userData.floorId = f.id; parent.add(g); restCount++;
   prop(2.4, 0.04, 1.5, cloth, 0, 0.04, 0, g);
-  prop(2.1, 0.36, 0.7, cloth, 0, 0.32, 0.15, g);
-  prop(2.1, 0.7, 0.16, cloth, 0, 0.75, 0.48, g);
-  prop(0.16, 0.42, 0.7, cloth, -1.05, 0.4, 0.15, g);
-  prop(0.16, 0.42, 0.7, cloth, 1.05, 0.4, 0.15, g);
-  prop(2.15, 0.06, 0.08, B(s.accent), 0, 0.48, 0.52, g);
+  // Seat top 0.78: Mandy's sit pose, feet on the slab, puts her pelvis here.
+  prop(2.1, 0.36, 0.7, cloth, 0, 0.60, 0.15, g);
+  prop(2.1, 0.7, 0.16, cloth, 0, 1.03, 0.48, g);
+  prop(0.16, 0.42, 0.7, cloth, -1.05, 0.68, 0.15, g);
+  prop(0.16, 0.42, 0.7, cloth, 1.05, 0.68, 0.15, g);
+  prop(2.15, 0.06, 0.08, B(s.accent), 0, 0.76, 0.52, g);
   prop(0.7, 0.08, 0.45, metal, 0.15, 0.32, -0.55, g);
   const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.22, 8), metal);
   pot.position.set(-0.85, 0.16, -0.35); pot.castShadow = pot.receiveShadow = false; g.add(pot);
   const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), B(s.accent));
   leaf.position.set(-0.85, 0.48, -0.35); g.add(leaf);
-  const sign = plaque(s.label, s.ink, 1.35, 0.48, g, 0, 1.35, 0.62);
+  const sign = plaque(s.label, s.ink, 1.35, 0.48, g, 0, 1.62, 0.62);
   sign.userData.kind = 'rest-corner';
   g.traverse(o => { if (o.isMesh) o.userData.kind = 'rest-corner'; });
 }
@@ -1351,8 +1380,9 @@ function addGamingRoom(parent, f) {
   prop(0.38, 0.06, 0.04, B(0xff2a6d), 1.15, 0.62, -0.48, g);
   prop(0.38, 0.04, 0.04, B(0x00f0ff), 1.15, 0.28, -0.48, g);
   for (const sx of [-0.5, 0.5]) {
-    prop(0.46, 0.1, 0.46, M(0x141820), sx, 0.5, 0.42, g);
-    prop(0.4, 0.5, 0.08, M(0x141820), sx, 0.76, 0.64, g);
+    prop(0.08, 0.30, 0.08, M(0x141820), sx, 0.53, 0.42, g);
+    prop(0.46, 0.1, 0.46, M(0x141820), sx, 0.73, 0.42, g);
+    prop(0.4, 0.5, 0.08, M(0x141820), sx, 0.94, 0.64, g);
   }
   plaque('GAME\nLOUNGE', '#ff4d8d', 1.5, 0.55, g, 0, 1.9, -1.02);
   g.traverse(o => { if (o.isMesh) { o.userData.kind = 'gaming-zone'; o.userData.floor = f; } });
@@ -1533,7 +1563,8 @@ function walkAgent(agent, dt) {
     rig.rotation.y += Math.sign(turn) * Math.min(Math.abs(turn), 2.6 * dt);
     return false;
   }
-  const step = Math.min(dist, 1.15 * dt);
+  // Mandy's in-place walk plants at about 1.22 m/s. The other cast keep 1.15.
+  const step = Math.min(dist, (agent.id === 'mandy' ? 1.22 : 1.15) * dt);
   rig.position.x += dx / dist * step;
   rig.position.z += dz / dist * step;
   faceYaw(rig, yaw, dt);
@@ -1559,7 +1590,8 @@ function poseAgent(agent, kind, t) {
   } else if (kind === 'type' || kind === 'sit' || kind === 'play') {
     u.legL.rotation.x = u.legR.rotation.x = 1.15;
     u.shinL.rotation.x = u.shinR.rotation.x = -1.2;
-    rig.position.y = -0.38;
+    // Desk chairs stay at the original height. Lounge seats were raised.
+    rig.position.y = kind === 'type' ? -0.38 : -0.10;
     u.head.rotation.y = 0;
     if (kind === 'type') {
       u.armL.rotation.x = -0.62 + Math.sin(t * 8 + agent.home.x) * 0.08;
@@ -1794,6 +1826,7 @@ function updateLift(dt) {
   }
 }
 function stepLife(dt) {
+  if (window.__HOLD_LIFE) return;
   const d = Math.max(0, Math.min(dt, 0.2));
   lifeT += d;
   updateLift(d);
@@ -1873,14 +1906,21 @@ for (const [x, z] of [[-FW / 2 - 0.25, FD / 2 + 0.25], [FW / 2 + 0.25, FD / 2 + 
 
 const ROOF = TOPLV * FH;
 box(FW + 2.2, 0.7, FD + 2.2, M(0xc8a84a, { metalness: 0.65, roughness: 0.3 }), 0, ROOF + 0.35, 0);
-box(8, 0.08, 8, M(0x2a2a32), 0, ROOF + 0.72, 3.5);
+// Landing deck on the open front roof. Long axis is X, matching the car's nose.
+const PAD_Z = 3.8;
+box(10.5, 0.16, 6.2, M(0x1a1c24, { metalness: 0.45, roughness: 0.55 }), 0, ROOF + 0.78, PAD_Z);
+box(10.2, 0.04, 0.08, E(0xfcee0a, 1.6), 0, ROOF + 0.88, PAD_Z + 2.95);
+box(10.2, 0.04, 0.08, E(0xfcee0a, 1.6), 0, ROOF + 0.88, PAD_Z - 2.95);
+box(0.08, 0.04, 5.8, E(0x00f0ff, 1.4), 5.15, ROOF + 0.88, PAD_Z);
+box(0.08, 0.04, 5.8, E(0x00f0ff, 1.4), -5.15, ROOF + 0.88, PAD_Z);
 { const hc = document.createElement('canvas'); hc.width = hc.height = 256; const hx = hc.getContext('2d');
   hx.strokeStyle = '#FCEE0A'; hx.lineWidth = 10; hx.beginPath(); hx.arc(128, 128, 100, 0, Math.PI * 2); hx.stroke();
   hx.font = '800 120px sans-serif'; hx.fillStyle = '#FCEE0A'; hx.textAlign = 'center'; hx.textBaseline = 'middle'; hx.fillText('H', 128, 138);
   const ht = new THREE.CanvasTexture(hc); ht.colorSpace = THREE.SRGBColorSpace;
-  const hm = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 7.5), new THREE.MeshBasicMaterial({ map: ht, transparent: true, toneMapped: false }));
-  hm.rotation.x = -Math.PI / 2; hm.position.set(0, ROOF + 0.78, 3.5); scene.add(hm); }
-box(FW - 2, 3.2, FD - 3, M(0x8a6a28, { metalness: 0.5 }), 0, ROOF + 2.4, -1);
+  const hm = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 4.6), new THREE.MeshBasicMaterial({ map: ht, transparent: true, toneMapped: false }));
+  hm.rotation.x = -Math.PI / 2; hm.position.set(0, ROOF + 0.88, PAD_Z); scene.add(hm); }
+// Penthouse sits on the back half so the street side of the roof stays a landing deck.
+box(FW - 4, 3.2, 7.2, M(0x8a6a28, { metalness: 0.5 }), 0, ROOF + 2.4, -4.4);
 
 // roof sign
 { const c = document.createElement('canvas'); c.width = 1024; c.height = 256; const x = c.getContext('2d');
@@ -2014,6 +2054,464 @@ function car(color, lane, speed, x, hover = false) {
 }
 // fewer procedural ground cars (dark); Kenney GLBs carry most traffic
 car(0x12151c, 42, 4, -28); car(0x0e1016, 44, -4, 26);
+
+// Fifth-generation coupe proportions, lofted from cross-sections (not sphere pods).
+// Long flat hood, cabin behind the front axle, hips wider than the doors,
+// double-bubble roof, short deck, ducktail lip. Nose is +X. Wheels sit on y = 0.
+// Original mesh. Not a Toyota product and it carries no badge.
+function raceCar(accent = 0x00f0ff) {
+  const g = new THREE.Group();
+  const paint = M(0x2a2c31, { metalness: 0.22, roughness: 0.72, side: THREE.DoubleSide });
+  const black = M(0x07080c, { metalness: 0.4, roughness: 0.62, side: THREE.DoubleSide });
+  const bezel = M(0x8d939c, { metalness: 0.3, roughness: 0.42, side: THREE.DoubleSide });
+  const rubber = M(0x121418, { metalness: 0.4, roughness: 0.62 });
+  const metal = M(0xc8ccd4, { metalness: 0.88, roughness: 0.28 });
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0x071018, metalness: 0.15, roughness: 0.06,
+    transparent: true, opacity: 0.84, side: THREE.DoubleSide
+  });
+  const emit = (color, intensity) => new THREE.MeshStandardMaterial({
+    color, emissive: color, emissiveIntensity: intensity,
+    toneMapped: false, side: THREE.DoubleSide, roughness: 0.35
+  });
+  const redLamp = emit(0xff1c1c, 3.6);
+  const tailLamp = emit(0xff2438, 2.8);
+  const cyan = emit(0x00f0ff, 1.8);
+
+  const cr = (p0, p1, p2, p3, t) => {
+    const t2 = t * t, t3 = t2 * t;
+    return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+  };
+  const sampleKeys = (keys, count) => {
+    const n = keys.length;
+    const names = Object.keys(keys[0]);
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const f = (i / (count - 1)) * (n - 1);
+      let i1 = Math.floor(f);
+      if (i1 >= n - 1) i1 = n - 2;
+      const u = Math.min(1, f - i1);
+      const i0 = Math.max(0, i1 - 1);
+      const i2 = i1 + 1;
+      const i3 = Math.min(n - 1, i2 + 1);
+      const s = {};
+      for (const name of names) s[name] = cr(keys[i0][name], keys[i1][name], keys[i2][name], keys[i3][name], u);
+      out.push(s);
+    }
+    return out;
+  };
+  const resampleOpen = (pts, count) => {
+    const n = pts.length;
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const f = (i / (count - 1)) * (n - 1);
+      let i1 = Math.floor(f);
+      if (i1 >= n - 1) i1 = n - 2;
+      const u = Math.min(1, f - i1);
+      const i0 = Math.max(0, i1 - 1);
+      const i2 = i1 + 1;
+      const i3 = Math.min(n - 1, i2 + 1);
+      out.push([
+        cr(pts[i0][0], pts[i1][0], pts[i2][0], pts[i3][0], u),
+        cr(pts[i0][1], pts[i1][1], pts[i2][1], pts[i3][1], u),
+      ]);
+    }
+    out[0][1] = 0;
+    out[out.length - 1][1] = 0;
+    for (let i = 0; i < out.length; i++) out[i][1] = Math.max(0, out[i][1]);
+    let m = 0;
+    for (let i = 1; i < out.length; i++) if (out[i][1] > out[m][1]) m = i;
+    for (let i = 1; i <= m; i++) out[i][1] = Math.max(out[i][1], out[i - 1][1]);
+    for (let i = m + 1; i < out.length; i++) out[i][1] = Math.min(out[i][1], out[i - 1][1]);
+    return out;
+  };
+  const closeRing = (half) => {
+    const ring = half.map(p => [p[0], p[1]]);
+    for (let i = half.length - 2; i >= 1; i--) ring.push([half[i][0], -half[i][1]]);
+    return ring;
+  };
+  const addMesh = (positions, indices, mat, shadow) => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = !!shadow;
+    mesh.receiveShadow = !!shadow;
+    g.add(mesh);
+    return mesh;
+  };
+  const loft = (rings, mat, { capStart = false, capEnd = false, shadow = true } = {}) => {
+    const S = rings.length;
+    const N = rings[0].length;
+    const pos = [];
+    for (let i = 0; i < S; i++) {
+      for (let j = 0; j < N; j++) pos.push(rings[i][j][0], rings[i][j][1], rings[i][j][2]);
+    }
+    const idx = [];
+    for (let i = 0; i < S - 1; i++) {
+      for (let j = 0; j < N; j++) {
+        const j2 = (j + 1) % N;
+        const a = i * N + j;
+        const b = i * N + j2;
+        const c = (i + 1) * N + j;
+        const d = (i + 1) * N + j2;
+        idx.push(a, c, b, b, c, d);
+      }
+    }
+    const cap = (station, outward) => {
+      let cy = 0;
+      for (let j = 0; j < N; j++) cy += rings[station][j][1];
+      cy /= N;
+      const c = pos.length / 3;
+      pos.push(rings[station][0][0], cy, 0);
+      const off = station * N;
+      for (let j = 0; j < N; j++) {
+        const j2 = (j + 1) % N;
+        if (outward > 0) idx.push(c, off + j, off + j2);
+        else idx.push(c, off + j2, off + j);
+      }
+    };
+    if (capStart) cap(0, 1);
+    if (capEnd) cap(S - 1, -1);
+    return addMesh(pos, idx, mat, shadow);
+  };
+  const band = (rows, mat) => {
+    const n = rows[0].length;
+    const pos = [];
+    rows.forEach(row => row.forEach(p => pos.push(p[0], p[1], p[2])));
+    const idx = [];
+    for (let i = 0; i < rows.length - 1; i++) {
+      for (let j = 0; j < n - 1; j++) {
+        const a = i * n + j;
+        idx.push(a, a + n, a + 1, a + 1, a + n, a + n + 1);
+      }
+    }
+    return addMesh(pos, idx, mat, false);
+  };
+  const verticalRibbon = (points, halfH, mat) => {
+    const pos = [];
+    const idx = [];
+    points.forEach(p => {
+      pos.push(p[0], p[1] - halfH, p[2], p[0], p[1] + halfH, p[2]);
+    });
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = i * 2;
+      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+    return addMesh(pos, idx, mat, false);
+  };
+  const resample3 = (pts, count) => {
+    const n = pts.length;
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const f = (i / (count - 1)) * (n - 1);
+      let i1 = Math.floor(f);
+      if (i1 >= n - 1) i1 = n - 2;
+      const u = Math.min(1, f - i1);
+      const i0 = Math.max(0, i1 - 1);
+      const i2 = i1 + 1;
+      const i3 = Math.min(n - 1, i2 + 1);
+      out.push([
+        cr(pts[i0][0], pts[i1][0], pts[i2][0], pts[i3][0], u),
+        cr(pts[i0][1], pts[i1][1], pts[i2][1], pts[i3][1], u),
+        cr(pts[i0][2], pts[i1][2], pts[i2][2], pts[i3][2], u),
+      ]);
+    }
+    return out;
+  };
+  const curveRibbon = (points, halfW, mat) => {
+    const pos = [];
+    const idx = [];
+    const tmp = points.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+    for (let i = 0; i < tmp.length; i++) {
+      const prev = tmp[Math.max(0, i - 1)];
+      const next = tmp[Math.min(tmp.length - 1, i + 1)];
+      const tan = new THREE.Vector3().subVectors(next, prev);
+      if (tan.lengthSq() < 1e-8) tan.set(1, 0, 0);
+      tan.normalize();
+      let across = new THREE.Vector3(-tan.z, 0, tan.x);
+      if (across.lengthSq() < 1e-6) across.set(0, 1, 0);
+      across.normalize();
+      const bin = new THREE.Vector3().crossVectors(tan, across);
+      if (bin.lengthSq() < 1e-6) bin.set(0, 1, 0);
+      bin.normalize().multiplyScalar(halfW);
+      const p = tmp[i];
+      pos.push(p.x + bin.x, p.y + bin.y, p.z + bin.z, p.x - bin.x, p.y - bin.y, p.z - bin.z);
+    }
+    for (let i = 0; i < tmp.length - 1; i++) {
+      const a = i * 2;
+      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+    return addMesh(pos, idx, mat, false);
+  };
+
+  // Nose → tail. The hood line stays low and flat until the screen, which
+  // starts behind the front axle. Door zw is pinched; rear zw is the haunch.
+  // arch tucks the lower fender in so the tire fills the opening.
+  const KEYS = [
+    { x: 2.32, zw: 0.90, zb: 0.84, zt: 0.58, yb: 0.16, ys: 0.62, belt: 0.68, yt: 0.70, bubble: 0, dome: 0.012, arch: 0 },
+    { x: 1.98, zw: 0.98, zb: 0.68, zt: 0.54, yb: 0.16, ys: 0.74, belt: 0.74, yt: 0.73, bubble: 0, dome: 0.02, arch: 0.2 },
+    { x: 1.68, zw: 1.02, zb: 0.50, zt: 0.50, yb: 0.28, ys: 0.76, belt: 0.75, yt: 0.74, bubble: 0, dome: 0.02, arch: 0.7 },
+    { x: 1.40, zw: 1.04, zb: 0.44, zt: 0.48, yb: 0.38, ys: 0.78, belt: 0.76, yt: 0.74, bubble: 0, dome: 0.022, arch: 1 },
+    { x: 1.00, zw: 0.92, zb: 0.58, zt: 0.54, yb: 0.24, ys: 0.74, belt: 0.74, yt: 0.74, bubble: 0, dome: 0.018, arch: 0.45 },
+    { x: 0.52, zw: 0.78, zb: 0.68, zt: 0.62, yb: 0.15, ys: 0.70, belt: 0.73, yt: 0.75, bubble: 0, dome: 0.01, arch: 0 },
+    { x: 0.12, zw: 0.70, zb: 0.64, zt: 0.56, yb: 0.14, ys: 0.64, belt: 0.74, yt: 0.78, bubble: 0, dome: 0, arch: 0 },
+    { x: -0.16, zw: 0.69, zb: 0.62, zt: 0.42, yb: 0.14, ys: 0.66, belt: 0.84, yt: 1.08, bubble: 0, dome: 0, arch: 0 },
+    { x: -0.40, zw: 0.70, zb: 0.62, zt: 0.34, yb: 0.14, ys: 0.72, belt: 0.90, yt: 1.24, bubble: 0.025, dome: 0, arch: 0 },
+    { x: -0.62, zw: 0.72, zb: 0.62, zt: 0.32, yb: 0.14, ys: 0.74, belt: 0.90, yt: 1.26, bubble: 0.065, dome: 0, arch: 0 },
+    { x: -0.82, zw: 0.98, zb: 0.60, zt: 0.40, yb: 0.18, ys: 0.74, belt: 0.86, yt: 1.00, bubble: 0.01, dome: 0, arch: 0.25 },
+    { x: -1.02, zw: 1.18, zb: 0.52, zt: 0.50, yb: 0.32, ys: 0.76, belt: 0.82, yt: 0.80, bubble: 0, dome: 0, arch: 0.75 },
+    { x: -1.18, zw: 1.22, zb: 0.46, zt: 0.52, yb: 0.38, ys: 0.78, belt: 0.80, yt: 0.70, bubble: 0, dome: 0, arch: 1 },
+    { x: -1.42, zw: 1.10, zb: 0.72, zt: 0.66, yb: 0.22, ys: 0.56, belt: 0.70, yt: 0.72, bubble: 0, dome: 0, arch: 0.3 },
+    { x: -1.66, zw: 1.00, zb: 0.84, zt: 0.60, yb: 0.20, ys: 0.46, belt: 0.58, yt: 0.64, bubble: 0, dome: 0, arch: 0 },
+  ];
+
+  const halfRing = (s) => {
+    const zw = Math.max(0.25, s.zw);
+    const zb = Math.min(zw, Math.max(0.12, s.zb));
+    const zt = Math.min(zw * 0.98, Math.max(0.12, s.zt));
+    const yb = s.yb;
+    const ys = Math.max(yb + 0.05, s.ys);
+    const belt = s.belt;
+    const yt = Math.max(yb + 0.08, s.yt);
+    const bubble = Math.max(0, s.bubble || 0);
+    const dome = s.dome || 0;
+    const arch = Math.min(1, Math.max(0, s.arch || 0));
+    const zBelt = zt + (zw - zt) * 0.38;
+    const zLow = zw * (0.96 - arch * 0.46);
+    const pts = [
+      [yb, 0],
+      [yb + 0.01, zb * 0.55],
+      [yb + 0.03, Math.min(zb * 0.92, zLow * 0.85)],
+      [yb + (ys - yb) * 0.55, zLow],
+      [ys, zw],
+      [ys + (belt - ys) * 0.62, zw * 0.99],
+      [belt, zBelt],
+      [belt + (yt - belt) * 0.48, zt + (zBelt - zt) * 0.32],
+      [yt, zt],
+    ];
+    if (bubble > 0.004) {
+      pts.push([yt + bubble * 0.2, Math.min(zt * 0.66, 0.30)]);
+      pts.push([yt + bubble, 0.16]);
+      pts.push([yt + bubble * 0.18, 0.055]);
+    } else {
+      pts.push([yt + dome * 0.4, zt * 0.58]);
+      pts.push([yt + dome * 0.9, zt * 0.2]);
+    }
+    pts.push([yt + dome * 0.12, 0]);
+    pts[0][1] = 0;
+    pts[pts.length - 1][1] = 0;
+    return pts;
+  };
+
+  const HALF = 20;
+  const stations = sampleKeys(KEYS, 52).map(s => {
+    const ring = closeRing(resampleOpen(halfRing(s), HALF));
+    return { x: s.x, zw: s.zw, zb: s.zb, belt: s.belt, yt: s.yt, yb: s.yb, ring };
+  });
+  const bodyRings = stations.map(s => s.ring.map(p => [s.x, p[0], p[1]]));
+  loft(bodyRings, paint, { capEnd: true, shadow: true });
+
+  // Bumper face with a hole, then a recessed trapezoid mouth. The opening is the
+  // front surface, so the intake reads as a cavity rather than a sticker.
+  const nose = bodyRings[0];
+  const mouthHalf = [
+    [0.14, 0],
+    [0.14, 0.52],
+    [0.16, 0.82],
+    [0.30, 0.84],
+    [0.44, 0.56],
+    [0.52, 0.34],
+    [0.53, 0],
+  ];
+  const mouth = closeRing(resampleOpen(mouthHalf, HALF));
+  const lip = mouth.map(p => [nose[0][0] + 0.012, p[0], p[1]]);
+  const outerPos = [];
+  const outerIdx = [];
+  nose.forEach(p => outerPos.push(p[0], p[1], p[2]));
+  lip.forEach(p => outerPos.push(p[0], p[1], p[2]));
+  const N = nose.length;
+  for (let j = 0; j < N; j++) {
+    const j2 = (j + 1) % N;
+    outerIdx.push(j, j2, N + j, j2, N + j2, N + j);
+  }
+  addMesh(outerPos, outerIdx, paint, true);
+  const bezelRing = mouth.map(p => {
+    const yMid = 0.32;
+    return [lip[0][0] + 0.01, yMid + (p[0] - yMid) * 1.1, p[1] * 1.14];
+  });
+  loft([bezelRing, lip], bezel, { shadow: false });
+  const tunnel = [1, 0.88, 0.72].map((scale, i) => {
+    const x = lip[0][0] - i * 0.09;
+    return mouth.map(p => {
+      const yMid = 0.30;
+      return [x, yMid + (p[0] - yMid) * (1 - i * 0.08), p[1] * scale];
+    });
+  });
+  tunnel[0] = lip;
+  loft(tunnel, black, { capEnd: true, shadow: false });
+  for (const y of [0.24, 0.36]) {
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.018, 1.35), black);
+    slat.position.set(lip[0][0] - 0.05, y, 0);
+    g.add(slat);
+  }
+
+  const airfoil = (halfW, y, thick) => {
+    const t = thick;
+    const half = [
+      [y, 0],
+      [y + t * 0.3, halfW * 0.4],
+      [y + t * 0.65, halfW * 0.82],
+      [y + t * 0.25, halfW],
+      [y - t * 0.1, halfW * 0.9],
+      [y - t * 0.28, halfW * 0.45],
+      [y - t * 0.04, 0],
+    ];
+    return closeRing(resampleOpen(half, 8));
+  };
+  const wing = (specs) => loft(specs.map(s => airfoil(s.w, s.y, s.t).map(p => [s.x, p[0], p[1]])), paint, { shadow: true });
+  wing([
+    { x: 2.24, y: 0.15, w: 1.02, t: 0.03 },
+    { x: 2.40, y: 0.125, w: 0.94, t: 0.016 },
+    { x: 2.54, y: 0.105, w: 0.80, t: 0.008 },
+  ]);
+  wing([
+    { x: -1.46, y: 0.72, w: 0.58, t: 0.028 },
+    { x: -1.62, y: 0.78, w: 0.52, t: 0.016 },
+    { x: -1.80, y: 0.86, w: 0.46, t: 0.008 },
+  ]);
+
+  const glassRows = (x0, y0, x1, y1, zHalf, bulge, lift) => {
+    const rows = [];
+    const R = 6, C = 13;
+    for (let r = 0; r < R; r++) {
+      const k = r / (R - 1);
+      const e = k * k * (3 - 2 * k);
+      const row = [];
+      for (let c = 0; c < C; c++) {
+        const u = c / (C - 1);
+        const z = (u - 0.5) * 2 * zHalf;
+        const edge = zHalf > 0 ? Math.abs(z) / zHalf : 0;
+        const x = x0 + (x1 - x0) * e - edge * edge * bulge + lift[0];
+        const y = y0 + (y1 - y0) * e - edge * edge * 0.03 + lift[1];
+        row.push([x, y, z]);
+      }
+      rows.push(row);
+    }
+    return rows;
+  };
+  band(glassRows(0.02, 0.80, -0.42, 1.22, 0.46, 0.05, [0.028, 0.016]), glassMat);
+  band(glassRows(-0.70, 1.14, -1.12, 0.78, 0.38, -0.035, [-0.02, 0.01]), glassMat);
+  for (const sign of [1, -1]) {
+    const lower = [];
+    const upper = [];
+    stations.forEach(s => {
+      if (s.x > -0.18 || s.x < -0.78) return;
+      const z = (Math.min(s.zw, 0.76) + 0.016) * sign;
+      const y0 = Math.max(0.88, Math.min(s.belt - 0.02, s.yt - 0.14));
+      const y1 = Math.min(s.yt - 0.07, y0 + 0.24);
+      lower.push([s.x, y0, z]);
+      upper.push([s.x, y1, z]);
+    });
+    if (lower.length > 1) band([lower, upper], glassMat);
+  }
+
+  const zwAt = (x) => {
+    let a = stations[0], b = stations[stations.length - 1];
+    for (let i = 0; i < stations.length - 1; i++) {
+      if ((stations[i].x - x) * (stations[i + 1].x - x) <= 0) { a = stations[i]; b = stations[i + 1]; break; }
+    }
+    const d = a.x - b.x;
+    const t = Math.abs(d) < 1e-4 ? 0 : (a.x - x) / d;
+    return a.zw + (b.zw - a.zw) * t;
+  };
+  const spine = resample3([
+    [2.05, 0.72, 0],
+    [1.40, 0.74, 0],
+    [0.55, 0.73, 0],
+    [-0.05, 0.78, 0],
+    [-0.55, 0.88, 0],
+    [-1.05, 0.80, 0],
+    [-1.50, 0.66, 0],
+  ], 32);
+  for (const sign of [1, -1]) {
+    verticalRibbon(spine.map(p => [p[0], p[1], sign * (zwAt(p[0]) + 0.012)]), 0.011, cyan);
+    verticalRibbon([0.7, 0.25, -0.2, -0.55].map(x => [x, 0.2, sign * (Math.min(zwAt(x) * 0.7, 0.68) + 0.012)]), 0.008, cyan);
+  }
+
+  const hookPts = [
+    [2.40, 0.70, 0.58],
+    [2.42, 0.66, 0.72],
+    [2.36, 0.56, 0.86],
+    [2.24, 0.46, 0.96],
+  ];
+  for (const sign of [1, -1]) {
+    const pts = resample3(hookPts, 20).map(p => [p[0], p[1], p[2] * sign]);
+    const house = pts.map(p => [p[0] - 0.018, p[1], p[2] - sign * 0.01]);
+    curveRibbon(house, 0.04, black);
+    curveRibbon(pts, 0.026, redLamp);
+  }
+  const tail = [];
+  for (let i = 0; i <= 28; i++) {
+    const z = -1.06 + 2.12 * (i / 28);
+    const a = Math.pow(Math.abs(z) / 1.06, 2);
+    tail.push([-1.88 + a * 0.06, 0.56, z]);
+  }
+  verticalRibbon(tail, 0.022, tailLamp);
+
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: accent, transparent: true, opacity: 0.38,
+    blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide
+  });
+  const under = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 1.7), glowMat);
+  under.rotation.x = -Math.PI / 2;
+  under.position.set(0.05, 0.045, 0);
+  g.add(under);
+
+  const addWheel = (x, z, radius, width) => {
+    const side = Math.sign(z) || 1;
+    const tire = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, width, 28), rubber);
+    tire.rotation.x = Math.PI / 2;
+    tire.position.set(x, radius, z);
+    tire.castShadow = true;
+    g.add(tire);
+    const face = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.58, radius * 0.62, width * 0.16, 20), metal);
+    face.rotation.x = Math.PI / 2;
+    face.position.set(x, radius, z + side * width * 0.38);
+    g.add(face);
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.78, radius * 0.07, 8, 20), metal);
+    lip.position.set(x, radius, z + side * width * 0.28);
+    g.add(lip);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.14, radius * 0.14, width * 0.2, 12), metal);
+    hub.rotation.x = Math.PI / 2;
+    hub.position.set(x, radius, z + side * width * 0.42);
+    g.add(hub);
+  };
+  addWheel(1.40, 0.80, 0.36, 0.30);
+  addWheel(1.40, -0.80, 0.36, 0.30);
+  addWheel(-1.18, 0.98, 0.36, 0.34);
+  addWheel(-1.18, -0.98, 0.36, 0.34);
+  return g;
+}
+{
+  const g = raceCar(0xfcee0a);
+  g.position.set(-8, 0, 43);
+  scene.add(g);
+  const rec = { g, speed: 13, hover: false, hero: true };
+  cars.push(rec);
+  window.__supra = rec;
+}
+// Flying car. Circuits, sets down on the roof pad, waits, then lifts off.
+const roofFlyer = raceCar(0x00f0ff);
+roofFlyer.traverse(o => { if (o.isMesh) o.layers.enable(LAYER_ROOM); });
+for (const dx of [-1.05, 1.15]) for (const dz of [-0.55, 0.55]) {
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.1, 10), E(0x00f0ff, 2.2));
+  pad.position.set(dx, 0.08, dz); roofFlyer.add(pad);
+}
+scene.add(roofFlyer);
+window.__roofFlyer = roofFlyer;
+const ROOF_PAD = new THREE.Vector3(0, ROOF + 0.86, PAD_Z);
 
 
 // ---- people variants: ?people=a (rigged civilian GLB) | ?people=b (procedural+) ----
@@ -2766,7 +3264,7 @@ function styleQuaternius(root, accent, opts = {}) {
 function makeHumanoid(color, accent, opts = {}) {
   const g = new THREE.Group();
   const scale = opts.scale || (0.92 + Math.random() * 0.22);
-  const build = opts.build || 1; // 0.85 slim … 1.15 heavy
+  const build = opts.build || 1;
   const hips = new THREE.Mesh(new THREE.CapsuleGeometry(0.15 * build, 0.12, 4, 8), M(0x141820));
   hips.position.y = 0.92; g.add(hips);
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.19 * build, 0.38, 4, 10), M(color, { metalness: 0.35, roughness: 0.4 }));
@@ -2958,6 +3456,7 @@ function spawnBackgroundCrowd(makeFn, count = 36) {
       const g = makeFn({
         cyber: true, visor: n % 5 === 0, phone: mode === 'phone', holoWrist: mode === 'phone',
         mantis: n % 11 === 0, mask: n % 9 === 0,
+        feminine: n % 2 === 0,
         mode, scale: 0.98 + (n % 4) * 0.04,
         archetype: archs[n % archs.length],
       });
@@ -3255,8 +3754,53 @@ function loadGltf(base, name) {
         return clips.walk || clips.idle;
       }
 
+      function sculptSlimFrame(root) {
+        let body = null, best = 0;
+        root.traverse(o => {
+          if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+          const n = o.geometry.attributes.position.count;
+          if (n > best) { best = n; body = o; }
+        });
+        if (!body || best < 80) return;
+        const g = body.geometry.clone();
+        body.geometry = g;
+        const pos = g.attributes.position;
+        g.computeBoundingBox();
+        const bb = g.boundingBox;
+        const h = Math.max(0.001, bb.max.y - bb.min.y);
+        const cx = (bb.max.x + bb.min.x) / 2;
+        const cz = (bb.max.z + bb.min.z) / 2;
+        let topZ = 0, topN = 0;
+        for (let i = 0; i < pos.count; i++) {
+          if ((pos.getY(i) - bb.min.y) / h > 0.84) { topZ += pos.getZ(i); topN++; }
+        }
+        const frontSign = topN && ((topZ / topN) - cz) < 0 ? -1 : 1;
+        for (let i = 0; i < pos.count; i++) {
+          let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+          const yn = (y - bb.min.y) / h;
+          const dx = x - cx, dz = z - cz;
+          if (yn > 0.47 && yn < 0.63) {
+            const s = Math.sin((yn - 0.47) / 0.16 * Math.PI);
+            x = cx + dx * (1 - 0.30 * s);
+            z = cz + dz * (1 - 0.10 * s);
+          }
+          if (yn > 0.65 && yn < 0.78 && (z - cz) * frontSign > -h * 0.02) {
+            const t = Math.sin((yn - 0.65) / 0.13 * Math.PI);
+            const side = Math.min(1, Math.abs(dx) / (h * 0.09));
+            z += frontSign * h * 0.055 * t * (0.3 + 0.7 * side);
+          }
+          if (yn > 0.55 && yn < 0.86 && Math.abs(dx) > h * 0.11) x = cx + dx * 0.86;
+          pos.setXYZ(i, x, y, z);
+        }
+        pos.needsUpdate = true;
+        g.computeVertexNormals();
+      }
       function makeRigged(opts = {}) {
         let chosen = templates[(Math.random() * templates.length) | 0];
+        if (opts.feminine || opts.longHair) {
+          const fem = templates.filter(t => /woman/.test(t.name));
+          if (fem.length) chosen = fem[(Math.random() * fem.length) | 0];
+        }
         if (opts.hero) {
           const prefer = templates.filter(t => /scifi|casual|woman_casual|woman3/.test(t.name));
           if (prefer.length) chosen = prefer[(Math.random() * prefer.length) | 0];
@@ -3532,6 +4076,7 @@ function tick() {
     }
   });
   mixers.forEach(m => m.update(dt));
+  if (typeof syncProof === 'function') syncProof(dt);
   if (window.__drone) {
     const d = window.__drone;
     d.position.x = 17 + Math.sin(t * 0.35) * 6;
@@ -3552,6 +4097,47 @@ function tick() {
   }
 
   monoCar.position.x += 11 * dt; if (monoCar.position.x > 48) monoCar.position.x = -48;
+  if (window.__DIAG_LIGHT && !window.__diagOn) {
+    const diag = new THREE.DirectionalLight(0xffffff, 3.4);
+    diag.position.set(1.2, 3.2, 4);
+    scene.add(diag);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    window.__diagOn = true;
+  }
+  if (window.__roofFlyer) {
+    const f = window.__roofFlyer;
+    const cyc = 26;
+    const u = window.__flyerU != null ? window.__flyerU : (t % cyc) / cyc;
+    const pad = ROOF_PAD;
+    const hover = pad.y + 16;
+    let x = pad.x, y = hover, z = pad.z, yaw = 0;
+    if (u < 0.28) {
+      const k = u / 0.28;
+      x = -42 + (pad.x + 6 - -42) * k;
+      y = hover + 6 * (1 - k);
+      z = pad.z + 10 * (1 - k);
+      yaw = 0.4;
+    } else if (u < 0.46) {
+      const k = (u - 0.28) / 0.18;
+      const e = k * k * (3 - 2 * k);
+      x = pad.x + 6 * (1 - e);
+      y = hover + (pad.y - hover) * e;
+      z = pad.z;
+      yaw = 0.15 * (1 - e);
+    } else if (u < 0.70) {
+      x = pad.x; y = pad.y; z = pad.z; yaw = 0;
+    } else {
+      const k = (u - 0.70) / 0.30;
+      const e = k * k;
+      x = pad.x + 48 * e;
+      y = pad.y + (hover + 8 - pad.y) * e;
+      z = pad.z - 6 * e;
+      yaw = -0.3 * k;
+    }
+    f.position.set(x, y, z);
+    f.rotation.y = yaw;
+    f.rotation.z = (y > pad.y + 1) ? Math.sin(t * 1.4) * 0.04 : 0;
+  }
   avs.forEach(a => {
     a.g.position.x += a.speed * dt * (a.side || 1);
     if (a.side && a.side < 0) { if (a.g.position.x > -30) a.g.position.x = -55; if (a.g.position.x < -55) a.g.position.x = -30; }
@@ -3612,6 +4198,772 @@ function tick() {
   composer.render();
   requestAnimationFrame(tick);
 }
+// Andrew and Mandy proof: skinned Rocketbox humans (see assets/characters/NOTICE.md).
+// The life director still drives the original rig. These models follow that rig
+// and play a matching clip. Other staff stay on the existing figures.
+const proofHumans = [];
+// Fictional adults. Fully clothed. Not likenesses of any real person.
+// Halfords (Hailey, Holly, Hazel) and bookings (Mandy, Penny) are women.
+// Andrew and the other staff are men. Andrew, Mandy, and Penny are skinned.
+// Penny is the Lucy rig. Her clips are retargeted from the Quaternius CC0 set.
+const CAST_DESIGN = {
+  female: ['mandy', 'hailey', 'holly', 'hazel', 'penny'],
+  male: ['andrew', 'routinizer', 'crypto', 'risk', 'market'],
+};
+function proofClip(agent, clips) {
+  if (agent.phase === 'walk' && clips.walk) return 'walk';
+  const pose = agent.pose;
+  if (pose === 'type' && clips.type) return 'type';
+  if ((pose === 'type' || pose === 'sit' || pose === 'play') && clips.sit) return 'sit';
+  if ((pose === 'talk' || pose === 'look') && clips.talk) return 'talk';
+  return clips.idle || null;
+}
+function playProof(entry, name) {
+  if (window.__FREEZE_PROOF) return;
+  if (!name || !entry.clips[name] || entry.current === name) return;
+  const next = entry.clips[name];
+  next.reset().fadeIn(0.22).play();
+  if (entry.current && entry.clips[entry.current]) entry.clips[entry.current].fadeOut(0.22);
+  entry.current = name;
+}
+function attachProof(id, url) {
+  const agent = castById[id];
+  if (!agent) return;
+  gltfLoader.load(url, (gltf) => {
+    const model = gltf.scene;
+    model.traverse(o => {
+      if (!o.isMesh) return;
+      o.castShadow = false;
+      o.frustumCulled = false;
+      o.layers.enable(LAYER_ROOM);
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(m => {
+        if (!m) return;
+        m.metalness = 0.02;
+        if (id === 'mandy') m.roughness = 0.55;
+        else if (m.roughness == null || m.roughness > 0.85) m.roughness = 0.62;
+        if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+      });
+    });
+    agent.rig.traverse(o => { if (o.isMesh) o.visible = false; });
+    const mixer = new THREE.AnimationMixer(model);
+    const clips = {};
+    const alias = { Idle: 'idle', Walk: 'walk', Sit: 'sit' };
+    gltf.animations.forEach(clip => {
+      clips[alias[clip.name] || clip.name] = mixer.clipAction(clip);
+    });
+    proofHumans.push({ id, agent, model, mixer, clips, current: '' });
+    console.info('[proof]', id, Object.keys(clips));
+  }, undefined, err => console.error('[proof]', id, err));
+}
+// The office slab is 0.38 m thick, centered at local y 0.19, so the walkable top is 0.38.
+// Mandy's soles are at the model origin, which put her legs through that slab.
+// The walk cycle plants about 6 cm lower still. Lift only her skinned model.
+// In the lift the floor plate top is 0.08, not the office slab.
+const MANDY_FLOOR = 0.383;
+const MANDY_CABIN_FLOOR = 0.084;
+const ANDREW_LOUNGE_Y = 0.43;
+const _soleV = new THREE.Vector3();
+const _soleP = new THREE.Vector3();
+const _soleAcc = new THREE.Vector3();
+const _soleM = new THREE.Matrix4();
+const _soleOrigin = new THREE.Vector3();
+function mandySoleY(model) {
+  // Same skinning path as __meshBounds, which matches the picture.
+  // Toe bones sit above the heel once the foot flexes, so the mesh is the contact.
+  model.updateWorldMatrix(true, true);
+  model.getWorldPosition(_soleOrigin);
+  let min = Infinity;
+  model.traverse(o => {
+    if (!o.isSkinnedMesh) return;
+    const pos = o.geometry.attributes.position;
+    const si = o.geometry.attributes.skinIndex;
+    const sw = o.geometry.attributes.skinWeight;
+    if (!pos || !si || !sw) return;
+    o.skeleton.update();
+    const bones = o.skeleton.boneMatrices;
+    for (let i = 0; i < pos.count; i++) {
+      if (pos.getY(i) > 0.18) continue;
+      _soleV.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix);
+      _soleAcc.set(0, 0, 0);
+      for (let k = 0; k < 4; k++) {
+        const w = sw.getComponent(i, k);
+        if (w <= 0) continue;
+        _soleM.fromArray(bones, si.getComponent(i, k) * 16);
+        _soleP.copy(_soleV).applyMatrix4(_soleM).multiplyScalar(w);
+        _soleAcc.add(_soleP);
+      }
+      _soleAcc.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld);
+      if (_soleAcc.y < min) min = _soleAcc.y;
+    }
+  });
+  if (!Number.isFinite(min)) return null;
+  return min - _soleOrigin.y;
+}
+const _flatA = new THREE.Vector3();
+const _flatB = new THREE.Vector3();
+const _flatQ = new THREE.Quaternion();
+const _flatP = new THREE.Quaternion();
+function flattenMandyFeet(model) {
+  // The sit clip points the toes down. Level each foot so the sole sits on the slab.
+  for (const [footName, toeName] of [['mixamorigLeftFoot', 'mixamorigLeftToeBase'], ['mixamorigRightFoot', 'mixamorigRightToeBase']]) {
+    const foot = model.getObjectByName(footName);
+    const toe = model.getObjectByName(toeName);
+    if (!foot || !toe || !foot.parent) continue;
+    foot.getWorldPosition(_flatA);
+    toe.getWorldPosition(_flatB);
+    _flatB.sub(_flatA);
+    const horiz = Math.hypot(_flatB.x, _flatB.z);
+    if (horiz < 1e-4) continue;
+    const pitch = Math.atan2(_flatB.y, horiz);
+    if (Math.abs(pitch) < 0.02) continue;
+    _flatA.set(-_flatB.z, 0, _flatB.x).normalize();
+    _flatQ.setFromAxisAngle(_flatA, -pitch);
+    foot.getWorldQuaternion(_flatP);
+    _flatP.premultiply(_flatQ);
+    foot.parent.getWorldQuaternion(_flatQ);
+    foot.quaternion.copy(_flatQ.invert()).multiply(_flatP);
+    foot.updateMatrixWorld(true);
+  }
+}
+function syncProof(dt) {
+  proofHumans.forEach(entry => {
+    const rig = entry.agent.rig;
+    if (entry.model.parent !== rig.parent) rig.parent.add(entry.model);
+    entry.model.rotation.set(0, rig.rotation.y, 0);
+    playProof(entry, proofClip(entry.agent, entry.clips));
+    if (entry._footClip !== entry.current) {
+      entry._footClip = entry.current;
+      entry.footY = null;
+    }
+    entry.mixer.update(dt);
+    let y = 0;
+    const pose = entry.agent.pose;
+    const inCabin = rig.parent === lift.cabin;
+    if (entry.id === 'mandy' && pose === 'sit' && !inCabin) flattenMandyFeet(entry.model);
+    if (entry.id === 'mandy' || entry.id === 'penny') {
+      let sole = entry.id === 'penny' ? pennySoleY(entry.model) : mandySoleY(entry.model);
+      // A bad skin sample (seen once inside the lift) would throw her a metre up.
+      const soleBad = entry.id === 'penny'
+        ? (!Number.isFinite(sole) || sole < -2.2 || sole > 2.2)
+        : (!Number.isFinite(sole) || sole < -0.2 || sole > 0.2);
+      if (soleBad) sole = entry._soleOk != null ? entry._soleOk : -0.004;
+      else entry._soleOk = sole;
+      if (Number.isFinite(sole)) {
+        const surface = inCabin ? MANDY_CABIN_FLOOR : MANDY_FLOOR;
+        const need = surface - sole;
+        const prev = entry.footY;
+        entry.footY = prev == null ? need : Math.max(need, prev + (need - prev) * 0.45);
+        y = entry.footY;
+      }
+      if (entry.id === 'mandy') window.__mandyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin };
+      else window.__pennyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin, clip: entry.current };
+    } else if (entry.id === 'andrew' && (pose === 'sit' || pose === 'play') && !inCabin) {
+      // Lounge seats were raised to Mandy's seated pelvis. His own desk stays at y = 0.
+      y = ANDREW_LOUNGE_Y;
+    }
+    entry.model.position.set(rig.position.x, y, rig.position.z);
+  });
+}
+attachProof('andrew', 'assets/characters/andrew.glb');
+attachProof('mandy', 'assets/characters/mandy.glb');
+
+// Penny: Lucy rig, used as-is (do not re-export; that breaks the skin).
+// The GLB root already stands her upright. syncProof writes yaw onto the
+// object it moves, so that root rotation stays on an inner node.
+// Clips are Quaternius CC0 Universal Animation Library (standard):
+// Idle_Loop, Walk_Loop, Sitting_Idle_Loop, with A_TPose as the source rest.
+// bone-map-mixamo.json names the humanoid bones. Hair, coat tails, and twist
+// bones stay at the bind pose. The jacket roots CoatL and CoatR are keyed
+// with the same swing as the upper arms, so the sleeves and shoulder pieces
+// follow the arms instead of staying out in the A-pose.
+// Upper arms are then aimed to hang about 10 degrees off vertical. Neck and
+// head stay at the bind, so the chin does not pitch down on the walk.
+const UAL_TO_MIXAMO = {
+  'DEF-hips': 'mixamorigHips',
+  'DEF-spine.001': 'mixamorigSpine',
+  'DEF-spine.002': 'mixamorigSpine1',
+  'DEF-spine.003': 'mixamorigSpine2',
+  'DEF-neck': 'mixamorigNeck',
+  'DEF-head': 'mixamorigHead',
+  'DEF-shoulder.L': 'mixamorigLeftShoulder',
+  'DEF-upper_arm.L': 'mixamorigLeftArm',
+  'DEF-forearm.L': 'mixamorigLeftForeArm',
+  'DEF-hand.L': 'mixamorigLeftHand',
+  'DEF-thigh.L': 'mixamorigLeftUpLeg',
+  'DEF-shin.L': 'mixamorigLeftLeg',
+  'DEF-foot.L': 'mixamorigLeftFoot',
+  'DEF-toe.L': 'mixamorigLeftToeBase',
+  'DEF-shoulder.R': 'mixamorigRightShoulder',
+  'DEF-upper_arm.R': 'mixamorigRightArm',
+  'DEF-forearm.R': 'mixamorigRightForeArm',
+  'DEF-hand.R': 'mixamorigRightHand',
+  'DEF-thigh.R': 'mixamorigRightUpLeg',
+  'DEF-shin.R': 'mixamorigRightLeg',
+  'DEF-foot.R': 'mixamorigRightFoot',
+  'DEF-toe.R': 'mixamorigRightToeBase',
+};
+const UAL_CHILD = {
+  'DEF-hips': 'DEF-spine.001',
+  'DEF-spine.001': 'DEF-spine.002',
+  'DEF-spine.002': 'DEF-spine.003',
+  'DEF-spine.003': 'DEF-neck',
+  'DEF-neck': 'DEF-head',
+  'DEF-shoulder.L': 'DEF-upper_arm.L',
+  'DEF-upper_arm.L': 'DEF-forearm.L',
+  'DEF-forearm.L': 'DEF-hand.L',
+  'DEF-thigh.L': 'DEF-shin.L',
+  'DEF-shin.L': 'DEF-foot.L',
+  'DEF-foot.L': 'DEF-toe.L',
+  'DEF-shoulder.R': 'DEF-upper_arm.R',
+  'DEF-upper_arm.R': 'DEF-forearm.R',
+  'DEF-forearm.R': 'DEF-hand.R',
+  'DEF-thigh.R': 'DEF-shin.R',
+  'DEF-shin.R': 'DEF-foot.R',
+  'DEF-foot.R': 'DEF-toe.R',
+};
+function pennySoleY(model) {
+  // The skinned-vertex sample used for Mandy reads this mesh's indices wrong
+  // and reports a shin as the sole, which plants her knees on the slab.
+  // The ankle joint sits about 10 cm above the boot sole in the bind pose.
+  model.updateWorldMatrix(true, true);
+  model.getWorldPosition(_soleOrigin);
+  let min = Infinity;
+  for (const name of ['Left_ankle_023', 'Right_ankle_023', 'Left_toe_024', 'Right_toe_047']) {
+    const bone = model.getObjectByName(name);
+    if (!bone) continue;
+    const y = bone.getWorldPosition(_soleV).y - _soleOrigin.y;
+    if (y < min) min = y;
+  }
+  if (!Number.isFinite(min)) return null;
+  return min - 0.10;
+}
+const _rtV = new THREE.Vector3();
+const _rtS = new THREE.Vector3();
+const _rtQ = new THREE.Quaternion();
+const _rtParent = new THREE.Quaternion();
+const _rtDelta = new THREE.Quaternion();
+function _worldQ(o, out) {
+  o.updateWorldMatrix(true, false);
+  o.matrixWorld.decompose(_rtV, out, _rtS);
+  return out;
+}
+const _aimA = new THREE.Vector3();
+const _aimB = new THREE.Vector3();
+const _aimD = new THREE.Vector3();
+function setWorldQuat(bone, worldQ) {
+  const parent = bone.parent;
+  if (parent) _worldQ(parent, _rtParent);
+  else _rtParent.identity();
+  bone.quaternion.copy(_rtParent.clone().invert()).multiply(worldQ);
+  bone.updateMatrixWorld(true);
+}
+function aimBoneTo(bone, restW, restDir, desired) {
+  if (!restDir) return;
+  _rtDelta.setFromUnitVectors(restDir, _aimD.copy(desired).normalize());
+  setWorldQuat(bone, _rtDelta.clone().multiply(restW));
+}
+function hangDir(side, deg, z) {
+  const out = side * Math.sin(THREE.MathUtils.degToRad(deg));
+  const zz = z || 0;
+  const yy = -Math.sqrt(Math.max(0.04, 1 - out * out - zz * zz));
+  return _aimD.set(out, yy, zz);
+}
+// Left is +X on this rig. Shoulders stay near the bind so the jacket
+// does not shrug into a hump, then the arms are aimed to hang.
+function refinePennyPose(outName, byUal, clothRoots) {
+  for (const ual of ['DEF-neck', 'DEF-head']) {
+    const p = byUal[ual];
+    if (!p) continue;
+    p.target.quaternion.copy(p.restLocal);
+    p.target.updateMatrixWorld(true);
+  }
+  const chest = byUal['DEF-spine.003'];
+  if (chest) {
+    chest.target.quaternion.slerp(chest.restLocal, outName === 'walk' ? 0.72 : 0.45);
+    chest.target.updateMatrixWorld(true);
+  }
+  for (const ual of ['DEF-shoulder.L', 'DEF-shoulder.R']) {
+    const p = byUal[ual];
+    if (!p) continue;
+    p.target.quaternion.slerp(p.restLocal, 0.7);
+    p.target.updateMatrixWorld(true);
+  }
+  const swingOf = (ual) => {
+    const p = byUal[ual];
+    if (!p || !p.curSrcDir || outName !== 'walk') return 0;
+    return THREE.MathUtils.clamp(p.curSrcDir.z, -0.5, 0.5) * 0.5;
+  };
+  for (const [ual, side, foreUal] of [['DEF-upper_arm.L', 1, 'DEF-forearm.L'], ['DEF-upper_arm.R', -1, 'DEF-forearm.R']]) {
+    const arm = byUal[ual];
+    const fore = byUal[foreUal];
+    if (!arm || !arm.restChildDir) continue;
+    const z = swingOf(ual);
+    aimBoneTo(arm.target, arm.restW, arm.restChildDir, hangDir(side, outName === 'walk' ? 12 : 10, z));
+    if (fore && fore.restChildDir) {
+      aimBoneTo(fore.target, fore.restW, fore.restChildDir, hangDir(side, 6, z * 0.35));
+      const handU = foreUal === 'DEF-forearm.L' ? 'DEF-hand.L' : 'DEF-hand.R';
+      const hand = byUal[handU];
+      if (hand) setWorldQuat(hand.target, _worldQ(fore.target, new THREE.Quaternion()));
+    }
+    const cur = arm.childTarget
+      ? arm.childTarget.getWorldPosition(_aimA).sub(arm.target.getWorldPosition(_aimB)).normalize()
+      : null;
+    if (!cur) continue;
+    _rtDelta.setFromUnitVectors(arm.restChildDir, cur);
+    for (const c of clothRoots) {
+      if (c.side !== side) continue;
+      setWorldQuat(c.target, _rtDelta.clone().multiply(c.restW));
+    }
+  }
+  if (outName === 'sit') {
+    const legs = [['DEF-shin.L', 'DEF-foot.L'], ['DEF-shin.R', 'DEF-foot.R']];
+    const ys = legs.map(([shin]) => byUal[shin].childTarget.getWorldPosition(_aimA).y);
+    const targetY = Math.min(ys[0], ys[1]);
+    for (const [shinU] of legs) {
+      const shin = byUal[shinU];
+      if (!shin || !shin.restChildDir || !shin.childLen) continue;
+      const kp = shin.target.getWorldPosition(new THREE.Vector3());
+      const ap = shin.childTarget.getWorldPosition(new THREE.Vector3());
+      const dir = new THREE.Vector3(ap.x - kp.x, targetY - kp.y, ap.z - kp.z);
+      const reach = dir.length();
+      if (reach > shin.childLen * 0.98) {
+        const h = Math.sqrt(Math.max(0.01, shin.childLen * shin.childLen - 0.04 * 0.04));
+        dir.set((ap.x - kp.x) * 0.35, -h, (ap.z - kp.z) * 0.35);
+      }
+      aimBoneTo(shin.target, shin.restW, shin.restChildDir, dir);
+    }
+  }
+}
+function retargetPennyClip(sourceRoot, clip, outName, pairs, byUal, clothRoots) {
+  const fps = 30;
+  const frames = Math.max(2, Math.round(clip.duration * fps));
+  const times = new Float32Array(frames + 1);
+  pairs.forEach(p => { p.quats = new Float32Array((frames + 1) * 4); p.prev = null; });
+  clothRoots.forEach(c => { c.quats = new Float32Array((frames + 1) * 4); c.prev = null; });
+  const hip = byUal['DEF-hips'];
+  hip.pos = new Float32Array((frames + 1) * 3);
+  const mixer = new THREE.AnimationMixer(sourceRoot);
+  const action = mixer.clipAction(clip);
+  action.setLoop(THREE.LoopRepeat, Infinity);
+  action.play();
+  const srcPos = new THREE.Vector3();
+  const childPos = new THREE.Vector3();
+  const world = new THREE.Vector3();
+  for (let i = 0; i <= frames; i++) {
+    const time = Math.min(clip.duration, (i / fps));
+    times[i] = time;
+    mixer.setTime(time === 0 ? 1e-4 : time);
+    sourceRoot.updateMatrixWorld(true);
+    for (const p of pairs) {
+      p.srcW = _worldQ(p.source, new THREE.Quaternion());
+      p.srcPos = p.source.getWorldPosition(new THREE.Vector3());
+      p.target.quaternion.copy(p.restLocal);
+      p.target.position.copy(p.restPos);
+    }
+    clothRoots.forEach(c => {
+      c.target.quaternion.copy(c.restLocal);
+      c.target.position.copy(c.restPos);
+    });
+    for (const p of pairs) {
+      const child = byUal[UAL_CHILD[p.ual]];
+      if (child) p.curSrcDir = child.srcPos.clone().sub(p.srcPos);
+      else p.curSrcDir = null;
+      if (p.curSrcDir && p.curSrcDir.lengthSq() > 1e-8) p.curSrcDir.normalize();
+    }
+    let root = pairs[0].target;
+    while (root.parent) root = root.parent;
+    root.updateMatrixWorld(true);
+    for (const p of pairs) {
+      const childName = UAL_CHILD[p.ual];
+      const child = childName ? byUal[childName] : null;
+      let tgtW;
+      if (child && p.restSrcDir) {
+        srcPos.copy(p.srcPos);
+        childPos.copy(child.srcPos);
+        const cur = childPos.sub(srcPos);
+        if (cur.lengthSq() > 1e-8) {
+          cur.normalize();
+          _rtDelta.setFromUnitVectors(p.restSrcDir, cur);
+          tgtW = _rtDelta.clone().multiply(p.restW);
+        } else tgtW = p.restW.clone();
+      } else if (p.ual === 'DEF-head') {
+        tgtW = p.srcW.clone().multiply(_rtQ.copy(p.srcRest).invert()).multiply(p.restW);
+      } else {
+        // Hands and toes keep the bind local, so they follow the limb
+        // instead of taking on the source rig's wrist axes.
+        tgtW = null;
+      }
+      if (tgtW) {
+        const parent = p.target.parent;
+        if (parent) _worldQ(parent, _rtParent);
+        else _rtParent.identity();
+        p.target.quaternion.copy(_rtParent.invert()).multiply(tgtW);
+      }
+      p.target.updateMatrixWorld(true);
+    }
+    const dy = (hip.srcPos.y - hip.srcRestPos.y) * hip.yScale;
+    const parent = hip.target.parent;
+    parent.updateWorldMatrix(true, false);
+    world.copy(hip.target.getWorldPosition(_rtV));
+    world.y += dy;
+    parent.worldToLocal(world);
+    hip.target.position.copy(world);
+    hip.target.updateMatrixWorld(true);
+    refinePennyPose(outName, byUal, clothRoots);
+    for (const p of pairs) {
+      const q = p.target.quaternion;
+      if (p.prev && p.prev.dot(q) < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+      p.prev = q.clone();
+      q.toArray(p.quats, i * 4);
+    }
+    hip.target.position.toArray(hip.pos, i * 3);
+    for (const c of clothRoots) {
+      const q = c.target.quaternion;
+      if (c.prev && c.prev.dot(q) < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+      c.prev = q.clone();
+      q.toArray(c.quats, i * 4);
+    }
+  }
+  action.stop();
+  mixer.stopAllAction();
+  for (const p of pairs) {
+    p.target.quaternion.copy(p.restLocal);
+    p.target.position.copy(p.restPos);
+  }
+  clothRoots.forEach(c => {
+    c.target.quaternion.copy(c.restLocal);
+    c.target.position.copy(c.restPos);
+  });
+  const tracks = [];
+  for (const p of pairs) {
+    tracks.push(new THREE.QuaternionKeyframeTrack(p.target.name + '.quaternion', times, p.quats));
+    if (p === hip) tracks.push(new THREE.VectorKeyframeTrack(p.target.name + '.position', times, p.pos));
+    p.quats = null;
+    p.pos = null;
+    p.prev = null;
+  }
+  for (const c of clothRoots) {
+    tracks.push(new THREE.QuaternionKeyframeTrack(c.target.name + '.quaternion', times, c.quats));
+    c.quats = null;
+    c.prev = null;
+  }
+  return new THREE.AnimationClip(outName, clip.duration, tracks);
+}
+function attachPenny() {
+  const agent = castById.penny;
+  if (!agent) return;
+  const loadGltf = (url) => new Promise((resolve, reject) => gltfLoader.load(url, resolve, undefined, reject));
+  Promise.all([
+    fetch('assets/characters/bone-map-mixamo.json').then(r => r.json()),
+    loadGltf('assets/characters/penny.glb'),
+    loadGltf('assets/characters/quaternius/AnimationLibrary_Godot_Standard.gltf'),
+  ]).then(([map, pennyGltf, srcGltf]) => {
+    const model = pennyGltf.scene;
+    const source = srcGltf.scene;
+    model.traverse(o => {
+      if (!o.isMesh) return;
+      o.castShadow = false;
+      o.frustumCulled = false;
+      o.layers.enable(LAYER_ROOM);
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(m => {
+        if (!m) return;
+        if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+        const label = (m.name || '') + ' ' + (o.name || '');
+        if (/hair|bangs/i.test(label)) {
+          if (m.color) m.color.multiplyScalar(0.58);
+          m.roughness = Math.max(m.roughness || 0, 0.62);
+          if (m.sheen != null) m.sheen *= 0.4;
+          m.envMapIntensity = 0.3;
+          m.side = THREE.DoubleSide;
+        }
+      });
+    });
+    const sane = THREE.PropertyBinding.sanitizeNodeName;
+    const pairs = [];
+    Object.entries(UAL_TO_MIXAMO).forEach(([ual, mix]) => {
+      const lucy = map[mix];
+      if (!lucy) return;
+      const target = model.getObjectByName(sane(lucy));
+      const srcBone = source.getObjectByName(sane(ual));
+      if (!target || !srcBone || !target.isBone || !srcBone.isBone) {
+        console.info('[penny] skip', ual, !!target, !!srcBone);
+        return;
+      }
+      pairs.push({ ual, target, source: srcBone });
+    });
+    pairs.sort((a, b) => {
+      const depth = (bone) => { let d = 0; for (let p = bone.parent; p; p = p.parent) d++; return d; };
+      return depth(a.target) - depth(b.target);
+    });
+    const byUal = {};
+    pairs.forEach(p => { byUal[p.ual] = p; });
+    model.updateMatrixWorld(true);
+    source.updateMatrixWorld(true);
+    pairs.forEach(p => {
+      p.restLocal = p.target.quaternion.clone();
+      p.restPos = p.target.position.clone();
+      p.restW = _worldQ(p.target, new THREE.Quaternion());
+      const child = byUal[UAL_CHILD[p.ual]];
+      p.childTarget = child ? child.target : null;
+      if (p.childTarget) {
+        const d = p.childTarget.getWorldPosition(new THREE.Vector3()).sub(p.target.getWorldPosition(new THREE.Vector3()));
+        p.childLen = d.length();
+        p.restChildDir = p.childLen > 1e-6 ? d.multiplyScalar(1 / p.childLen) : null;
+      } else {
+        p.childLen = 0;
+        p.restChildDir = null;
+      }
+    });
+    const clothRoots = [];
+    [['CoatL_0351', 1], ['CoatR_0359', -1]].forEach(([name, side]) => {
+      const bone = model.getObjectByName(name);
+      if (!bone) return;
+      clothRoots.push({
+        target: bone,
+        side,
+        restLocal: bone.quaternion.clone(),
+        restPos: bone.position.clone(),
+        restW: _worldQ(bone, new THREE.Quaternion()),
+      });
+    });
+    const srcClips = {};
+    srcGltf.animations.forEach(c => { srcClips[c.name] = c; });
+    const restMixer = new THREE.AnimationMixer(source);
+    const restAction = restMixer.clipAction(srcClips.A_TPose);
+    restAction.play();
+    restMixer.setTime(0.05);
+    source.updateMatrixWorld(true);
+    pairs.forEach(p => {
+      p.srcRest = _worldQ(p.source, new THREE.Quaternion());
+      p.srcRestPos = p.source.getWorldPosition(new THREE.Vector3());
+    });
+    pairs.forEach(p => {
+      const child = byUal[UAL_CHILD[p.ual]];
+      if (!child) { p.restSrcDir = null; return; }
+      const d = child.srcRestPos.clone().sub(p.srcRestPos);
+      p.restSrcDir = d.lengthSq() > 1e-8 ? d.normalize() : null;
+    });
+    const hip = byUal['DEF-hips'];
+    hip.yScale = hip.target.getWorldPosition(new THREE.Vector3()).y / hip.srcRestPos.y;
+    restAction.stop();
+    const wanted = [['Idle_Loop', 'idle'], ['Walk_Loop', 'walk'], ['Sitting_Idle_Loop', 'sit']];
+    const clips = {};
+    wanted.forEach(([srcName, outName]) => {
+      clips[outName] = retargetPennyClip(source, srcClips[srcName], outName, pairs, byUal, clothRoots);
+    });
+    agent.rig.traverse(o => { if (o.isMesh) o.visible = false; });
+    const pivot = new THREE.Group();
+    pivot.name = 'penny-pivot';
+    pivot.add(model);
+    const mixer = new THREE.AnimationMixer(model);
+    const actions = {};
+    Object.entries(clips).forEach(([name, clip]) => { actions[name] = mixer.clipAction(clip); });
+    const entry = { id: 'penny', agent, model: pivot, mixer, clips: actions, current: '' };
+    proofHumans.push(entry);
+    window.__penny = entry;
+    window.__pennyReady = true;
+    const box = new THREE.Box3().setFromObject(model);
+    console.info('[penny]', Object.keys(actions).join(','), 'bones', pairs.length, 'h', +(box.max.y - box.min.y).toFixed(3));
+  }).catch(err => console.error('[penny]', err));
+}
+
+attachPenny();
+window.__proof = proofHumans;
+window.__frame = (id, clip, phase, view) => {
+  window.__HOLD_LIFE = true;
+  const a = castById[id];
+  const other = castById[id === 'andrew' ? 'mandy' : 'andrew'];
+  a.phase = clip === 'walk' ? 'walk' : 'there';
+  a.pose = clip === 'walk' ? 'walk' : clip === 'sit' || clip === 'type' ? 'sit' : 'stand';
+  a.busy = true;
+  a.rig.position.set(-7.2, 0, 2.4);
+  a.rig.rotation.y = 0;
+  if (other) other.rig.position.set(14, 0, 14);
+  scene.updateMatrixWorld(true);
+  const info = window.__scrub(id, clip, phase);
+  const wp = new THREE.Vector3();
+  a.rig.getWorldPosition(wp);
+  const look = wp.clone();
+  look.y += view === 'close' ? 1.55 : 0.78;
+  const cam = look.clone();
+  if (view === 'close') { cam.z += 1.15; }
+  else if (view === 'side') { cam.x += 3.15; cam.z += 0.35; }
+  else if (view === 'feet') {
+    cam.set(wp.x + 1.35, wp.y + 1.25, wp.z + 2.05);
+    look.set(wp.x, wp.y + 0.16, wp.z + 0.2);
+  }
+  else { cam.z += 3.6; cam.y += 0.05; }
+  window.__LOCK_CAM = { pos: cam, tgt: look };
+  if (!window.__proofKey) {
+    const key = new THREE.DirectionalLight(0xfff4e8, 2.4);
+    key.position.set(3, 8, 6);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xc9d7ff, 0.9);
+    fill.position.set(-4, 4, -2);
+    scene.add(fill);
+    window.__proofKey = key;
+  }
+  return info;
+};
+window.__place = (id, x, z, yaw, pose, phase, cam) => {
+  window.__HOLD_LIFE = true;
+  window.__DIAG_LIGHT = false;
+  const a = castById[id];
+  const other = castById[id === 'andrew' ? 'mandy' : 'andrew'];
+  a.phase = pose === 'walk' ? 'walk' : 'there';
+  a.pose = pose;
+  a.busy = true;
+  a.rig.position.set(x, 0, z);
+  a.rig.rotation.y = yaw;
+  if (other) { other.busy = true; other.rig.position.set(30, 0, 30); }
+  const entry = proofHumans.find(p => p.id === id);
+  if (entry) entry.footY = null;
+  const clip = (pose === 'type' || pose === 'sit' || pose === 'play') ? 'sit' : (pose === 'walk' ? 'walk' : 'idle');
+  window.__scrub(id, clip, phase || 0);
+  syncProof(0);
+  scene.updateMatrixWorld(true);
+  const wp = new THREE.Vector3();
+  entry.model.getWorldPosition(wp);
+  if (cam) {
+    window.__LOCK_CAM = {
+      pos: { x: wp.x + cam[0], y: wp.y + cam[1], z: wp.z + cam[2] },
+      tgt: { x: wp.x + cam[3], y: wp.y + cam[4], z: wp.z + cam[5] },
+    };
+  }
+  return { x: +wp.x.toFixed(3), y: +wp.y.toFixed(3), z: +wp.z.toFixed(3), foot: window.__mandyFoot || null, pose };
+};
+window.__cabinCheck = () => {
+  window.__HOLD_LIFE = true;
+  const a = castById.mandy;
+  lift.cabin.attach(a.rig);
+  a.rig.position.set(0, 0, -0.12);
+  a.rig.rotation.y = Math.PI;
+  a.pose = 'stand';
+  a.phase = 'there';
+  a.busy = true;
+  const entry = proofHumans.find(p => p.id === 'mandy');
+  entry.footY = null;
+  window.__scrub('mandy', 'idle', 0);
+  syncProof(0);
+  scene.updateMatrixWorld(true);
+  const wp = new THREE.Vector3();
+  entry.model.getWorldPosition(wp);
+  const cabin = new THREE.Vector3();
+  lift.cabin.getWorldPosition(cabin);
+  window.__LOCK_CAM = {
+    pos: { x: wp.x + 1.4, y: wp.y + 1.1, z: wp.z + 2.2 },
+    tgt: { x: wp.x, y: wp.y + 0.8, z: wp.z },
+  };
+  return { gap: +(wp.y - cabin.y).toFixed(3), foot: window.__mandyFoot };
+};
+window.__meshBounds = (id) => {
+  const entry = proofHumans.find(p => p.id === id);
+  if (!entry) return null;
+  entry.model.updateWorldMatrix(true, true);
+  const feet = [];
+  let minY = 1e9, maxY = -1e9;
+  const v = new THREE.Vector3();
+  const p = new THREE.Vector3();
+  const acc = new THREE.Vector3();
+  const m4 = new THREE.Matrix4();
+  entry.model.traverse(o => {
+    if (!o.isSkinnedMesh) return;
+    const g = o.geometry;
+    const pos = g.attributes.position;
+    const si = g.attributes.skinIndex;
+    const sw = g.attributes.skinWeight;
+    if (!pos || !si || !sw) return;
+    o.skeleton.update();
+    const bones = o.skeleton.boneMatrices;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix);
+      acc.set(0, 0, 0);
+      for (let k = 0; k < 4; k++) {
+        const w = sw.getComponent(i, k);
+        if (w <= 0) continue;
+        const bi = si.getComponent(i, k);
+        m4.fromArray(bones, bi * 16);
+        p.copy(v).applyMatrix4(m4).multiplyScalar(w);
+        acc.add(p);
+      }
+      acc.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld);
+      if (acc.y < minY) minY = acc.y;
+      if (acc.y > maxY) maxY = acc.y;
+      if (acc.y < 0.25) feet.push([+acc.x.toFixed(3), +acc.y.toFixed(3), +acc.z.toFixed(3)]);
+    }
+  });
+  feet.sort((a, b) => a[1] - b[1]);
+  const left = feet.filter(f => f[0] >= 0).slice(0, 1)[0] || null;
+  const right = feet.filter(f => f[0] < 0).slice(0, 1)[0] || null;
+  return { minY: +minY.toFixed(4), maxY: +maxY.toFixed(4), left, right, low: feet.slice(0, 6) };
+};
+window.__chairShot = () => {
+  window.__HOLD_LIFE = true;
+  const a = castById.andrew;
+  a.phase = 'there'; a.pose = 'sit'; a.busy = true;
+  a.rig.position.set(-4, 0, 0.9); a.rig.rotation.y = Math.PI;
+  const m = castById.mandy;
+  m.phase = 'there'; m.pose = 'sit'; m.busy = true;
+  m.rig.position.set(8, 0, 8);
+  scene.updateMatrixWorld(true);
+  window.__scrub('andrew', 'sit', 0);
+  const wp = new THREE.Vector3();
+  a.rig.getWorldPosition(wp);
+  const look = wp.clone(); look.y += 0.55;
+  const cam = look.clone(); cam.x += 2.2; cam.z += 2.4; cam.y += 0.35;
+  window.__LOCK_CAM = { pos: cam, tgt: look };
+};
+window.__scrub = (id, clip, phase) => {
+  const entry = proofHumans.find(p => p.id === id);
+  if (!entry || !entry.clips[clip]) return null;
+  Object.values(entry.clips).forEach(a => { a.stop(); a.setEffectiveWeight(0); });
+  const act = entry.clips[clip];
+  act.reset().play();
+  act.paused = true;
+  act.setEffectiveWeight(1);
+  act.time = Math.max(0, act.getClip().duration * phase);
+  entry.current = clip;
+  entry.mixer.update(0);
+  return { clip, time: +act.time.toFixed(3), dur: +act.getClip().duration.toFixed(3) };
+};
+window.__stageProof = (mode) => {
+  window.__HOLD_LIFE = true;
+  const place = (id, x, z, yaw, pose) => {
+    const a = castById[id];
+    a.phase = pose === 'walk' ? 'walk' : 'there';
+    a.pose = pose;
+    a.busy = true;
+    a.rig.position.set(x, 0, z);
+    a.rig.rotation.y = yaw;
+  };
+  const focusId = mode === 'mandy' ? 'mandy' : 'andrew';
+  if (mode === 'walk') {
+    place('andrew', -1.1, 2.4, Math.PI / 2, 'walk');
+    place('mandy', 1.15, 2.4, -Math.PI / 2, 'walk');
+  } else if (mode === 'close' || mode === 'body') {
+    place('andrew', -3.5, 1.5, 0.15, 'stand');
+    place('mandy', -1.6, 1.5, -0.15, 'stand');
+  } else if (mode === 'mandy') {
+    place('mandy', -2.4, 1.6, 0.2, 'stand');
+    place('andrew', -5.2, 2.6, 0.4, 'stand');
+  } else {
+    place('andrew', -4, 0.9, Math.PI, 'type');
+    place('mandy', -1.15, 2.15, 2.6, 'stand');
+  }
+  scene.updateMatrixWorld(true);
+  const wp = new THREE.Vector3();
+  castById[focusId].rig.getWorldPosition(wp);
+  const look = wp.clone();
+  look.y += mode === 'close' ? 1.5 : mode === 'body' || mode === 'mandy' ? 0.95 : 1.0;
+  const cam = look.clone();
+  if (mode === 'close') { cam.x += 0.55; cam.z += 1.55; }
+  else if (mode === 'body' || mode === 'mandy') { cam.x += 1.15; cam.y += 0.15; cam.z += 3.15; }
+  else { cam.x += 2.6; cam.y += 1.35; cam.z += 3.4; }
+  window.__LOCK_CAM = { pos: cam, tgt: look };
+  return { look: look.toArray(), cam: cam.toArray(), proof: proofHumans.length };
+};
 tick();
 const hsh = location.hash.slice(1); if (hsh) { const f = FLOORS.find(x => x.id === hsh); if (f) openPanel(f); }
 </script>
