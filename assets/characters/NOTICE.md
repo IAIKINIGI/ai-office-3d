@@ -76,8 +76,14 @@ Andrew is a charcoal sweater and dark trousers. Mandy is a black fitted top and 
 An open yellow/blue coat was generated and then deleted: in the renderer it was a floating striped block, not a jacket.
 This is not techwear, not the reference coat, and not a finished cyberpunk wardrobe.
 
+## Penny
+
+Penny is "Wuthering Waves Lucy (downloadable)" by Spessartite, https://sketchfab.com/3d-models/wuthering-waves-lucy-downloadable-4e5ee86e11e8470a8f621f6cc754bc40, Sketchfab Standard license.
+
+The file in `penny.glb` is the lit PBR mesh, about 1.65 m, with the gold cables and whips already removed. It was not re-exported through Blender, because applying transforms there breaks the skin. Her rest pose is an A-pose, and the file stands along Z until a parent rotation in the page turns her upright. That rotation is not baked into the GLB. Walk, idle, and sit use Mandy's clip timing. Copying Mandy's bone quaternions onto this rig lays the body on its face, because the hinge axes do not match, so the baked clips keep Penny's skinned bind pose and swing her own limb hinges. Idle is that A-pose. Walk is a stride. Sit bends the hips and knees into a deep kneel rather than a chair sit. Bone names contain spaces. The GLB loader stores them with underscores, and `bone-map-mixamo.json` is read through that same sanitizing step. Hair stays a lit material, darkened a little so the warm office key does not wash it out.
+
 ## Other people
 
-Hailey, Holly, Hazel, and Penny are still the procedural office figures. Their jackets are narrower and carry a clothed chest in the same fabric.
+Hailey, Holly, and Hazel are still the procedural office figures. Their jackets are narrower and carry a clothed chest in the same fabric.
 Street pedestrians whose model name contains "woman" get a waist pinch and a chest push on the cloned body mesh when those files load.
 They are not the Mandy sculpt.
