@@ -1,8 +1,8 @@
 # Character assets — Andrew and Mandy proof
 
-Fictional adults. Fully clothed. Not likenesses of any real person.
+Fictional adults. Fully clothed. Mandy is not Karina, not a scan, and not an endorsement.
 The female silhouette is a slim adult frame with a fuller clothed chest.
-The face is the stock Rocketbox face. It is not a portrait of any singer or other real person.
+The face mesh was reshaped toward public photos of Karina (aespa). It is still the Rocketbox head, and it is not a portrait.
 The cast split is in `cast.json`. Only Andrew and Mandy are skinned here.
 
 | File | Source | File size |
@@ -25,18 +25,33 @@ The top and the pants stay on. Shoulders and arms were not squeezed.
 ## Skin
 
 Head and body skin pixels were shifted toward a fair warm tone while keeping the texture's own light and dark. Roughness on the head material is 0.58, so it is not a mirror.
-The office lights are cyan and magenta, so the face looks cooler in the room than in the neutral diagnostic shots.
-The stock Rocketbox face mesh is unchanged. Eye spacing, lids, and gaze are still that mesh. A color pass cannot fix them.
+The office lights are cyan and magenta, so the face looks cooler in the room than in the neutral diagnostic shots. The diagnostic key is added on top of those lights, so the room color is still in the background.
 
-## Face reference
+## Face
 
-Public photos used only as a guide, not as a texture:
+Public photos used only as a proportion guide, not as a texture:
 
 - https://en.wikipedia.org/wiki/Karina_(South_Korean_singer)
 - https://commons.wikimedia.org/wiki/File:Aespa%27s_Karina_10.jpg (24 Nov 2023, CC BY, 티비텐)
 - https://commons.wikimedia.org/wiki/File:240906_Karina_at_Musinsa_Beauty_Festa.jpg (6 Sep 2024, CC BY, 티비텐)
 
-Those photos show a small oval face, large open eyes with a defined lid and liner, a narrow nose, and a soft rose lip. Mandy's head is still `Female_Adult_03`. Its eye sockets, nose, and jaw do not match that structure. Painting makeup through the head UVs put dots on the lids and a brown band on the neck, so that paint was not kept. The preview face is the fair-skin pass only. It is not a likeness.
+Those frames show a small oval face, a soft jaw, large dark eyes with a slight outer-corner lift, a small straight nose, and a rose lip. The photos were not copied onto the mesh.
+
+The head is still Rocketbox `Female_Adult_03` (about 1,500 head vertices, eyelid and brow bones, a separate eyeball island). The edit is a smooth warp of that mesh. Ears and the neck below z = 1.48 m were left in place so the seam stays. Body, arms, hair cards, and Andrew were not part of this pass.
+
+Measured on the head surface, world meters, after the smooth:
+
+| | Before | After |
+| --- | --- | --- |
+| Cheek half-width | 0.0555 m | 0.0488 m |
+| Jaw half-width | 0.0311 m | 0.0259 m |
+| Nose tip, forward axis | -0.0711 m | -0.0619 m |
+| Mouth corner | 0.0321 m | 0.0275 m |
+| Upper-lid height | 1.6177 m | 1.6190 m |
+
+What actually moved: cheeks about 12% narrower, jaw about 17% narrower, nose tip back by 9 mm and narrower, mouth about 14% narrower, philtrum lifted a few millimetres with the teeth so the lips stay closed, upper lid up about 1.3 mm with a little extra on the outer corner, brows up a few millimetres. The iris drawing was recolored from hazel to dark brown. Purple eyeshadow pixels on the face UV were pulled toward the skin color. No neck band and no pasted photo.
+
+What this does not do: it does not become her face. Eye spacing is still the eye bones at ±3 cm. The lid mesh cannot grow her eye shape or her double lid. The hair is still the pale pink cards, not a center part. There is no beauty mark. The render is a narrower Rocketbox woman, not a likeness.
 
 ## Hair
 
