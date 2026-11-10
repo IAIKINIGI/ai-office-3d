@@ -1,17 +1,18 @@
 # Character assets — Andrew and Mandy proof
 
-Fictional adults. Fully clothed. Mandy is not Karina, not a scan, and not an endorsement.
-The female silhouette is a slim adult frame with a fuller clothed chest.
-Mandy's head is the Rocketbox `Female_Adult_03` head again. The MakeHuman head was removed. It is not a portrait of Karina.
+Fictional adults. Fully clothed. Mandy is not a portrait of a real person.
 The cast split is in `cast.json`. Only Andrew and Mandy are skinned here.
+The sections below the credits describe the previous Rocketbox Mandy sculpt. That mesh is no longer the file in `mandy.glb`.
 
 | File | Source | File size |
 | --- | --- | --- |
 | `andrew.glb` | Rocketbox `Male_Adult_02` | 4.7 MB |
-| `mandy.glb` | Rocketbox `Female_Adult_03` | 5.0 MB |
+| `mandy.glb` | Mai Shiranui, rigged Mixamo clips | 3.5 MB |
 
-Source: https://github.com/microsoft/Microsoft-Rocketbox
+Andrew: https://github.com/microsoft/Microsoft-Rocketbox
 License: MIT, Copyright (c) 2020 Microsoft. Full text in `LICENSE.md`.
+
+Mandy: This work is based on "Mai Shiranui | Anime Hot GIrl | Street fighter" (https://sketchfab.com/3d-models/mai-shiranui-anime-hot-girl-street-fighter-2bdc3c3111ea492bba9a33eac0a6dfc7) by lawlietrecluze (https://sketchfab.com/lawlietrecluze), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). Modified: decimated, arms separated, rigged and animated. The file in `mandy.glb` is that rig, about 1.68 m, feet at the origin, with Idle, Walk, and Sit embedded. The office uses those clips directly.
 
 These replace the security uniforms. The larger files are the clothed color textures.
 

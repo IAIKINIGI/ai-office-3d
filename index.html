@@ -1250,8 +1250,8 @@ FLOORS.forEach((f, idx) => {
     box(4.2, 0.15, 2, M(gold, { metalness: 0.55, roughness: 0.35 }), -4, 1.05, -1, g);
     box(4, 0.9, 1.8, M(0x8a6a28, { metalness: 0.4 }), -4, 0.5, -1, g);
     { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), screenMat('ceo')); scr.position.set(-4, 1.55, -1.55); scr.castShadow = scr.receiveShadow = false; g.add(scr); }
-    workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a, 0.78, {
-      deskShift: 0.20, deskY: 1.09, personZ: 1.32, seatZ: 1.27, backZ: 1.62, seatD: 0.78, seatW: 0.62, backW: 0.56, backH: 0.62, backD: 0.07, backY: 1.05,
+    workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a, 0.83, {
+      deskShift: 0.32, deskY: 1.16, personZ: 1.16, seatZ: 1.36, backZ: 1.56, seatD: 0.48, seatW: 0.62, backW: 0.52, backH: 0.34, backD: 0.06, backY: 0.86,
     });
     strip.material.color.set(0xfcee0a); strip.material.emissive.set(0xfcee0a); strip.material.emissiveIntensity = 3;
   } else if ((f.people || []).length >= 3) {
@@ -1563,7 +1563,8 @@ function walkAgent(agent, dt) {
     rig.rotation.y += Math.sign(turn) * Math.min(Math.abs(turn), 2.6 * dt);
     return false;
   }
-  const step = Math.min(dist, 1.15 * dt);
+  // Mandy's in-place walk plants at about 1.22 m/s. The other cast keep 1.15.
+  const step = Math.min(dist, (agent.id === 'mandy' ? 1.22 : 1.15) * dt);
   rig.position.x += dx / dist * step;
   rig.position.z += dz / dist * step;
   faceYaw(rig, yaw, dt);
@@ -4239,14 +4240,18 @@ function attachProof(id, url) {
       mats.forEach(m => {
         if (!m) return;
         m.metalness = 0.02;
-        if (m.roughness == null || m.roughness > 0.85) m.roughness = 0.62;
+        if (id === 'mandy') m.roughness = 0.55;
+        else if (m.roughness == null || m.roughness > 0.85) m.roughness = 0.62;
         if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
       });
     });
     agent.rig.traverse(o => { if (o.isMesh) o.visible = false; });
     const mixer = new THREE.AnimationMixer(model);
     const clips = {};
-    gltf.animations.forEach(clip => { clips[clip.name] = mixer.clipAction(clip); });
+    const alias = { Idle: 'idle', Walk: 'walk', Sit: 'sit' };
+    gltf.animations.forEach(clip => {
+      clips[alias[clip.name] || clip.name] = mixer.clipAction(clip);
+    });
     proofHumans.push({ id, agent, model, mixer, clips, current: '' });
     console.info('[proof]', id, Object.keys(clips));
   }, undefined, err => console.error('[proof]', id, err));
@@ -4323,6 +4328,10 @@ function syncProof(dt) {
         const prev = entry.footY;
         entry.footY = prev == null ? need : Math.max(need, prev + (need - prev) * 0.45);
         y = entry.footY;
+      }
+      if (entry.id === 'mandy' && pose === 'sit' && !inCabin) {
+        // The held sit keeps the ankles about 7 cm above the sampled sole.
+        y -= 0.07;
       }
       if (entry.id === 'mandy') window.__mandyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin };
       else window.__pennyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin, clip: entry.current };
