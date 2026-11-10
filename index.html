@@ -63,6 +63,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from './assets/city/meshopt_decoder.module.js';
+import { DRACOLoader } from './assets/vehicles/DRACOLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -2412,11 +2413,14 @@ const VEHICLE_ROUTES = {
     { x: 52, y: 38, z: 6 }, { x: 6, y: 42, z: 36 },
   ],
 };
+const HOVER_GLB = 'assets/vehicles/hovercar-nowheels.glb';
 const VEHICLE_FLEET = [
   { id: 'lane-a', kind: 'ground', route: 'plaza', laneKey: 'groundA', speed: 0.045, color: 0xff2a6d, offset: 0.05 },
   { id: 'lane-b', kind: 'ground', route: 'plaza', laneKey: 'groundB', speed: 0.05, color: 0x00f0ff, offset: 0.4 },
-  { id: 'air-a', kind: 'air', route: 'airLow', laneKey: 'airLow', speed: 0.03, color: 0xff2a6d, offset: 0.12 },
-  { id: 'air-b', kind: 'air', route: 'airHigh', laneKey: 'airHigh', speed: 0.024, color: 0x7fe3ff, offset: 0.62 },
+  { id: 'hover-air-1', kind: 'air', route: 'airLow', laneKey: 'airLow', speed: 0.028, offset: 0.18, model: HOVER_GLB },
+  { id: 'hover-air-2', kind: 'air', route: 'airHigh', laneKey: 'airHigh', speed: 0.02, offset: 0.62, model: HOVER_GLB },
+  { id: 'hover-low', kind: 'hover', route: 'plaza', laneKey: 'groundA', speed: 0.036, offset: 0.47, model: HOVER_GLB, hoverHeight: 0.5 },
+  { id: 'hover-park', kind: 'park', model: HOVER_GLB, hoverHeight: 0.5, park: { x: 18, z: 13.5, yaw: -0.9 } },
 ];
 function pointOnLoop(pts, u) {
   const n = pts.length;
@@ -2427,13 +2431,27 @@ function pointOnLoop(pts, u) {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t };
 }
 function addRouteVehicle(spec) {
+  if (spec.model) {
+    const g = new THREE.Group();
+    g.name = spec.id;
+    g.visible = false;
+    scene.add(g);
+    const rec = {
+      g, id: spec.id, kind: spec.kind, laneKey: spec.laneKey || null, model: spec.model,
+      speed: 0, route: spec.park ? null : (VEHICLE_ROUTES[spec.route] || null),
+      routeSpeed: spec.speed || 0, u: spec.offset || 0, fly: spec.kind === 'air',
+      hoverHeight: spec.hoverHeight, yaw0: 0, park: spec.park || null,
+    };
+    cars.push(rec);
+    return rec;
+  }
   const hover = spec.kind === 'air';
   car(spec.color, 0, 0, 0, hover);
   const rec = cars[cars.length - 1];
   rec.id = spec.id;
   rec.kind = spec.kind;
   rec.laneKey = spec.laneKey || null;
-  rec.model = spec.model || null;
+  rec.model = null;
   rec.speed = 0;
   rec.g.visible = false;
   rec.route = VEHICLE_ROUTES[spec.route];
@@ -3905,6 +3923,39 @@ const __gltfMgr = new THREE.LoadingManager();
 __gltfMgr.setURLModifier(remapGltfUrl);
 const gltfLoader = new GLTFLoader(__gltfMgr);
 gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('assets/vehicles/draco/');
+gltfLoader.setDRACOLoader(dracoLoader);
+function loadHovercars() {
+  gltfLoader.load(HOVER_GLB, (gltf) => {
+    const src = gltf.scene;
+    src.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(src);
+    const size = box.getSize(new THREE.Vector3());
+    const length = Math.max(size.x, size.z) || 1;
+    const scale = 4.6 / length;
+    const lift = -box.min.y * scale;
+    const yaw0 = size.x > size.z ? -Math.PI / 2 : 0;
+    for (const rec of cars) {
+      if (rec.model !== HOVER_GLB) continue;
+      const m = src.clone(true);
+      m.scale.setScalar(scale);
+      m.position.y = lift;
+      m.traverse(o => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
+      rec.g.add(m);
+      rec.yaw0 = yaw0;
+      rec.g.userData.ready = true;
+      if (rec.park) {
+        rec.g.position.set(rec.park.x, rec.hoverHeight ?? 0.5, rec.park.z);
+        rec.g.rotation.y = rec.park.yaw || 0;
+        rec.g.visible = true;
+      } else if (rec.route && rec.route.length > 2) rec.g.visible = true;
+    }
+    window.__hover = { size: size.toArray(), scale, yaw0 };
+    console.info('[hovercar]', window.__hover);
+  }, undefined, (err) => console.error('hovercar', err));
+}
+loadHovercars();
 const CITY_SCALE = 1;
 function applyStreetGraph(data) {
   window.__streets = data;
@@ -3912,7 +3963,7 @@ function applyStreetGraph(data) {
     const lane = c.laneKey && data.lanes && data.lanes[c.laneKey];
     if (!lane || lane.length < 2) continue;
     c.route = lane;
-    c.g.visible = true;
+    if (!c.model || c.g.userData.ready) c.g.visible = true;
     const p = pointOnLoop(c.route, c.u || 0);
     c.g.position.set(p.x, p.y, p.z);
   }
@@ -4494,8 +4545,9 @@ function tick() {
       c.u = (c.u + dt * c.routeSpeed) % 1;
       const p = pointOnLoop(c.route, c.u);
       const n = pointOnLoop(c.route, c.u + 0.012);
-      const bob = c.fly ? Math.sin(t * 1.3 + c.u * 8) * 0.35 : 0;
-      c.g.position.set(p.x, p.y + bob, p.z);
+      const bob = c.hoverHeight != null ? Math.sin(t * 2.2 + c.u * 6) * 0.045 : (c.fly ? Math.sin(t * 1.3 + c.u * 8) * 0.35 : 0);
+      const y = (c.hoverHeight != null ? c.hoverHeight : p.y) + bob;
+      c.g.position.set(p.x, y, p.z);
       const dx = n.x - p.x, dz = n.z - p.z;
       if (dx * dx + dz * dz > 1e-6) c.g.rotation.y = Math.atan2(dx, dz) + (c.yaw0 == null ? -Math.PI / 2 : c.yaw0);
       return;

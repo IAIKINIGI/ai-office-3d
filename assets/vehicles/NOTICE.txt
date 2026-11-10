@@ -1,0 +1,11 @@
+hovercar-nowheels.glb
+=====================
+A derivative of "(FREE) Cyberpunk Hovercar" by Karol Miklas
+https://sketchfab.com/3d-models/free-cyberpunk-hovercar (or the bundled source)
+License: Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+https://creativecommons.org/licenses/by-sa/4.0/
+
+This modified version removes the landing-gear / wheel assemblies and the
+baked 4K ground-shadow plane, drops object animation, and adds simple
+emissive hover pads under the chassis. The derivative is released under
+the same CC BY-SA 4.0 license. Credit: Karol Miklas.
