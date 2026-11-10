@@ -1,0 +1,18 @@
+CyberPunk Girl (city-street pedestrian)
+=======================================
+
+This work is based on "CyberPunk Girl"
+https://sketchfab.com/3d-models/cyberpunk-girl-3844ffc78a214f479079b82605336f12
+by Toni García Vilche (https://sketchfab.com/zul_gv)
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+This file is a web-ready derivative: unused Icosphere and the TPose
+action were removed, Walk and Static were kept, the character was
+scaled to about 1.70 m, and a simple sleeveless tecwear dress was
+added so she can be used as a fully clothed city-street pedestrian.
+The source outfit is a sports bra and briefs; that original clothing
+is still in the mesh, under the added dress. Credit Toni García Vilche
+when you use the original or this derivative.
+
+This character is a generic street pedestrian, not a named office character.

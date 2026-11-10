@@ -14,6 +14,12 @@ License: MIT, Copyright (c) 2020 Microsoft. Full text in `LICENSE.md`.
 
 Mandy: This work is based on "Mai Shiranui | Anime Hot GIrl | Street fighter" (https://sketchfab.com/3d-models/mai-shiranui-anime-hot-girl-street-fighter-2bdc3c3111ea492bba9a33eac0a6dfc7) by lawlietrecluze (https://sketchfab.com/lawlietrecluze), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). Modified: decimated, arms separated, rigged and animated. The file in `mandy.glb` is that rig, about 1.68 m, feet at the origin, with Idle, Walk, and Sit embedded. The office uses those clips directly.
 
+Pedestrians: This work is based on "CyberPunk Girl" (https://sketchfab.com/3d-models/cyberpunk-girl-3844ffc78a214f479079b82605336f12) by Toni García Vilche (https://sketchfab.com/zul_gv), licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/). She is a generic street pedestrian in the original sports top, briefs, armour, and sneakers. The added StreetWear dress is not shown.
+
+Desk: This work is based on "Cyberpunk Desk" (https://sketchfab.com/3d-models/cyberpunk-desk-8bc4ca48b2e244ff8b5ba714a2ec1963) by Cisco (https://sketchfab.com/Ciscow), licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/).
+
+Props: This work is based on "Cyberpunk Assets" (https://sketchfab.com/3d-models/cyberpunk-assets-6f93fcda4eec47aab52eb90de81c22fa) by panda.vc (https://sketchfab.com/panda.vc), licensed under CC-BY-SA-4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Modified versions of this pack stay CC BY-SA 4.0.
+
 Diner signs: This work is based on "Cyberpunk Diner Sign (Japanese)" (https://sketchfab.com/3d-models/cyberpunk-diner-sign-japanese-6ffce0f168534501bdd9199847d57831) by LukeMarsh201 (https://sketchfab.com/LukeMarsh201), licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/). The frame is the original mesh. The wording is a swappable text plate. Files are in `assets/signs/`.
 
 Hovercar: This work is based on "(FREE) Cyberpunk Hovercar" (https://sketchfab.com/3d-models/free-cyberpunk-hovercar-3205b1075bb44ffc826bce0c2a04d74c) by Karol Miklas (https://sketchfab.com/karolmiklas), licensed under CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Modified: wheels removed, hover pads added. That derivative stays CC BY-SA 4.0. The file is `assets/vehicles/hovercar-nowheels.glb`.

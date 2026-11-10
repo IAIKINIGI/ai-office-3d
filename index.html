@@ -1161,17 +1161,22 @@ function workstation(parent, x, z, color, name, floor, monCol = 0x00f0ff, seatTo
   const dz = fit.deskShift || 0;
   const deskY = fit.deskY != null ? fit.deskY : 1.02;
   const dy = deskY - 1.02;
-  box(2.6, 0.1, 1.35, deskMat, x, deskY, z + dz, parent);
-  for (const dx of [-1.15, 1.15]) box(0.12, 1.0, 1.1, deskMat, x + dx, 0.5 + dy * 0.45, z + dz, parent);
+  const deskBits = new THREE.Group();
+  deskBits.userData.procDesk = true;
+  parent.add(deskBits);
+  box(2.6, 0.1, 1.35, deskMat, x, deskY, z + dz, deskBits);
+  for (const dx of [-1.15, 1.15]) box(0.12, 1.0, 1.1, deskMat, x + dx, 0.5 + dy * 0.45, z + dz, deskBits);
   const key = screenKeyFor(floor);
-  addMonitor(parent, x - 0.55, 1.55 + dy, z + dz - 0.42, key);
-  addMonitor(parent, x + 0.55, 1.55 + dy, z + dz - 0.42, key);
-  box(0.08, 0.35, 0.08, frameMat, x - 0.55, 1.15 + dy, z + dz - 0.4, parent);
-  box(0.08, 0.35, 0.08, frameMat, x + 0.55, 1.15 + dy, z + dz - 0.4, parent);
+  addMonitor(deskBits, x - 0.55, 1.55 + dy, z + dz - 0.42, key);
+  addMonitor(deskBits, x + 0.55, 1.55 + dy, z + dz - 0.42, key);
+  box(0.08, 0.35, 0.08, frameMat, x - 0.55, 1.15 + dy, z + dz - 0.4, deskBits);
+  box(0.08, 0.35, 0.08, frameMat, x + 0.55, 1.15 + dy, z + dz - 0.4, deskBits);
   const gTex = monCol === 0xff2a6d ? GLOW.mag : (monCol === 0xfcee0a ? GLOW.yel : GLOW.cyan);
-  glow(gTex, x - 0.55, 1.55 + dy, z + dz - 0.62, 1.5, 1.0, 0.22, parent);
-  glow(gTex, x + 0.55, 1.55 + dy, z + dz - 0.62, 1.5, 1.0, 0.22, parent);
-  box(0.9, 0.04, 0.35, M(0x1a1e28), x, 1.1 + dy, z + dz + 0.15, parent);
+  glow(gTex, x - 0.55, 1.55 + dy, z + dz - 0.62, 1.5, 1.0, 0.22, deskBits);
+  glow(gTex, x + 0.55, 1.55 + dy, z + dz - 0.62, 1.5, 1.0, 0.22, deskBits);
+  box(0.9, 0.04, 0.35, M(0x1a1e28), x, 1.1 + dy, z + dz + 0.15, deskBits);
+  if (!window.__procDesks) window.__procDesks = [];
+  window.__procDesks.push({ bits: deskBits, parent, x, z: z + dz });
   const seatLift = seatTop - 0.60;
   const seatZ = fit.seatZ != null ? fit.seatZ : 1.15;
   const backZ = fit.backZ != null ? fit.backZ : 1.45;
@@ -4044,6 +4049,184 @@ whenCityReady().then(() => Promise.all(DINER_SIGNS.map(placeDinerSign))).then(si
   window.__dinerSigns = signs;
   console.info('[signs]', signs.length);
 }).catch(err => console.error('diner signs', err));
+
+// Street pedestrians and office/plaza props. Girl keeps her original outfit:
+// the added StreetWear dress is never shown.
+const streetGirls = [];
+window.__stepGirls = (dt) => updateStreetGirls(dt || 0.05);
+function updateStreetGirls(dt) {
+  if (window.__streets && streetGirls[0] && !streetGirls[0].usingStreets) {
+    const route = streetGirlRoute();
+    const len = loopLength(route);
+    streetGirls.forEach(g => { g.route = route; g.len = len; });
+    streetGirls[0].usingStreets = true;
+  }
+  for (const g of streetGirls) {
+    if (!g.route || g.route.length < 2) continue;
+    g.u = (g.u + dt * g.mps / g.len) % 1;
+    const p = pointOnLoop(g.route, g.u);
+    const n = pointOnLoop(g.route, g.u + 0.01);
+    g.root.position.set(p.x, g.lift || 0, p.z);
+    const dx = n.x - p.x, dz = n.z - p.z;
+    if (dx * dx + dz * dz > 1e-6) g.root.rotation.y = Math.atan2(dx, dz);
+    g.mixer.update(dt);
+  }
+}
+function streetGirlRoute() {
+  const lane = window.__streets && window.__streets.lanes && window.__streets.lanes.groundA;
+  if (lane && lane.length > 4) return lane.map(p => ({ x: p.x, y: 0, z: p.z }));
+  return [{ x: -18, y: 0, z: 24 }, { x: -18, y: 0, z: 42 }, { x: 16, y: 0, z: 42 }, { x: 16, y: 0, z: 24 }];
+}
+function loopLength(pts) {
+  let n = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    n += Math.hypot(a.x - b.x, a.z - b.z);
+  }
+  return Math.max(n, 1);
+}
+function tintGirl(model, hairShift, bodyLift) {
+  model.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const list = [].concat(o.material).map(m => m.clone());
+    o.material = list.length === 1 ? list[0] : list;
+    const label = (o.name || '') + ' ' + (o.material.name || '') + ' ' + list.map(m => m.name || '').join(' ');
+    list.forEach(m => {
+      if (!m.color) return;
+      if (/hair/i.test(label)) m.color.offsetHSL(hairShift, 0.04, hairShift * 0.25);
+      else if (/body/i.test(label)) m.color.offsetHSL(0, 0, bodyLift);
+    });
+  });
+}
+function loadStreetGirls() {
+  gltfLoader.load('assets/props/cyberpunk-girl/cyberpunk-girl.glb', (gltf) => {
+    const src = gltf.scene;
+    src.traverse(o => {
+      if (o.name === 'StreetWear') o.visible = false;
+      if (o.name === 'Sketchfab_model') o.rotation.x = 0;
+    });
+    const walk = gltf.animations.find(a => a.name === 'Walk') || gltf.animations[0];
+    const route = streetGirlRoute();
+    const len = loopLength(route);
+    const hairs = [0.04, -0.06, 0.1, -0.03, 0.07];
+    const bodies = [-0.04, 0.03, -0.01, 0.05, 0.01];
+    for (let i = 0; i < 5; i++) {
+      const model = SkeletonUtils.clone(src);
+      model.traverse(o => { if (o.name === 'StreetWear') o.visible = false; });
+      tintGirl(model, hairs[i], bodies[i]);
+      const mixer = new THREE.AnimationMixer(model);
+      if (walk) {
+        const act = mixer.clipAction(walk);
+        act.play();
+        act.time = i * 0.47;
+      }
+      scene.add(model);
+      streetGirls.push({ root: model, mixer, route, len, u: i / 5, mps: 1.05 + i * 0.05, lift: 0.92 });
+    }
+    window.__streetGirls = streetGirls;
+    console.info('[girls]', streetGirls.length, 'dress hidden');
+  }, undefined, (err) => console.error('girl', err));
+}
+function fitTo(obj, target, axis) {
+  obj.scale.set(1, 1, 1);
+  obj.position.set(0, 0, 0);
+  obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const span = axis === 'y' ? size.y : Math.max(size.x, size.z);
+  const c = box.getCenter(new THREE.Vector3());
+  obj.children.forEach(ch => {
+    ch.position.x -= c.x;
+    ch.position.z -= c.z;
+    ch.position.y -= box.min.y;
+  });
+  obj.scale.setScalar(target / Math.max(span, 1e-4));
+}
+function dropStrayDeskParts(root) {
+  const parts = [];
+  root.traverse(o => { if (o.isMesh) parts.push(o); });
+  const centers = parts.map(o => new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3()));
+  const mid = centers.reduce((s, c) => s.add(c), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, centers.length));
+  parts.forEach((o, i) => {
+    const d = Math.hypot(centers[i].x - mid.x, centers[i].z - mid.z);
+    if (d > 1.15) o.visible = false;
+  });
+}
+function loadCyberDesk() {
+  gltfLoader.load('assets/props/cyberpunk-desk/cyberpunk-desk.glb', (gltf) => {
+    const src = gltf.scene;
+    dropStrayDeskParts(src);
+    const box = new THREE.Box3().setFromObject(src);
+    const height = box.max.y - box.min.y || 1;
+    src.scale.setScalar(1.42 / height);
+    const grounded = new THREE.Box3().setFromObject(src);
+    src.position.y -= grounded.min.y;
+    const slots = window.__procDesks || [];
+    slots.forEach(slot => {
+      slot.bits.visible = false;
+      const desk = src.clone(true);
+      desk.position.set(slot.x, 0, slot.z - 0.15);
+      desk.rotation.y = 0;
+      slot.parent.add(desk);
+    });
+    const cupHost = slots[2] || slots[0];
+    window.__deskCup = cupHost;
+    window.__deskReady = true;
+    console.info('[desk]', slots.length, 'height', height.toFixed(2));
+    if (window.__propCup && cupHost) {
+      const cup = window.__propCup;
+      cupHost.parent.add(cup);
+      cup.position.set(cupHost.x + 0.55, 1.05, cupHost.z + 0.15);
+    }
+  }, undefined, (err) => console.error('desk', err));
+}
+function loadStreetProps() {
+  gltfLoader.load('assets/props/cyberpunk-assets/cyberpunk-assets.glb', (gltf) => {
+    const src = gltf.scene;
+    const take = (name) => {
+      const n = src.getObjectByName(name);
+      if (!n) return null;
+      src.updateMatrixWorld(true);
+      const g = new THREE.Group();
+      n.traverse(o => {
+        if (!o.isMesh) return;
+        const m = o.clone();
+        m.position.set(0, 0, 0);
+        m.rotation.set(0, 0, 0);
+        m.scale.set(1, 1, 1);
+        m.applyMatrix4(o.matrixWorld);
+        g.add(m);
+      });
+      return g;
+    };
+    const lobby = floorGroups.find(f => f.f.lv === 1);
+    const office = floorGroups.find(f => f.f.lv === 3) || floorGroups.find(f => f.f.lv === 2);
+    const hud = take('Object_2');
+    const cup = take('Object_3');
+    const holo = take('Object_4');
+    const arcade = take('Object_5');
+    const decal = take('Object_6');
+    const locker = take('Object_7');
+    if (hud && lobby) { fitTo(hud, 1.5, 'y'); hud.position.set(-2.4, 0, 1.2); hud.rotation.y = 0.4; lobby.g.add(hud); }
+    if (holo && lobby) { fitTo(holo, 0.55, 'y'); holo.position.set(2.2, 0, 0.4); lobby.g.add(holo); }
+    if (locker && office) { fitTo(locker, 1.85, 'y'); locker.position.set(-9.2, 0, -4.6); locker.rotation.y = Math.PI / 2; office.g.add(locker); }
+    if (arcade) { fitTo(arcade, 1.8, 'y'); arcade.position.set(-22.4, 0, 33.6); arcade.rotation.y = 0.6; scene.add(arcade); }
+    if (decal) { fitTo(decal, 2.4, 'xz'); decal.position.set(9.5, 0.03, 12.5); scene.add(decal); }
+    if (cup) {
+      fitTo(cup, 0.12, 'y');
+      window.__propCup = cup;
+      if (window.__deskCup) {
+        window.__deskCup.parent.add(cup);
+        cup.position.set(window.__deskCup.x + 0.55, 1.05, window.__deskCup.z + 0.15);
+      } else scene.add(cup);
+    }
+    window.__streetProps = { hud, cup, holo, arcade, decal, locker };
+    console.info('[props] placed');
+  }, undefined, (err) => console.error('props', err));
+}
+loadStreetGirls();
+loadCyberDesk();
+loadStreetProps();
 const CITY_SCALE = 1;
 function applyStreetGraph(data) {
   window.__streets = data;
@@ -4629,6 +4812,7 @@ function tick() {
   }
 
   typers.forEach(p => { p.armL.rotation.x = Math.sin(t * 10 + p.ph) * 0.25; p.armR.rotation.x = Math.cos(t * 10 + p.ph) * 0.25; p.head.rotation.y = Math.sin(t * 0.7 + p.ph) * 0.3; if (p.legL) { p.legL.rotation.x = Math.sin(t * 8 + p.ph) * 0.15; p.legR.rotation.x = Math.cos(t * 8 + p.ph) * 0.15; } });
+  if (window.__streetGirls) updateStreetGirls(dt, t);
   cars.forEach(c => {
     if (c.route) {
       c.u = (c.u + dt * c.routeSpeed) % 1;
