@@ -1250,8 +1250,8 @@ FLOORS.forEach((f, idx) => {
     box(4.2, 0.15, 2, M(gold, { metalness: 0.55, roughness: 0.35 }), -4, 1.05, -1, g);
     box(4, 0.9, 1.8, M(0x8a6a28, { metalness: 0.4 }), -4, 0.5, -1, g);
     { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), screenMat('ceo')); scr.position.set(-4, 1.55, -1.55); scr.castShadow = scr.receiveShadow = false; g.add(scr); }
-    workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a, 0.83, {
-      deskShift: 0.32, deskY: 1.16, personZ: 1.16, seatZ: 1.36, backZ: 1.56, seatD: 0.48, seatW: 0.62, backW: 0.52, backH: 0.34, backD: 0.06, backY: 0.86,
+    workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a, 0.74, {
+      deskShift: 0.34, deskY: 1.12, personZ: 1.16, seatZ: 1.39, backZ: 1.66, seatD: 0.42, seatW: 0.62, backW: 0.50, backH: 0.36, backD: 0.06, backY: 0.84,
     });
     strip.material.color.set(0xfcee0a); strip.material.emissive.set(0xfcee0a); strip.material.emissiveIntensity = 3;
   } else if ((f.people || []).length >= 3) {
@@ -4300,6 +4300,32 @@ function mandySoleY(model) {
   if (!Number.isFinite(min)) return null;
   return min - _soleOrigin.y;
 }
+const _flatA = new THREE.Vector3();
+const _flatB = new THREE.Vector3();
+const _flatQ = new THREE.Quaternion();
+const _flatP = new THREE.Quaternion();
+function flattenMandyFeet(model) {
+  // The sit clip points the toes down. Level each foot so the sole sits on the slab.
+  for (const [footName, toeName] of [['mixamorigLeftFoot', 'mixamorigLeftToeBase'], ['mixamorigRightFoot', 'mixamorigRightToeBase']]) {
+    const foot = model.getObjectByName(footName);
+    const toe = model.getObjectByName(toeName);
+    if (!foot || !toe || !foot.parent) continue;
+    foot.getWorldPosition(_flatA);
+    toe.getWorldPosition(_flatB);
+    _flatB.sub(_flatA);
+    const horiz = Math.hypot(_flatB.x, _flatB.z);
+    if (horiz < 1e-4) continue;
+    const pitch = Math.atan2(_flatB.y, horiz);
+    if (Math.abs(pitch) < 0.02) continue;
+    _flatA.set(-_flatB.z, 0, _flatB.x).normalize();
+    _flatQ.setFromAxisAngle(_flatA, -pitch);
+    foot.getWorldQuaternion(_flatP);
+    _flatP.premultiply(_flatQ);
+    foot.parent.getWorldQuaternion(_flatQ);
+    foot.quaternion.copy(_flatQ.invert()).multiply(_flatP);
+    foot.updateMatrixWorld(true);
+  }
+}
 function syncProof(dt) {
   proofHumans.forEach(entry => {
     const rig = entry.agent.rig;
@@ -4314,6 +4340,7 @@ function syncProof(dt) {
     let y = 0;
     const pose = entry.agent.pose;
     const inCabin = rig.parent === lift.cabin;
+    if (entry.id === 'mandy' && pose === 'sit' && !inCabin) flattenMandyFeet(entry.model);
     if (entry.id === 'mandy' || entry.id === 'penny') {
       let sole = entry.id === 'penny' ? pennySoleY(entry.model) : mandySoleY(entry.model);
       // A bad skin sample (seen once inside the lift) would throw her a metre up.
@@ -4328,10 +4355,6 @@ function syncProof(dt) {
         const prev = entry.footY;
         entry.footY = prev == null ? need : Math.max(need, prev + (need - prev) * 0.45);
         y = entry.footY;
-      }
-      if (entry.id === 'mandy' && pose === 'sit' && !inCabin) {
-        // The held sit keeps the ankles about 7 cm above the sampled sole.
-        y -= 0.07;
       }
       if (entry.id === 'mandy') window.__mandyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin };
       else window.__pennyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin, clip: entry.current };
