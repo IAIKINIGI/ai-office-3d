@@ -19,23 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-## MakeHuman assets used on Mandy's head
-
-These pieces are CC0 1.0, released September 2020 by the MakeHuman project.
-Attribution is not required by the license. It is recorded here.
-
-Copyright holders at the CC0 release: Data Collection AB, Joel Palmius, Jonas Hauquier.
-Original base-mesh copyright Manuel Bastioni, transferred in 2016.
-https://www.makehumancommunity.org
-
-Used, and not a photograph of any person:
-
-- Base mesh `hm08` (`base.obj`)
-- Target `macrodetails/asian-female-young.target`
-- Skin `young_asian_female`
-- Hair `long01`
-- Eyelashes `eyelashes01`
-
-Source repository: https://github.com/makehumancommunity/makehuman
-System asset pack: https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/

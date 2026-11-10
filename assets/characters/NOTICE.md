@@ -2,7 +2,7 @@
 
 Fictional adults. Fully clothed. Mandy is not Karina, not a scan, and not an endorsement.
 The female silhouette is a slim adult frame with a fuller clothed chest.
-Mandy's head, above the neck, is a MakeHuman base shaped with the CC0 young East Asian female target. The hair is MakeHuman `long01`. It is not a portrait of Karina.
+Mandy's head is the Rocketbox `Female_Adult_03` head again. The MakeHuman head was removed. It is not a portrait of Karina.
 The cast split is in `cast.json`. Only Andrew and Mandy are skinned here.
 
 | File | Source | File size |
@@ -37,17 +37,17 @@ Public photos used only as a proportion guide, not as a texture:
 
 Those frames show a small oval face, a soft jaw, large dark eyes with a slight outer-corner lift, a small straight nose, and a rose lip. The photos were not copied onto the mesh.
 
-The Rocketbox head above the neck was replaced. The new head is MakeHuman hm08 with the `asian-female-young` target at full weight, plus a small jaw narrow and a 6 mm reduction in nose projection. The skin is the CC0 `young_asian_female` texture, darkened slightly so the key light does not wipe it out. Eyeballs are the base-mesh eyes, colored dark brown. Lashes are MakeHuman `eyelashes01`. The neck join is an overlap, not a welded loop, and the edge is still jagged.
+The MakeHuman head, eyes, lashes, and hair were removed. Mandy is back on the Rocketbox head from before that swap: fair skin, the jaw and nose sculpt, the eye bones moved inward to x = ±0.0268 m, and the dark lengthened card hair.
 
-Public photos of Karina were used only as a proportion guide. They were not pasted on. The result is an East Asian young-adult head on this body. It is not her face.
+Measured on this restored mesh, crown of the skull to the soles is 1.731 m. Chin to crown is 0.216 m. That is 8.0 heads (1.731 / 0.216). The asked range is 7.5 to 8. The head is not oversized, so it was not scaled. Ear-to-ear half-width is 0.108 m. Shoulder half-width is 0.204 m.
 
-The lids were opened and the eyeballs were shrunk to about 1.4 cm and moved into the sockets, with a drawn brown iris and white. From the front the eyes are open and the iris is visible. They still look glassy and pink under the key light, and the skin is still flatter and paler than the neck. The neck edge is still a jagged overlap, not a welded loop. The long hair is a solid shell. Mandy is the label. It is not a likeness.
+No further eye or skin edit was added on top of this. Another pass had already made the face worse.
 
 ## Hair
 
 Hair is the model's own hair cards, skinned with the head, not a sphere parked on the neck.
 Andrew's cards stay a short crop on the scalp (world Z 1.588–1.794 m). A few millimetres of layering and a small sweep to one side were added on that same crop. It is not a new haircut and not a solid cap.
-Mandy's hair is MakeHuman `long01`, recolored near-black with a faint rose in the highlights. It is a center-part fall past the waist, weighted to the head and, at the tips, to the upper spine. It is a game hair mesh, not strands.
+Mandy's cards are near-black with a faint rose in the highlights. Their world Z runs from about 1.03 m to 1.73 m: the top stays on the scalp and the length reaches the waist. It is card hair, not strands.
 Andrew's color stays dark brown. The hairline is the card edge.
 
 ## Legs
