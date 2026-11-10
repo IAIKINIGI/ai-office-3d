@@ -41,7 +41,7 @@ The Rocketbox head above the neck was replaced. The new head is MakeHuman hm08 w
 
 Public photos of Karina were used only as a proportion guide. They were not pasted on. The result is an East Asian young-adult head on this body. It is not her face.
 
-What still shows: the eyes sit deep and read small from the front. The neck edge is jagged where the two meshes overlap. The skin is fair and East Asian, and it is not a likeness of the reference photos. Mandy is the label.
+The lids were opened and the eyeballs were shrunk to about 1.4 cm and moved into the sockets, with a drawn brown iris and white. From the front the eyes are open and the iris is visible. They still look glassy and pink under the key light, and the skin is still flatter and paler than the neck. The neck edge is still a jagged overlap, not a welded loop. The long hair is a solid shell. Mandy is the label. It is not a likeness.
 
 ## Hair
 
