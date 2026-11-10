@@ -28,6 +28,16 @@ Head and body skin pixels were shifted toward a fair warm tone while keeping the
 The office lights are cyan and magenta, so the face looks cooler in the room than in the neutral diagnostic shots.
 The stock Rocketbox face mesh is unchanged. Eye spacing, lids, and gaze are still that mesh. A color pass cannot fix them.
 
+## Face reference
+
+Public photos used only as a guide, not as a texture:
+
+- https://en.wikipedia.org/wiki/Karina_(South_Korean_singer)
+- https://commons.wikimedia.org/wiki/File:Aespa%27s_Karina_10.jpg (24 Nov 2023, CC BY, 티비텐)
+- https://commons.wikimedia.org/wiki/File:240906_Karina_at_Musinsa_Beauty_Festa.jpg (6 Sep 2024, CC BY, 티비텐)
+
+Those photos show a small oval face, large open eyes with a defined lid and liner, a narrow nose, and a soft rose lip. Mandy's head is still `Female_Adult_03`. Its eye sockets, nose, and jaw do not match that structure. Painting makeup through the head UVs put dots on the lids and a brown band on the neck, so that paint was not kept. The preview face is the fair-skin pass only. It is not a likeness.
+
 ## Hair
 
 Hair is the model's own hair cards, skinned with the head, not a sphere parked on the neck.
