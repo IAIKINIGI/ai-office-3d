@@ -1271,9 +1271,9 @@ FLOORS.forEach((f, idx) => {
     if (/Penny/i.test(who)) {
       // Her sit drops the hips to about 0.50 m above the soles. The cushion
       // top has to meet that, with the backrest behind the shoulders.
-      workstation(g, -2, -1.5, c, who, f, 0x00f0ff, 0.86, {
-        deskShift: 0.18, deskY: 1.08, personZ: 1.38, seatZ: 1.32, backZ: 1.50,
-        seatD: 0.74, seatW: 0.64, backW: 0.56, backH: 0.62, backD: 0.07, backY: 1.08,
+      workstation(g, -2, -1.5, c, who, f, 0x00f0ff, 0.98, {
+        deskShift: 0.28, deskY: 1.20, personZ: 1.16, seatZ: 1.08, backZ: 1.33,
+        seatD: 0.42, seatW: 0.60, backW: 0.50, backH: 0.32, backD: 0.06, backY: 0.74,
       });
     } else {
       workstation(g, -2, -1.5, c, who, f);
@@ -4341,11 +4341,12 @@ attachProof('mandy', 'assets/characters/mandy.glb');
 // object it moves, so that root rotation stays on an inner node.
 // Clips are Quaternius CC0 Universal Animation Library (standard):
 // Idle_Loop, Walk_Loop, Sitting_Idle_Loop, with A_TPose as the source rest.
-// bone-map-mixamo.json names the humanoid bones. Jacket, coat tails, hair
-// and twist bones are not in that map and are never keyed.
-// For each mapped bone the world swing is the rotation that takes the
-// source bind direction onto the posed direction, applied to her own bind
-// direction. That drops the A-pose arms without copying foreign local axes.
+// bone-map-mixamo.json names the humanoid bones. Hair, coat tails, and twist
+// bones stay at the bind pose. The jacket roots CoatL and CoatR are keyed
+// with the same swing as the upper arms, so the sleeves and shoulder pieces
+// follow the arms instead of staying out in the A-pose.
+// Upper arms are then aimed to hang about 10 degrees off vertical. Neck and
+// head stay at the bind, so the chin does not pitch down on the walk.
 const UAL_TO_MIXAMO = {
   'DEF-hips': 'mixamorigHips',
   'DEF-spine.001': 'mixamorigSpine',
@@ -4415,11 +4416,99 @@ function _worldQ(o, out) {
   o.matrixWorld.decompose(_rtV, out, _rtS);
   return out;
 }
-function retargetPennyClip(sourceRoot, clip, outName, pairs, byUal) {
+const _aimA = new THREE.Vector3();
+const _aimB = new THREE.Vector3();
+const _aimD = new THREE.Vector3();
+function setWorldQuat(bone, worldQ) {
+  const parent = bone.parent;
+  if (parent) _worldQ(parent, _rtParent);
+  else _rtParent.identity();
+  bone.quaternion.copy(_rtParent.clone().invert()).multiply(worldQ);
+  bone.updateMatrixWorld(true);
+}
+function aimBoneTo(bone, restW, restDir, desired) {
+  if (!restDir) return;
+  _rtDelta.setFromUnitVectors(restDir, _aimD.copy(desired).normalize());
+  setWorldQuat(bone, _rtDelta.clone().multiply(restW));
+}
+function hangDir(side, deg, z) {
+  const out = side * Math.sin(THREE.MathUtils.degToRad(deg));
+  const zz = z || 0;
+  const yy = -Math.sqrt(Math.max(0.04, 1 - out * out - zz * zz));
+  return _aimD.set(out, yy, zz);
+}
+// Left is +X on this rig. Shoulders stay near the bind so the jacket
+// does not shrug into a hump, then the arms are aimed to hang.
+function refinePennyPose(outName, byUal, clothRoots) {
+  for (const ual of ['DEF-neck', 'DEF-head']) {
+    const p = byUal[ual];
+    if (!p) continue;
+    p.target.quaternion.copy(p.restLocal);
+    p.target.updateMatrixWorld(true);
+  }
+  const chest = byUal['DEF-spine.003'];
+  if (chest) {
+    chest.target.quaternion.slerp(chest.restLocal, outName === 'walk' ? 0.72 : 0.45);
+    chest.target.updateMatrixWorld(true);
+  }
+  for (const ual of ['DEF-shoulder.L', 'DEF-shoulder.R']) {
+    const p = byUal[ual];
+    if (!p) continue;
+    p.target.quaternion.slerp(p.restLocal, 0.7);
+    p.target.updateMatrixWorld(true);
+  }
+  const swingOf = (ual) => {
+    const p = byUal[ual];
+    if (!p || !p.curSrcDir || outName !== 'walk') return 0;
+    return THREE.MathUtils.clamp(p.curSrcDir.z, -0.5, 0.5) * 0.5;
+  };
+  for (const [ual, side, foreUal] of [['DEF-upper_arm.L', 1, 'DEF-forearm.L'], ['DEF-upper_arm.R', -1, 'DEF-forearm.R']]) {
+    const arm = byUal[ual];
+    const fore = byUal[foreUal];
+    if (!arm || !arm.restChildDir) continue;
+    const z = swingOf(ual);
+    aimBoneTo(arm.target, arm.restW, arm.restChildDir, hangDir(side, outName === 'walk' ? 12 : 10, z));
+    if (fore && fore.restChildDir) {
+      aimBoneTo(fore.target, fore.restW, fore.restChildDir, hangDir(side, 6, z * 0.35));
+      const handU = foreUal === 'DEF-forearm.L' ? 'DEF-hand.L' : 'DEF-hand.R';
+      const hand = byUal[handU];
+      if (hand) setWorldQuat(hand.target, _worldQ(fore.target, new THREE.Quaternion()));
+    }
+    const cur = arm.childTarget
+      ? arm.childTarget.getWorldPosition(_aimA).sub(arm.target.getWorldPosition(_aimB)).normalize()
+      : null;
+    if (!cur) continue;
+    _rtDelta.setFromUnitVectors(arm.restChildDir, cur);
+    for (const c of clothRoots) {
+      if (c.side !== side) continue;
+      setWorldQuat(c.target, _rtDelta.clone().multiply(c.restW));
+    }
+  }
+  if (outName === 'sit') {
+    const legs = [['DEF-shin.L', 'DEF-foot.L'], ['DEF-shin.R', 'DEF-foot.R']];
+    const ys = legs.map(([shin]) => byUal[shin].childTarget.getWorldPosition(_aimA).y);
+    const targetY = Math.min(ys[0], ys[1]);
+    for (const [shinU] of legs) {
+      const shin = byUal[shinU];
+      if (!shin || !shin.restChildDir || !shin.childLen) continue;
+      const kp = shin.target.getWorldPosition(new THREE.Vector3());
+      const ap = shin.childTarget.getWorldPosition(new THREE.Vector3());
+      const dir = new THREE.Vector3(ap.x - kp.x, targetY - kp.y, ap.z - kp.z);
+      const reach = dir.length();
+      if (reach > shin.childLen * 0.98) {
+        const h = Math.sqrt(Math.max(0.01, shin.childLen * shin.childLen - 0.04 * 0.04));
+        dir.set((ap.x - kp.x) * 0.35, -h, (ap.z - kp.z) * 0.35);
+      }
+      aimBoneTo(shin.target, shin.restW, shin.restChildDir, dir);
+    }
+  }
+}
+function retargetPennyClip(sourceRoot, clip, outName, pairs, byUal, clothRoots) {
   const fps = 30;
   const frames = Math.max(2, Math.round(clip.duration * fps));
   const times = new Float32Array(frames + 1);
   pairs.forEach(p => { p.quats = new Float32Array((frames + 1) * 4); p.prev = null; });
+  clothRoots.forEach(c => { c.quats = new Float32Array((frames + 1) * 4); c.prev = null; });
   const hip = byUal['DEF-hips'];
   hip.pos = new Float32Array((frames + 1) * 3);
   const mixer = new THREE.AnimationMixer(sourceRoot);
@@ -4439,6 +4528,16 @@ function retargetPennyClip(sourceRoot, clip, outName, pairs, byUal) {
       p.srcPos = p.source.getWorldPosition(new THREE.Vector3());
       p.target.quaternion.copy(p.restLocal);
       p.target.position.copy(p.restPos);
+    }
+    clothRoots.forEach(c => {
+      c.target.quaternion.copy(c.restLocal);
+      c.target.position.copy(c.restPos);
+    });
+    for (const p of pairs) {
+      const child = byUal[UAL_CHILD[p.ual]];
+      if (child) p.curSrcDir = child.srcPos.clone().sub(p.srcPos);
+      else p.curSrcDir = null;
+      if (p.curSrcDir && p.curSrcDir.lengthSq() > 1e-8) p.curSrcDir.normalize();
     }
     let root = pairs[0].target;
     while (root.parent) root = root.parent;
@@ -4479,6 +4578,7 @@ function retargetPennyClip(sourceRoot, clip, outName, pairs, byUal) {
     parent.worldToLocal(world);
     hip.target.position.copy(world);
     hip.target.updateMatrixWorld(true);
+    refinePennyPose(outName, byUal, clothRoots);
     for (const p of pairs) {
       const q = p.target.quaternion;
       if (p.prev && p.prev.dot(q) < 0) q.set(-q.x, -q.y, -q.z, -q.w);
@@ -4486,6 +4586,12 @@ function retargetPennyClip(sourceRoot, clip, outName, pairs, byUal) {
       q.toArray(p.quats, i * 4);
     }
     hip.target.position.toArray(hip.pos, i * 3);
+    for (const c of clothRoots) {
+      const q = c.target.quaternion;
+      if (c.prev && c.prev.dot(q) < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+      c.prev = q.clone();
+      q.toArray(c.quats, i * 4);
+    }
   }
   action.stop();
   mixer.stopAllAction();
@@ -4493,6 +4599,10 @@ function retargetPennyClip(sourceRoot, clip, outName, pairs, byUal) {
     p.target.quaternion.copy(p.restLocal);
     p.target.position.copy(p.restPos);
   }
+  clothRoots.forEach(c => {
+    c.target.quaternion.copy(c.restLocal);
+    c.target.position.copy(c.restPos);
+  });
   const tracks = [];
   for (const p of pairs) {
     tracks.push(new THREE.QuaternionKeyframeTrack(p.target.name + '.quaternion', times, p.quats));
@@ -4500,6 +4610,11 @@ function retargetPennyClip(sourceRoot, clip, outName, pairs, byUal) {
     p.quats = null;
     p.pos = null;
     p.prev = null;
+  }
+  for (const c of clothRoots) {
+    tracks.push(new THREE.QuaternionKeyframeTrack(c.target.name + '.quaternion', times, c.quats));
+    c.quats = null;
+    c.prev = null;
   }
   return new THREE.AnimationClip(outName, clip.duration, tracks);
 }
@@ -4558,6 +4673,28 @@ function attachPenny() {
       p.restLocal = p.target.quaternion.clone();
       p.restPos = p.target.position.clone();
       p.restW = _worldQ(p.target, new THREE.Quaternion());
+      const child = byUal[UAL_CHILD[p.ual]];
+      p.childTarget = child ? child.target : null;
+      if (p.childTarget) {
+        const d = p.childTarget.getWorldPosition(new THREE.Vector3()).sub(p.target.getWorldPosition(new THREE.Vector3()));
+        p.childLen = d.length();
+        p.restChildDir = p.childLen > 1e-6 ? d.multiplyScalar(1 / p.childLen) : null;
+      } else {
+        p.childLen = 0;
+        p.restChildDir = null;
+      }
+    });
+    const clothRoots = [];
+    [['CoatL_0351', 1], ['CoatR_0359', -1]].forEach(([name, side]) => {
+      const bone = model.getObjectByName(name);
+      if (!bone) return;
+      clothRoots.push({
+        target: bone,
+        side,
+        restLocal: bone.quaternion.clone(),
+        restPos: bone.position.clone(),
+        restW: _worldQ(bone, new THREE.Quaternion()),
+      });
     });
     const srcClips = {};
     srcGltf.animations.forEach(c => { srcClips[c.name] = c; });
@@ -4582,7 +4719,7 @@ function attachPenny() {
     const wanted = [['Idle_Loop', 'idle'], ['Walk_Loop', 'walk'], ['Sitting_Idle_Loop', 'sit']];
     const clips = {};
     wanted.forEach(([srcName, outName]) => {
-      clips[outName] = retargetPennyClip(source, srcClips[srcName], outName, pairs, byUal);
+      clips[outName] = retargetPennyClip(source, srcClips[srcName], outName, pairs, byUal, clothRoots);
     });
     agent.rig.traverse(o => { if (o.isMesh) o.visible = false; });
     const pivot = new THREE.Group();
