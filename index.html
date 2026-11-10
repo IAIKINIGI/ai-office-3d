@@ -932,21 +932,10 @@ function makeOfficePerson(id) {
   const trimM = E(look.trim, id === 'andrew' ? 1.05 : 0.5);
   const beltM = M(0x10141c, { roughness: 0.35, metalness: 0.55 });
 
-  const female = id === 'mandy' || id === 'hailey' || id === 'holly' || id === 'hazel' || id === 'penny';
   const torso = quietMesh(jacketGeo(look.jacket), suit);
   torso.position.y = 0.88;
-  torso.scale.x = female ? look.shoulder * 0.78 : look.shoulder;
-  if (female) torso.scale.z = 0.82;
+  torso.scale.x = look.shoulder;
   rig.add(torso);
-  if (female) {
-    // Clothed chest on the jacket, same fabric. Slimmer waist is the lathe scale above.
-    for (const sx of [-1, 1]) {
-      const bust = quietMesh(new THREE.SphereGeometry(0.06, 12, 10), suit);
-      bust.scale.set(0.95, 0.76, 0.58);
-      bust.position.set(sx * 0.06, 0.4, 0.15);
-      torso.add(bust);
-    }
-  }
   const lapelTint = new THREE.Color(look.suit);
   lapelTint.offsetHSL(0, -0.04, 0.14);
   const lapels = quietMesh(lapelGeo(), M(lapelTint.getHex(), { roughness: 0.4, metalness: 0.22 }));
@@ -1012,7 +1001,6 @@ function makeOfficePerson(id) {
     pivot.position.set(side * (0.19 + (look.shoulder - 1) * 0.05), 1.4, 0);
     rig.add(pivot);
     const upper = quietMesh(limbGeo('upper'), suit);
-    if (female) upper.scale.set(0.74, 1, 0.74);
     pivot.add(upper);
     const fore = new THREE.Group();
     fore.position.y = -0.18;
@@ -1028,7 +1016,6 @@ function makeOfficePerson(id) {
     hip.position.set(side * 0.085, 0.9, 0);
     rig.add(hip);
     const thigh = quietMesh(limbGeo('thigh'), cloth);
-    if (female) thigh.scale.set(0.78, 1, 0.78);
     hip.add(thigh);
     const shin = new THREE.Group();
     shin.position.y = -0.4;
@@ -2831,20 +2818,11 @@ function styleQuaternius(root, accent, opts = {}) {
 function makeHumanoid(color, accent, opts = {}) {
   const g = new THREE.Group();
   const scale = opts.scale || (0.92 + Math.random() * 0.22);
-  const fem = !!opts.feminine;
-  const build = fem ? 0.78 : (opts.build || 1); // women: narrow waist and limbs
+  const build = opts.build || 1;
   const hips = new THREE.Mesh(new THREE.CapsuleGeometry(0.15 * build, 0.12, 4, 8), M(0x141820));
   hips.position.y = 0.92; g.add(hips);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry((fem ? 0.145 : 0.19) * (opts.build || 1), 0.38, 4, 10), M(color, { metalness: 0.35, roughness: 0.4 }));
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.19 * build, 0.38, 4, 10), M(color, { metalness: 0.35, roughness: 0.4 }));
   torso.position.y = 1.3; g.add(torso);
-  if (fem) {
-    for (const sx of [-1, 1]) {
-      const bust = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), M(color, { metalness: 0.35, roughness: 0.42 }));
-      bust.scale.set(0.9, 0.72, 0.58);
-      bust.position.set(sx * 0.07, 1.42, 0.12);
-      g.add(bust);
-    }
-  }
   // neon jacket / coat trim
   const trim = new THREE.Mesh(new THREE.TorusGeometry(0.21 * build, 0.022, 6, 16), E(accent, 2.4));
   trim.rotation.x = Math.PI / 2; trim.position.y = 1.48; g.add(trim);
@@ -3386,7 +3364,6 @@ function loadGltf(base, name) {
           if (fem.length) chosen = fem[(Math.random() * fem.length) | 0];
         }
         const root = SkeletonUtils.clone(chosen.scene);
-        if (opts.feminine || /woman/.test(chosen.name)) sculptSlimFrame(root);
         const accent = opts.accentForce || accentCols[(Math.random() * accentCols.length) | 0];
         const arch = opts.archetype || pick(CP_ARCHETYPES);
         // Scale first so cyberware attachProp sees correct bone world scale
@@ -3674,6 +3651,13 @@ function tick() {
   }
 
   monoCar.position.x += 11 * dt; if (monoCar.position.x > 48) monoCar.position.x = -48;
+  if (window.__DIAG_LIGHT && !window.__diagOn) {
+    const diag = new THREE.DirectionalLight(0xffffff, 3.4);
+    diag.position.set(1.2, 3.2, 4);
+    scene.add(diag);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    window.__diagOn = true;
+  }
   if (window.__roofFlyer) {
     const f = window.__roofFlyer;
     const cyc = 26;

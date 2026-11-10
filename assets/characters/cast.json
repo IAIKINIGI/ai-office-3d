@@ -8,5 +8,5 @@
   },
   "femaleSilhouette": "Slim adult frame, narrow waist, fuller clothed chest. Stock face. Not a real person's likeness. No exposed skin beyond the face, neck, and hands.",
   "proofNow": ["andrew", "mandy"],
-  "wardrobe": "Andrew is Rocketbox Male_Adult_02 in a darkened sweater and trousers. Mandy is Rocketbox Female_Adult_03 in a black fitted top and slim pants, with the clothed chest pushed forward. The generated open coat was removed because it did not read as clothing. Not a finished cyberpunk wardrobe."
+  "wardrobe": "Andrew is Rocketbox Male_Adult_02 in a darkened sweater and trousers, short hair with a small side sweep. Mandy is Rocketbox Female_Adult_03 in a black fitted top and slim pants. The clothed chest is only slightly fuller than the source mesh (about 2.6 cm), and the waist is 8% narrower, not pinched. Not a finished cyberpunk wardrobe."
 }

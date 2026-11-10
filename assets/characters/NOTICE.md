@@ -17,14 +17,21 @@ These replace the security uniforms. The larger files are the clothed color text
 
 ## Body
 
-Mandy's waist half-width, measured on the body mesh, went from 0.146 m to 0.094 m.
-The clothed chest front moved from y = -0.100 m to y = -0.171 m (7 cm further forward).
-The top and the pants stay on. Nothing is removed to expose skin.
+The first sculpt pinched the waist from 0.146 m to 0.094 m half-width and pushed the chest 7 cm forward. That read as a warped torso, so it was redone.
+The current edit is an 8% waist ease, blended into the ribs and hips: half-width 0.146 m to 0.138 m.
+The clothed chest front moved from y = -0.100 m to y = -0.126 m (about 2.6 cm), with no sideways balloon. Normals were rebuilt after a smooth pass.
+The top and the pants stay on. Shoulders and arms were not squeezed.
+
+## Skin
+
+Head and body skin pixels were shifted toward a fair warm tone while keeping the texture's own light and dark. Roughness on the head material is 0.58, so it is not a mirror.
+The office lights are cyan and magenta, so the face looks cooler in the room than in the neutral diagnostic shots.
+The stock Rocketbox face mesh is unchanged. Eye spacing, lids, and gaze are still that mesh. A color pass cannot fix them.
 
 ## Hair
 
 Hair is the model's own hair cards, skinned with the head, not a sphere parked on the neck.
-Andrew's cards were pulled in toward the scalp. Their world Z after that edit is 1.588 m to 1.790 m, so the crop covers the crown and leaves the forehead.
+Andrew's cards stay a short crop on the scalp (world Z 1.588–1.794 m). A few millimetres of layering and a small sweep to one side were added on that same crop. It is not a new haircut and not a solid cap.
 Mandy's free card ends were extended. Their world Z is 1.126 m to 1.739 m: the top stays on the scalp and the length reaches the upper chest.
 The color is pale pink on Mandy and dark brown on Andrew. It is card hair, not strands. The hairline is the card edge.
 
