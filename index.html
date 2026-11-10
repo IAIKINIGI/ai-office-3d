@@ -1155,31 +1155,40 @@ function addMonitor(parent, x, y, z, key) {
   m.position.set(x, y, z); m.castShadow = m.receiveShadow = false; parent.add(m);
   box(1.1, 0.72, 0.04, frameMat, x, y, z - 0.03, parent);
 }
-function workstation(parent, x, z, color, name, floor, monCol = 0x00f0ff, seatTop = 0.60) {
-  // desk top + legs
-  box(2.6, 0.1, 1.35, deskMat, x, 1.02, z, parent);
-  for (const dx of [-1.15, 1.15]) box(0.12, 1.0, 1.1, deskMat, x + dx, 0.5, z, parent);
+function workstation(parent, x, z, color, name, floor, monCol = 0x00f0ff, seatTop = 0.60, fit) {
+  // fit is only set for Mandy. It slides her desk toward the chair, raises the
+  // desktop so the seat is not a stool at a counter, and parks her hips on the cushion.
+  fit = fit || {};
+  const dz = fit.deskShift || 0;
+  const deskY = fit.deskY != null ? fit.deskY : 1.02;
+  const dy = deskY - 1.02;
+  box(2.6, 0.1, 1.35, deskMat, x, deskY, z + dz, parent);
+  for (const dx of [-1.15, 1.15]) box(0.12, 1.0, 1.1, deskMat, x + dx, 0.5 + dy * 0.45, z + dz, parent);
   const key = screenKeyFor(floor);
-  addMonitor(parent, x - 0.55, 1.55, z - 0.42, key);
-  addMonitor(parent, x + 0.55, 1.55, z - 0.42, key);
-  box(0.08, 0.35, 0.08, frameMat, x - 0.55, 1.15, z - 0.4, parent);
-  box(0.08, 0.35, 0.08, frameMat, x + 0.55, 1.15, z - 0.4, parent);
+  addMonitor(parent, x - 0.55, 1.55 + dy, z + dz - 0.42, key);
+  addMonitor(parent, x + 0.55, 1.55 + dy, z + dz - 0.42, key);
+  box(0.08, 0.35, 0.08, frameMat, x - 0.55, 1.15 + dy, z + dz - 0.4, parent);
+  box(0.08, 0.35, 0.08, frameMat, x + 0.55, 1.15 + dy, z + dz - 0.4, parent);
   const gTex = monCol === 0xff2a6d ? GLOW.mag : (monCol === 0xfcee0a ? GLOW.yel : GLOW.cyan);
-  glow(gTex, x - 0.55, 1.55, z - 0.62, 1.5, 1.0, 0.22, parent);
-  glow(gTex, x + 0.55, 1.55, z - 0.62, 1.5, 1.0, 0.22, parent);
-  // keyboard + mouse pad
-  box(0.9, 0.04, 0.35, M(0x1a1e28), x, 1.1, z + 0.15, parent);
-  // office chair. Default seat top is 0.60. Mandy's desk is higher so her
-  // seated pelvis, with feet on the slab, rests on the cushion.
+  glow(gTex, x - 0.55, 1.55 + dy, z + dz - 0.62, 1.5, 1.0, 0.22, parent);
+  glow(gTex, x + 0.55, 1.55 + dy, z + dz - 0.62, 1.5, 1.0, 0.22, parent);
+  box(0.9, 0.04, 0.35, M(0x1a1e28), x, 1.1 + dy, z + dz + 0.15, parent);
   const seatLift = seatTop - 0.60;
-  box(0.7, 0.1, 0.7, chairMat, x, 0.55 + seatLift, z + 1.15, parent);
-  box(0.65, 0.7, 0.1, chairMat, x, 0.95 + seatLift, z + 1.45, parent);
-  if (seatLift === 0) box(0.12, 0.5, 0.12, frameMat, x, 0.28, z + 1.15, parent);
+  const seatZ = fit.seatZ != null ? fit.seatZ : 1.15;
+  const backZ = fit.backZ != null ? fit.backZ : 1.45;
+  const seatD = fit.seatD || 0.7;
+  const seatW = fit.seatW || 0.7;
+  const backH = fit.backH || 0.7;
+  const backD = fit.backD || 0.1;
+  box(seatW, 0.1, seatD, chairMat, x, 0.55 + seatLift, z + seatZ, parent);
+  box(fit.backW || (seatW - 0.05), backH, backD, chairMat, x, (fit.backY != null ? fit.backY : 0.95) + seatLift, z + backZ, parent);
+  if (seatLift === 0 && !fit.seatZ) box(0.12, 0.5, 0.12, frameMat, x, 0.28, z + seatZ, parent);
   else {
-    const postTop = seatTop - 0.1, postBottom = 0.38, postH = postTop - postBottom;
-    box(0.12, postH, 0.12, frameMat, x, postBottom + postH / 2, z + 1.15, parent);
+    const postTop = seatTop - 0.1, postBottom = 0.38, postH = Math.max(0.12, postTop - postBottom);
+    box(0.12, postH, 0.12, frameMat, x, postBottom + postH / 2, z + seatZ, parent);
   }
-  if (name) person(parent, x, z + 1.05, color, name, floor, Math.PI);
+  const personZ = fit.personZ != null ? fit.personZ : 1.05;
+  if (name) person(parent, x, z + personZ, color, name, floor, Math.PI);
 }
 
 FLOORS.forEach((f, idx) => {
@@ -1241,7 +1250,9 @@ FLOORS.forEach((f, idx) => {
     box(4.2, 0.15, 2, M(gold, { metalness: 0.55, roughness: 0.35 }), -4, 1.05, -1, g);
     box(4, 0.9, 1.8, M(0x8a6a28, { metalness: 0.4 }), -4, 0.5, -1, g);
     { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), screenMat('ceo')); scr.position.set(-4, 1.55, -1.55); scr.castShadow = scr.receiveShadow = false; g.add(scr); }
-    workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a, 0.78);
+    workstation(g, 4, -1.2, 0xff2a6d, (FLOORS.find(x => x.id === 'exec')?.people[1] || 'Mandy').replace(/（.*）/, '') + ' 秘書', f, 0xfcee0a, 0.78, {
+      deskShift: 0.20, deskY: 1.09, personZ: 1.32, seatZ: 1.27, backZ: 1.62, seatD: 0.78, seatW: 0.62, backW: 0.56, backH: 0.62, backD: 0.07, backY: 1.05,
+    });
     strip.material.color.set(0xfcee0a); strip.material.emissive.set(0xfcee0a); strip.material.emissiveIntensity = 3;
   } else if ((f.people || []).length >= 3) {
     const ppl = f.people;

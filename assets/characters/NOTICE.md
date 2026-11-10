@@ -44,9 +44,9 @@ A small pass on top of that head: the iris is slightly larger, the lid opening i
 
 ## Hair
 
-Hair is the model's own hair cards, skinned with the head, not a sphere parked on the neck.
+Mandy's old card strips were removed. The hair on her now is original sheet geometry, not a downloaded asset: a center part, crown volume, and the length down the back, with two thin strands beside the jaw. It is skinned to the head and the spine. It is still one smooth shape, not strands.
 Andrew's cards stay a short crop on the scalp (world Z 1.588–1.794 m). A few millimetres of layering and a small sweep to one side were added on that same crop. It is not a new haircut and not a solid cap.
-Mandy's cards are near-black with a faint rose in the highlights. Their world Z runs from about 1.03 m to 1.73 m: the top stays on the scalp and the length reaches the waist. It is card hair, not strands.
+The new sheets are near-black, roughness 0.30, with the alpha faded at the edges. From the back the length passes the shoulders. From the front the sides still come down to the shoulders, and the crown is still a smooth cap.
 Andrew's color stays dark brown. The hairline is the card edge.
 
 ## Legs
@@ -57,6 +57,8 @@ Walk root travel on `Bip01` was about 1.5 m and is zeroed again after export.
 The office slab is 0.38 m thick and its top is the floor she stands on. The skinned model used to sit at the slab's bottom, so the legs disappeared into the floor. Mandy's model is lifted each frame so the lowest sole meets that top. Inside the lift the target is the cabin plate, 0.08 m, not the office slab. Andrew stays at y = 0 on his own desk. On the raised lounge seats his model is lifted to 0.43 m so his pelvis meets the cushion.
 
 Her seated pelvis underside is 0.415 m up in the sit pose, and the feet are 0.013 m up, so with the feet on the slab the cushion has to be at 0.78 m. That is her desk chair, every rest-corner sofa, and the two gaming stools. Other desk chairs are still at 0.60 m. The procedural staff drop to rig y = -0.10 on the lounge seats and stay at -0.38 at a desk.
+
+At her own desk the chair sits under that pelvis, the backrest is a few centimetres behind her back, and the desktop (top 1.14 m, 0.76 m above the floor) starts just in front of her knees. The seat is 0.40 m above the floor.
 
 In Blender, before that lift, the lowest body vertex is:
 
