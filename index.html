@@ -765,16 +765,16 @@ function handGeo(side) {
   c[side] = mergeGeos(parts);
   return c[side];
 }
-function shoeGeo() {
-  if (shoeGeo.g) return shoeGeo.g;
-  shoeGeo.g = mergeGeos([
-    placed(boxG(0.072, 0.014, 0.168), 0, 0.01, 0.02),
-    placed(boxG(0.06, 0.03, 0.09), 0, 0.028, -0.005),
-    placed(boxG(0.056, 0.022, 0.055), 0, 0.022, 0.07),
-    placed(boxG(0.052, 0.034, 0.04), 0, 0.03, -0.05),
-    placed(sphG(0.02, 6, 5), 0, 0.02, 0.09, 0, 0, 0, 1.3, 0.6, 1.1),
+function bootGeo() {
+  if (bootGeo.g) return bootGeo.g;
+  bootGeo.g = mergeGeos([
+    placed(boxG(0.08, 0.02, 0.18), 0, 0.012, 0.02),
+    placed(boxG(0.068, 0.045, 0.1), 0, 0.04, 0.0),
+    placed(boxG(0.064, 0.08, 0.07), 0, 0.075, -0.015),
+    placed(boxG(0.072, 0.012, 0.018), 0, 0.06, 0.03),
+    placed(boxG(0.055, 0.016, 0.04), 0, 0.032, 0.085),
   ]);
-  return shoeGeo.g;
+  return bootGeo.g;
 }
 function skinGeo() {
   if (skinGeo.g) return skinGeo.g;
@@ -816,35 +816,86 @@ function eyeGeo() {
   eyeGeo.g = g;
   return g;
 }
-function lapelGeo() {
-  if (lapelGeo.g) return lapelGeo.g;
-  const lip = boxG(0.032, 0.17, 0.01);
-  lapelGeo.g = mergeGeos([
-    placed(lip, 0.055, 0.42, 0.198, -0.28, 0, -0.55),
-    placed(lip, -0.055, 0.42, 0.198, -0.28, 0, 0.55),
-  ]);
-  return lapelGeo.g;
-}
-function jacketGeo(kind) {
-  const c = jacketGeo.c || (jacketGeo.c = {});
+function techBody(kind) {
+  const c = techBody.c || (techBody.c = {});
   if (c[kind]) return c[kind];
   const V = THREE.Vector2;
-  const profiles = {
-    coat: [new V(0.118, -0.05), new V(0.156, 0.02), new V(0.124, 0.16), new V(0.15, 0.32), new V(0.178, 0.44), new V(0.15, 0.54), new V(0.07, 0.6), new V(0.046, 0.7)],
-    blazer: [new V(0.1, 0.05), new V(0.146, 0.09), new V(0.11, 0.18), new V(0.146, 0.32), new V(0.164, 0.44), new V(0.14, 0.54), new V(0.066, 0.6), new V(0.046, 0.68)],
-    utility: [new V(0.132, 0.02), new V(0.158, 0.1), new V(0.15, 0.22), new V(0.162, 0.36), new V(0.172, 0.46), new V(0.14, 0.54), new V(0.07, 0.6), new V(0.048, 0.68)],
-  };
-  const parts = [placed(new THREE.LatheGeometry(profiles[kind], 16), 0, 0, 0)];
-  const lapel = boxG(0.026, kind === 'blazer' ? 0.15 : 0.18, 0.012);
-  parts.push(placed(lapel, 0.05, 0.4, 0.185, -0.25, 0, -0.5));
-  parts.push(placed(lapel, -0.05, 0.4, 0.185, -0.25, 0, 0.5));
-  parts.push(placed(boxG(0.008, 0.3, 0.01), 0, 0.28, 0.162));
-  parts.push(placed(boxG(0.11, 0.008, 0.012), 0.1, 0.5, 0.06, 0, 0, 0.35));
-  parts.push(placed(boxG(0.11, 0.008, 0.012), -0.1, 0.5, 0.06, 0, 0, -0.35));
-  if (kind === 'utility') parts.push(placed(boxG(0.07, 0.05, 0.014), 0.07, 0.36, 0.175));
-  if (kind === 'coat') parts.push(placed(boxG(0.24, 0.012, 0.012), 0, -0.02, 0.1));
+  const hem = { exec: -0.02, crop: 0.12, field: 0.02, vest: 0.1, wrap: 0.04, long: -0.08, brick: 0.0, asym: 0.0, structured: 0.02, hood: -0.02 }[kind] ?? 0;
+  const chest = kind === 'brick' ? 0.178 : kind === 'crop' ? 0.148 : 0.164;
+  const body = new THREE.LatheGeometry([
+    new V(0.125, hem), new V(0.152, hem + 0.08), new V(0.128, 0.2),
+    new V(chest, 0.36), new V(0.178, 0.46), new V(0.12, 0.56), new V(0.08, 0.62),
+  ], 14);
+  const parts = [placed(body, 0, 0, 0)];
+  parts.push(placed(new THREE.CylinderGeometry(0.05, 0.062, 0.08, 12), 0, 0.64, 0));
+  parts.push(placed(new THREE.CylinderGeometry(0.078, 0.086, 0.03, 12), 0, 0.6, 0));
+  parts.push(placed(boxG(0.15, 0.022, 0.07), 0.12, 0.48, 0.05, 0.25, 0, 0.25));
+  parts.push(placed(boxG(0.15, 0.022, 0.07), -0.12, 0.48, 0.05, 0.25, 0, -0.25));
+  parts.push(placed(boxG(0.22, 0.016, 0.014), 0, 0.33, 0.172, 0, 0, kind === 'vest' ? 0.75 : 0.08));
+  if (kind === 'crop' || kind === 'vest') parts.push(placed(boxG(0.18, 0.014, 0.012), 0.01, 0.42, 0.168, 0.45, 0, 0.95));
+  if (kind === 'field' || kind === 'brick' || kind === 'long') {
+    parts.push(placed(boxG(0.062, 0.05, 0.018), 0.09, 0.22, 0.155));
+    parts.push(placed(boxG(0.062, 0.05, 0.018), -0.09, 0.22, 0.155));
+  }
+  if (kind === 'exec' || kind === 'asym' || kind === 'wrap') parts.push(placed(boxG(0.07, 0.14, 0.02), 0.11, hem - 0.04, 0.05));
+  if (kind === 'long') parts.push(placed(boxG(0.2, 0.1, 0.018), 0, hem - 0.02, 0.05));
+  if (kind === 'hood') {
+    parts.push(placed(boxG(0.09, 0.045, 0.016), 0.07, 0.58, -0.01, 0, 0.2, 0.5));
+    parts.push(placed(boxG(0.09, 0.045, 0.016), -0.07, 0.58, -0.01, 0, -0.2, -0.5));
+  }
+  parts.push(placed(boxG(0.055, 0.042, 0.02), 0.11, 0.14, 0.13));
+  parts.push(placed(boxG(0.04, 0.036, 0.018), -0.1, 0.13, 0.11));
   c[kind] = mergeGeos(parts);
   return c[kind];
+}
+function techArmor(kind) {
+  const c = techArmor.c || (techArmor.c = {});
+  if (c[kind]) return c[kind];
+  const parts = [];
+  if (kind === 'exec') {
+    parts.push(placed(boxG(0.11, 0.09, 0.014), 0, 0.4, 0.195));
+    parts.push(placed(boxG(0.07, 0.012, 0.012), -0.03, 0.35, 0.205, 0, 0, 0.55));
+    parts.push(placed(boxG(0.07, 0.012, 0.012), 0.03, 0.35, 0.205, 0, 0, -0.55));
+  } else if (kind === 'crop') {
+    parts.push(placed(boxG(0.09, 0.07, 0.014), 0.11, 0.46, 0.13, 0.35, 0.2, 0.35));
+    parts.push(placed(boxG(0.14, 0.016, 0.012), 0, 0.36, 0.2, 0, 0, -0.45));
+  } else if (kind === 'brick') {
+    parts.push(placed(boxG(0.1, 0.08, 0.018), 0.02, 0.38, 0.19));
+  } else if (kind === 'vest') {
+    parts.push(placed(boxG(0.16, 0.012, 0.012), 0, 0.4, 0.2, 0, 0, 0.85));
+    parts.push(placed(boxG(0.16, 0.012, 0.012), 0, 0.4, 0.2, 0, 0, -0.85));
+  } else if (kind === 'long') {
+    parts.push(placed(boxG(0.08, 0.16, 0.012), 0, 0.36, 0.195));
+  } else {
+    parts.push(placed(boxG(0.08, 0.05, 0.014), kind === 'asym' ? 0.07 : 0, 0.38, 0.195));
+  }
+  c[kind] = mergeGeos(parts);
+  return c[kind];
+}
+function circuitGeo() {
+  if (circuitGeo.g) return circuitGeo.g;
+  circuitGeo.g = mergeGeos([
+    placed(boxG(0.07, 0.004, 0.006), 0, 0.4, 0.22),
+    placed(boxG(0.004, 0.045, 0.006), 0.024, 0.378, 0.22),
+    placed(boxG(0.03, 0.004, 0.006), -0.02, 0.36, 0.22),
+  ]);
+  return circuitGeo.g;
+}
+function forearmPlate() {
+  if (forearmPlate.g) return forearmPlate.g;
+  forearmPlate.g = mergeGeos([
+    placed(boxG(0.034, 0.1, 0.012), 0, -0.08, 0.032),
+    placed(boxG(0.022, 0.006, 0.008), 0, -0.05, 0.04),
+  ]);
+  return forearmPlate.g;
+}
+function kneePad() {
+  if (kneePad.g) return kneePad.g;
+  kneePad.g = mergeGeos([
+    placed(boxG(0.062, 0.05, 0.02), 0, -0.02, 0.045),
+    placed(boxG(0.074, 0.012, 0.016), 0, 0.012, 0.03),
+  ]);
+  return kneePad.g;
 }
 // A thin shell on the skull. The old caps were flattened spheres parked on top,
 // which read as a beret and left the forehead bare.
@@ -902,16 +953,16 @@ function hairGeo(kind) {
   return g;
 }
 const LOOKS = {
-  andrew:     { suit: 0x6a5040, shirt: 0xf3efe6, trim: 0xf0d078, hair: 0x2c2016, skin: 0xd0a07a, hairKind: 'part', jacket: 'coat', shoulder: 1.1, head: [1.0, 1.1, 0.96], cyber: 'pin', tie: 0x6e2434, trousers: 0x2a241c },
-  mandy:      { suit: 0x8a2460, shirt: 0x2a1022, trim: 0x9af0ff, hair: 0x3a2428, skin: 0xe0b090, hairKind: 'bob', jacket: 'blazer', shoulder: 0.9, head: [0.92, 1.02, 0.97], cyber: 'ear', trousers: 0x140c12 },
-  hailey:     { suit: 0x1a4a5c, shirt: 0xd5e4ea, trim: 0x3ec8e0, hair: 0x4a3020, skin: 0xc98868, hairKind: 'pony', jacket: 'blazer', shoulder: 0.98, head: [0.96, 1.04, 0.95], cyber: 'ring', trousers: 0x12161c },
-  holly:      { suit: 0x24344e, shirt: 0xd8dde6, trim: 0xb7c6dc, hair: 0x121216, skin: 0xd8b098, hairKind: 'pixie', jacket: 'blazer', shoulder: 0.92, head: [0.9, 1.0, 0.94], cyber: 'ring', trousers: 0x10141a },
-  hazel:      { suit: 0x5a3850, shirt: 0xf0dce4, trim: 0xf0a0c0, hair: 0x6a4030, skin: 0xe0b898, hairKind: 'sweep', jacket: 'coat', shoulder: 0.96, head: [0.98, 1.05, 0.98], cyber: 'ear', trousers: 0x1a1218 },
-  penny:      { suit: 0x16365e, shirt: 0xd5e2f2, trim: 0x4bb3f2, hair: 0x10141c, skin: 0xd0a080, hairKind: 'bun', jacket: 'coat', shoulder: 1.0, head: [0.97, 1.06, 0.95], cyber: 'visor', trousers: 0x101820 },
-  routinizer: { suit: 0x1c4034, shirt: 0xd7e6dc, trim: 0x39ff14, hair: 0x101410, skin: 0xc09070, hairKind: 'undercut', jacket: 'utility', shoulder: 1.08, head: [1.02, 1.04, 0.98], cyber: 'ring', tie: 0x102018, trousers: 0x101614 },
-  crypto:     { suit: 0x143028, shirt: 0xd4e6d4, trim: 0x39ff14, hair: 0x14301c, skin: 0xc8a080, hairKind: 'spike', jacket: 'utility', shoulder: 0.98, head: [0.95, 1.03, 0.96], cyber: 'cheek', trousers: 0x101814 },
-  risk:       { suit: 0x4a321c, shirt: 0xf0e6d4, trim: 0xffb347, hair: 0x1c1610, skin: 0xc49878, hairKind: 'slick', jacket: 'blazer', shoulder: 1.02, head: [1.0, 1.08, 0.94], cyber: 'monocle', trousers: 0x16120e },
-  market:     { suit: 0x163848, shirt: 0xd5e6ee, trim: 0x7fe3ff, hair: 0x1a1e28, skin: 0xd0a888, hairKind: 'side', jacket: 'coat', shoulder: 1.0, head: [0.98, 1.05, 0.97], cyber: 'temple', trousers: 0x10161c },
+  andrew:     { kit: 'exec', cloth: 0x3a3638, metal: 0xd4b15a, trim: 0xf0d078, hair: 0x2c2016, skin: 0xd0a07a, hairKind: 'part', shoulder: 1.12, head: [1.0, 1.1, 0.96], cyber: 'temple', trousers: 0x2a282c },
+  mandy:      { kit: 'crop', cloth: 0x322838, metal: 0x3ec8e0, trim: 0x7fe7ff, hair: 0x3a2428, skin: 0xe0b090, hairKind: 'bob', shoulder: 0.92, head: [0.92, 1.02, 0.97], cyber: 'ear', trousers: 0x241820 },
+  hailey:     { kit: 'field', cloth: 0x24383e, metal: 0x2aa8b8, trim: 0x3ec8e0, hair: 0x4a3020, skin: 0xc98868, hairKind: 'pony', shoulder: 0.98, head: [0.96, 1.04, 0.95], cyber: 'ring', trousers: 0x1a2428 },
+  holly:      { kit: 'vest', cloth: 0x2a3344, metal: 0x9eb4d0, trim: 0xb7c6dc, hair: 0x121216, skin: 0xd8b098, hairKind: 'pixie', shoulder: 0.9, head: [0.9, 1.0, 0.94], cyber: 'temple', trousers: 0x1a2028 },
+  hazel:      { kit: 'wrap', cloth: 0x3a3040, metal: 0xd090a8, trim: 0xf0a0c0, hair: 0x6a4030, skin: 0xe0b898, hairKind: 'sweep', shoulder: 0.96, head: [0.98, 1.05, 0.98], cyber: 'ear', trousers: 0x241820 },
+  penny:      { kit: 'long', cloth: 0x1e3048, metal: 0x4aa4d0, trim: 0x4bb3f2, hair: 0x10141c, skin: 0xd0a080, hairKind: 'bun', shoulder: 1.0, head: [0.97, 1.06, 0.95], cyber: 'visor', trousers: 0x182028 },
+  routinizer: { kit: 'brick', cloth: 0x243830, metal: 0x3a9a48, trim: 0x39ff14, hair: 0x101410, skin: 0xc09070, hairKind: 'undercut', shoulder: 1.08, head: [1.02, 1.04, 0.98], cyber: 'cheek', trousers: 0x1a2820 },
+  crypto:     { kit: 'asym', cloth: 0x1c3028, metal: 0x3ec86a, trim: 0x39ff14, hair: 0x14301c, skin: 0xc8a080, hairKind: 'spike', shoulder: 0.98, head: [0.95, 1.03, 0.96], cyber: 'cheek', trousers: 0x18241c },
+  risk:       { kit: 'structured', cloth: 0x3a3024, metal: 0xd09a48, trim: 0xffb347, hair: 0x1c1610, skin: 0xc49878, hairKind: 'slick', shoulder: 1.02, head: [1.0, 1.08, 0.94], cyber: 'monocle', trousers: 0x241c14 },
+  market:     { kit: 'hood', cloth: 0x243848, metal: 0x6ec8e0, trim: 0x7fe3ff, hair: 0x1a1e28, skin: 0xd0a888, hairKind: 'side', shoulder: 1.0, head: [0.98, 1.05, 0.97], cyber: 'temple', trousers: 0x1a242c },
 };
 function quietMesh(geo, mat) {
   const m = new THREE.Mesh(geo, mat);
@@ -921,52 +972,28 @@ function quietMesh(geo, mat) {
 function makeOfficePerson(id) {
   const look = LOOKS[id] || LOOKS.hailey;
   const rig = new THREE.Group();
-  const suit = M(look.suit, { roughness: 0.48, metalness: 0.14 });
-  const cloth = M(look.trousers, { roughness: 0.6, metalness: 0.06 });
+  const clothM = M(look.cloth, { roughness: 0.5, metalness: 0.28 });
+  const cloth = M(look.trousers, { roughness: 0.55, metalness: 0.18 });
   const skin = M(look.skin, { roughness: 0.52, metalness: 0 });
   const hairM = M(look.hair, { roughness: 0.92, metalness: 0 });
-  const shoeM = M(0x1a140e, { roughness: 0.38, metalness: 0.35 });
-  const shirtM = M(look.shirt, { roughness: 0.5, metalness: 0.04 });
+  const bootM = M(0x2a2c30, { roughness: 0.4, metalness: 0.45 });
   const eyeM = M(0xf4f7fb, { roughness: 0.22, metalness: 0 });
   const pupilM = M(0x140e0c, { roughness: 0.3 });
-  const trimM = E(look.trim, id === 'andrew' ? 1.05 : 0.5);
-  const beltM = M(0x10141c, { roughness: 0.35, metalness: 0.55 });
+  const metalM = M(look.metal, { roughness: 0.3, metalness: 0.74, emissive: look.metal, emissiveIntensity: 0.16 });
+  const trimM = E(look.trim, 0.42);
+  const strapM = M(0x3a4048, { roughness: 0.42, metalness: 0.5 });
 
-  const torso = quietMesh(jacketGeo(look.jacket), suit);
+  const torso = quietMesh(techBody(look.kit), clothM);
   torso.position.y = 0.88;
   torso.scale.x = look.shoulder;
   rig.add(torso);
-  const lapelTint = new THREE.Color(look.suit);
-  lapelTint.offsetHSL(0, -0.04, 0.14);
-  const lapels = quietMesh(lapelGeo(), M(lapelTint.getHex(), { roughness: 0.4, metalness: 0.22 }));
-  torso.add(lapels);
-  const shirt = quietMesh(mergeGeos([
-    placed(boxG(0.04, 0.18, 0.012), 0, 0.36, 0.16),
-    placed(new THREE.TorusGeometry(0.07, 0.01, 6, 14), 0, 0.56, 0, Math.PI / 2, 0, 0),
-  ]), shirtM);
-  torso.add(shirt);
-  if (look.tie) {
-    const tie = quietMesh(boxG(0.022, 0.16, 0.01), M(look.tie, { roughness: 0.4 }));
-    tie.position.set(0, 0.3, 0.175);
-    torso.add(tie);
-  }
-  const belt = quietMesh(new THREE.TorusGeometry(0.07, 0.008, 6, 14), beltM);
-  belt.rotation.x = Math.PI / 2;
-  belt.scale.set(look.shoulder * 1.55, 1.55, 1.15);
-  belt.position.y = 0.12;
-  torso.add(belt);
-  const ring = quietMesh(new THREE.TorusGeometry(0.09, 0.011, 6, 16), trimM);
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = 0.57;
-  torso.add(ring);
-  if (look.cyber === 'pin') {
-    const pin = quietMesh(sphG(0.012, 6, 5), trimM);
-    pin.position.set(0.1 * look.shoulder, 0.44, 0.17);
-    torso.add(pin);
-  }
+  const armor = quietMesh(techArmor(look.kit), metalM);
+  torso.add(armor);
+  const circuit = quietMesh(circuitGeo(), trimM);
+  torso.add(circuit);
 
   const head = quietMesh(skinGeo(), skin);
-  head.position.y = 1.66;
+  head.position.y = 1.58;
   head.scale.set(look.head[0], look.head[1], look.head[2]);
   rig.add(head);
   const hair = quietMesh(hairGeo(look.hairKind), hairM);
@@ -1000,12 +1027,14 @@ function makeOfficePerson(id) {
     const pivot = new THREE.Group();
     pivot.position.set(side * (0.19 + (look.shoulder - 1) * 0.05), 1.4, 0);
     rig.add(pivot);
-    const upper = quietMesh(limbGeo('upper'), suit);
+    const upper = quietMesh(limbGeo('upper'), clothM);
     pivot.add(upper);
     const fore = new THREE.Group();
     fore.position.y = -0.18;
     pivot.add(fore);
-    fore.add(quietMesh(limbGeo('fore'), suit));
+    fore.add(quietMesh(limbGeo('fore'), clothM));
+    const plate = quietMesh(forearmPlate(), metalM);
+    fore.add(plate);
     const hand = quietMesh(handGeo(side), skin);
     hand.position.y = -0.16;
     fore.add(hand);
@@ -1016,11 +1045,16 @@ function makeOfficePerson(id) {
     hip.position.set(side * 0.085, 0.9, 0);
     rig.add(hip);
     hip.add(quietMesh(limbGeo('thigh'), cloth));
+    const band = quietMesh(new THREE.TorusGeometry(0.055, 0.006, 5, 10), strapM);
+    band.rotation.x = Math.PI / 2;
+    band.position.y = -0.16;
+    hip.add(band);
     const shin = new THREE.Group();
     shin.position.y = -0.4;
     hip.add(shin);
     shin.add(quietMesh(limbGeo('shin'), cloth));
-    const shoe = quietMesh(shoeGeo(), shoeM);
+    shin.add(quietMesh(kneePad(), strapM));
+    const shoe = quietMesh(bootGeo(), bootM);
     shoe.position.set(0, -0.36, 0.02);
     shin.add(shoe);
     return { hip, shin };
