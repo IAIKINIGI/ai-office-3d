@@ -1895,14 +1895,21 @@ for (const [x, z] of [[-FW / 2 - 0.25, FD / 2 + 0.25], [FW / 2 + 0.25, FD / 2 + 
 
 const ROOF = TOPLV * FH;
 box(FW + 2.2, 0.7, FD + 2.2, M(0xc8a84a, { metalness: 0.65, roughness: 0.3 }), 0, ROOF + 0.35, 0);
-box(8, 0.08, 8, M(0x2a2a32), 0, ROOF + 0.72, 3.5);
+// Landing deck on the open front roof. Long axis is X, matching the car's nose.
+const PAD_Z = 3.8;
+box(10.5, 0.16, 6.2, M(0x1a1c24, { metalness: 0.45, roughness: 0.55 }), 0, ROOF + 0.78, PAD_Z);
+box(10.2, 0.04, 0.08, E(0xfcee0a, 1.6), 0, ROOF + 0.88, PAD_Z + 2.95);
+box(10.2, 0.04, 0.08, E(0xfcee0a, 1.6), 0, ROOF + 0.88, PAD_Z - 2.95);
+box(0.08, 0.04, 5.8, E(0x00f0ff, 1.4), 5.15, ROOF + 0.88, PAD_Z);
+box(0.08, 0.04, 5.8, E(0x00f0ff, 1.4), -5.15, ROOF + 0.88, PAD_Z);
 { const hc = document.createElement('canvas'); hc.width = hc.height = 256; const hx = hc.getContext('2d');
   hx.strokeStyle = '#FCEE0A'; hx.lineWidth = 10; hx.beginPath(); hx.arc(128, 128, 100, 0, Math.PI * 2); hx.stroke();
   hx.font = '800 120px sans-serif'; hx.fillStyle = '#FCEE0A'; hx.textAlign = 'center'; hx.textBaseline = 'middle'; hx.fillText('H', 128, 138);
   const ht = new THREE.CanvasTexture(hc); ht.colorSpace = THREE.SRGBColorSpace;
-  const hm = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 7.5), new THREE.MeshBasicMaterial({ map: ht, transparent: true, toneMapped: false }));
-  hm.rotation.x = -Math.PI / 2; hm.position.set(0, ROOF + 0.78, 3.5); scene.add(hm); }
-box(FW - 2, 3.2, FD - 3, M(0x8a6a28, { metalness: 0.5 }), 0, ROOF + 2.4, -1);
+  const hm = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 4.6), new THREE.MeshBasicMaterial({ map: ht, transparent: true, toneMapped: false }));
+  hm.rotation.x = -Math.PI / 2; hm.position.set(0, ROOF + 0.88, PAD_Z); scene.add(hm); }
+// Penthouse sits on the back half so the street side of the roof stays a landing deck.
+box(FW - 4, 3.2, 7.2, M(0x8a6a28, { metalness: 0.5 }), 0, ROOF + 2.4, -4.4);
 
 // roof sign
 { const c = document.createElement('canvas'); c.width = 1024; c.height = 256; const x = c.getContext('2d');
@@ -2037,36 +2044,56 @@ function car(color, lane, speed, x, hover = false) {
 // fewer procedural ground cars (dark); Kenney GLBs carry most traffic
 car(0x12151c, 42, 4, -28); car(0x0e1016, 44, -4, 26);
 
-// Low futuristic racer. Origin sits on the road; nose is +X.
+// Coupe shaped after the GR Supra: long hood, cab set back, wide rear hips,
+// double-bubble roof, short deck. Nose is +X. Wheels bottom out at local y = 0.
+// Not a Toyota product and it carries no badge.
 function raceCar(accent = 0x00f0ff) {
   const g = new THREE.Group();
-  const shell = M(0x10141c, { metalness: 0.88, roughness: 0.22 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: 0x071018, metalness: 0.2, roughness: 0.05, transparent: true, opacity: 0.72 });
-  const nose = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.22, 0.72), shell);
-  nose.position.set(1.85, 0.32, 0); nose.scale.set(1, 0.7, 1); g.add(nose);
-  const body = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.34, 1.72), shell);
-  body.position.set(0.15, 0.38, 0); g.add(body);
-  const sideL = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.16, 0.28), shell);
-  sideL.position.set(0.05, 0.28, 0.98); g.add(sideL);
-  const sideR = sideL.clone(); sideR.position.z = -0.98; g.add(sideR);
-  const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.32, 0.78), glass);
-  canopy.position.set(0.15, 0.68, 0); g.add(canopy);
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.06, 2.15), shell);
-  wing.position.set(-1.55, 0.92, 0); g.add(wing);
-  box(0.08, 0.48, 0.08, shell, -1.55, 0.68, 0.7, g);
-  box(0.08, 0.48, 0.08, shell, -1.55, 0.68, -0.7, g);
-  box(0.12, 0.1, 1.55, E(accent, 3.2), 2.35, 0.36, 0, g);
-  box(2.8, 0.04, 0.06, E(accent, 2.2), 0.1, 0.16, 0.9, g);
-  box(2.8, 0.04, 0.06, E(accent, 2.2), 0.1, 0.16, -0.9, g);
-  glow(GLOW.white, 2.45, 0.36, 0.42, 1.6, 0.7, 0.7, g);
-  glow(GLOW.white, 2.45, 0.36, -0.42, 1.6, 0.7, 0.7, g);
-  glow(GLOW.red, -1.7, 0.4, 0.55, 1.1, 0.55, 0.6, g);
-  glow(GLOW.red, -1.7, 0.4, -0.55, 1.1, 0.55, 0.6, g);
-  for (const dx of [-1.15, 1.25]) for (const dz of [-0.82, 0.82]) {
-    const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.22, 14), M(0x0a0c10, { metalness: 0.7 }));
-    wh.rotation.z = Math.PI / 2; wh.position.set(dx, 0.34, dz); g.add(wh);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.03, 6, 12), E(accent, 1.4));
-    rim.rotation.y = Math.PI / 2; rim.position.set(dx, 0.34, dz + Math.sign(dz) * 0.1); g.add(rim);
+  const paint = M(0x8c1822, { metalness: 0.82, roughness: 0.28 });
+  const black = M(0x0c0e12, { metalness: 0.6, roughness: 0.45 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0x0a1218, metalness: 0.15, roughness: 0.04, transparent: true, opacity: 0.78 });
+  const add = (w, h, d, mat, x, y, z, rz = 0) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    m.rotation.z = rz;
+    m.castShadow = true;
+    g.add(m);
+    return m;
+  };
+  // Nose and long hood. The hood tips down toward +X.
+  add(0.7, 0.22, 1.42, paint, 1.95, 0.36, 0);
+  add(1.35, 0.1, 1.38, paint, 1.2, 0.52, 0, -0.07);
+  add(1.15, 0.28, 1.62, paint, 1.15, 0.4, 0);
+  add(0.55, 0.16, 1.15, black, 2.15, 0.28, 0);
+  // Cabin set behind the front axle, roof with two bubbles.
+  add(1.35, 0.34, 1.28, glass, 0.05, 0.78, 0, -0.1);
+  add(0.85, 0.07, 1.12, black, -0.28, 0.98, 0);
+  for (const sz of [-0.26, 0.26]) add(0.55, 0.05, 0.38, black, -0.22, 1.02, sz);
+  // Wide hips over the rear axle, then a short deck and a small lip.
+  add(1.7, 0.32, 1.86, paint, -0.45, 0.46, 0);
+  add(2.4, 0.34, 1.58, paint, 0.05, 0.4, 0);
+  add(0.7, 0.14, 1.5, paint, -1.35, 0.58, 0);
+  add(0.16, 0.07, 1.48, black, -1.62, 0.68, 0, 0.45);
+  add(0.28, 0.36, 1.72, paint, -1.82, 0.42, 0);
+  add(1.5, 0.1, 0.16, black, 0.1, 0.28, 0.86);
+  add(1.5, 0.1, 0.16, black, 0.1, 0.28, -0.86);
+  // Slim lamps. The rear bar runs the width of the tail.
+  add(0.06, 0.07, 0.46, E(0xfff4e0, 2.8), 2.28, 0.4, 0.52);
+  add(0.06, 0.07, 0.46, E(0xfff4e0, 2.8), 2.28, 0.4, -0.52);
+  add(0.05, 0.07, 1.42, E(0xff2a3a, 2.4), -1.96, 0.48, 0);
+  box(2.6, 0.035, 0.05, E(accent, 1.8), 0.05, 0.18, 0.9, g);
+  box(2.6, 0.035, 0.05, E(accent, 1.8), 0.05, 0.18, -0.9, g);
+  const axle = [[1.28, 0.72], [-1.18, 0.78]];
+  for (const [dx, track] of axle) for (const sz of [-1, 1]) {
+    const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.24, 16), M(0x111418, { metalness: 0.55, roughness: 0.4 }));
+    wh.rotation.z = Math.PI / 2;
+    wh.position.set(dx, 0.32, sz * track);
+    wh.castShadow = true;
+    g.add(wh);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.028, 6, 14), M(0xc8ccd4, { metalness: 0.9, roughness: 0.25 }));
+    rim.rotation.y = Math.PI / 2;
+    rim.position.set(dx, 0.32, sz * (track + 0.1));
+    g.add(rim);
   }
   return g;
 }
@@ -2074,7 +2101,9 @@ function raceCar(accent = 0x00f0ff) {
   const g = raceCar(0xfcee0a);
   g.position.set(-8, 0, 43);
   scene.add(g);
-  cars.push({ g, speed: 13, hover: false, hero: true });
+  const rec = { g, speed: 13, hover: false, hero: true };
+  cars.push(rec);
+  window.__supra = rec;
 }
 // Flying car. Circuits, sets down on the roof pad, waits, then lifts off.
 const roofFlyer = raceCar(0x00f0ff);
@@ -2085,7 +2114,7 @@ for (const dx of [-1.05, 1.15]) for (const dz of [-0.55, 0.55]) {
 }
 scene.add(roofFlyer);
 window.__roofFlyer = roofFlyer;
-const ROOF_PAD = new THREE.Vector3(0, ROOF + 0.78, 3.5);
+const ROOF_PAD = new THREE.Vector3(0, ROOF + 0.86, PAD_Z);
 
 
 // ---- people variants: ?people=a (rigged civilian GLB) | ?people=b (procedural+) ----
