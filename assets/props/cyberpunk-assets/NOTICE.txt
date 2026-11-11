@@ -1,0 +1,22 @@
+Cyberpunk Assets
+================
+
+This work is based on "Cyberpunk Assets"
+https://sketchfab.com/3d-models/cyberpunk-assets-6f93fcda4eec47aab52eb90de81c22fa
+by panda.vc (https://sketchfab.com/panda.vc)
+License: Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+https://creativecommons.org/licenses/by-sa/4.0/
+
+This file is a web-ready derivative: the six props were kept as
+separate meshes, textures were compressed, and the pack was recentered
+as a group (relative layout and mixed native scales were left as-is).
+Modified versions must stay under CC BY-SA 4.0. Credit panda.vc when
+you use the original or this derivative.
+
+Props in the pack:
+  Object_2  holographic HUD / map
+  Object_3  Shin Ramyun cup and chopsticks
+  Object_4  holographic projector / green light volume
+  Object_5  sci-fi control console / arcade cabinet
+  Object_6  glowing C/H-shaped floor decal
+  Object_7  two-tier locker with neon-blue edge

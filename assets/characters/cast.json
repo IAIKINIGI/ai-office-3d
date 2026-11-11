@@ -7,7 +7,8 @@
     "bookings": ["mandy", "penny"]
   },
   "femaleSilhouette": "Slim adult frame, narrow waist, fuller clothed chest. Head shape narrowed at the jaw and nose. Not a real person's likeness. No exposed skin beyond the face, neck, and hands.",
-  "proofNow": ["andrew", "mandy", "penny"],
+  "proofNow": ["andrew", "mandy", "penny", "hailey"],
+  "hailey": "Hailey v3.6. Japan young woman by YØD, CC-BY-4.0, decimated and re-rigged, with a procedural cyberpunk outfit. Idle, Walk, and Sit from Quaternius woman_casual, CC0.",
   "penny": "Wuthering Waves Lucy (downloadable) by Spessartite, Sketchfab Standard. Lit PBR. A-pose rest. Clips retargeted in the page. Not re-exported.",
   "wardrobe": "Andrew is Rocketbox Male_Adult_02 in a darkened sweater and trousers, short hair with a small side sweep. Mandy is Rocketbox Female_Adult_03 in a black fitted top and slim pants. The clothed chest is only slightly fuller than the source mesh (about 2.6 cm), and the waist is 8% narrower, not pinched. Not a finished cyberpunk wardrobe."
 }

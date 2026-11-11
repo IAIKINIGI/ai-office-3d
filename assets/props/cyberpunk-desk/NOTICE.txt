@@ -1,0 +1,14 @@
+Cyberpunk Desk
+==============
+
+This work is based on "Cyberpunk Desk"
+https://sketchfab.com/3d-models/cyberpunk-desk-8bc4ca48b2e244ff8b5ba714a2ec1963
+by Cisco (https://sketchfab.com/Ciscow)
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+This file is a web-ready derivative: textures were compressed, and the
+desk was recentered and scaled so the desktop sits about 1.10 m above
+the floor (standing-desk height). A floating wall socket and cable are
+part of the original model. Credit Cisco when you use the original or
+this derivative.
