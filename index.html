@@ -6495,7 +6495,7 @@ function tick() {
 const proofHumans = [];
 // Fictional adults. Fully clothed. Not likenesses of any real person.
 // Halfords (Hailey, Holly, Hazel) and bookings (Mandy, Penny) are women.
-// Andrew and the other staff are men. Andrew, Mandy, and Penny are skinned.
+// Andrew and the other staff are men. Andrew, Mandy, Penny, and Hailey are skinned.
 // Penny is the Lucy rig. Her clips are retargeted from the Quaternius CC0 set.
 const CAST_DESIGN = {
   female: ['mandy', 'hailey', 'holly', 'hazel', 'penny'],
@@ -6632,8 +6632,8 @@ function syncProof(dt) {
     const pose = entry.agent.pose;
     const inCabin = rig.parent === lift.cabin;
     const outside = rig.parent === scene;
-    if (entry.id === 'mandy' && pose === 'sit' && !inCabin) flattenMandyFeet(entry.model);
-    if (entry.id === 'mandy' || entry.id === 'penny') {
+    if ((entry.id === 'mandy' || entry.id === 'hailey') && pose === 'sit' && !inCabin) flattenMandyFeet(entry.model);
+    if (entry.id === 'mandy' || entry.id === 'hailey' || entry.id === 'penny') {
       let sole = entry.id === 'penny' ? pennySoleY(entry.model) : mandySoleY(entry.model);
       // A bad skin sample (seen once inside the lift) would throw her a metre up.
       const soleBad = entry.id === 'penny'
@@ -6649,16 +6649,22 @@ function syncProof(dt) {
         y = entry.footY;
       }
       if (entry.id === 'mandy') window.__mandyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin };
-      else window.__pennyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin, clip: entry.current };
+      else if (entry.id === 'penny') window.__pennyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin, clip: entry.current };
+      else if (entry.id === 'hailey') window.__haileyFoot = { y: +y.toFixed(4), sole: Number.isFinite(sole) ? +sole.toFixed(4) : null, cabin: inCabin, clip: entry.current };
     } else if (entry.id === 'andrew' && (pose === 'sit' || pose === 'play') && !inCabin) {
       // Lounge seats were raised to Mandy's seated pelvis. His own desk stays at y = 0.
       y = ANDREW_LOUNGE_Y;
     }
     entry.model.position.set(rig.position.x, y, rig.position.z);
+    if (entry.id === 'hailey') {
+      entry.model.getWorldPosition(_soleOrigin);
+      window.__haileyWorld = [_soleOrigin.x, _soleOrigin.y, _soleOrigin.z, entry.current || ''];
+    }
   });
 }
 attachProof('andrew', 'assets/characters/andrew.glb');
 attachProof('mandy', 'assets/characters/mandy.glb');
+attachProof('hailey', 'assets/characters/hailey.glb');
 
 // Penny: Lucy rig, used as-is (do not re-export; that breaks the skin).
 // The GLB root already stands her upright. syncProof writes yaw onto the

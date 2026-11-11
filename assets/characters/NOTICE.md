@@ -95,8 +95,20 @@ Penny is "Wuthering Waves Lucy (downloadable)" by Spessartite, https://sketchfab
 
 The file in `penny.glb` is the lit PBR mesh, about 1.65 m, with the gold cables and whips already removed. It was not re-exported through Blender, because applying transforms there breaks the skin. The GLB root already stands her upright. Walk, idle, and sit are retargeted from Quaternius's CC0 Universal Animation Library (see `quaternius/LICENSE.txt`): `Walk_Loop`, `Idle_Loop`, and `Sitting_Idle_Loop`, with `A_TPose` as the source rest. For each bone in `bone-map-mixamo.json` the page takes the rotation that swings the source bind direction onto the posed direction and applies that swing to her own bind direction. The upper arms are then aimed to hang about 10 degrees off vertical, and the jacket roots follow that swing so the sleeves stay on the shoulders. Hair, coat tails, and twist bones are not keyed. Neck and head stay at the bind so the chin stays level. Bone names contain spaces. The GLB loader stores them with underscores, and the map is read through that same sanitizing step. Hair stays a lit material, darkened a little so the warm office key does not wash it out. Her chair cushion is raised so the sit pose, feet on the slab, lands on the seat.
 
+## Hailey
+
+Hailey v3.6 is in `hailey.glb` (the office loads `assets/characters/hailey.glb`). The file is about 5.3 MB, with Idle, Walk, and Sit embedded. The office plays those clips directly, the same names as Mandy.
+
+Base character mesh and textures: This work is based on "Japan young woman" (https://sketchfab.com/3d-models/japan-young-woman-1c7f142755b24de99ed75d530549d19a) by YØD (https://sketchfab.com/YOD3DD), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). Changes: the model was decimated and re-rigged to a 22-bone mixamorig skeleton, its bust was reshaped, its legs were completed below mid-thigh, the body and rig were symmetrised about the centre plane, and a parametric cyberpunk outfit was added (cropped armoured jacket with sheer chest panels over an opaque bandeau, latex leggings with thigh straps, belts, knee-high boots) with procedural textures.
+
+Jacket design is an original procedural recreation inspired by the look of "Cyberpunk hacker jacket" on Sketchfab. Reference screenshots only. No geometry or textures from that model are used.
+
+Animations (Idle, Walk, Sit) were retargeted from Quaternius "woman_casual" animations, CC0 1.0 (https://quaternius.com).
+
+v3.6 narrows the waist into a symmetric hourglass, lowers the pants to a low-rise waistband on the hips, and leaves a clean midriff. The sleeves are decimated less so the elbows are not pinched, and the arm retarget is swing-only so the sleeves do not twist. There are no new third-party assets in v3.6. The credits above still apply.
+
 ## Other people
 
-Hailey, Holly, and Hazel are still the procedural office figures. Their jackets are narrower and carry a clothed chest in the same fabric.
+Holly and Hazel are still the procedural office figures. Their jackets are narrower and carry a clothed chest in the same fabric.
 Street pedestrians whose model name contains "woman" get a waist pinch and a chest push on the cloned body mesh when those files load.
 They are not the Mandy sculpt.
