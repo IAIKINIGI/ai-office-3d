@@ -1309,6 +1309,28 @@ FLOORS.forEach((f, idx) => {
   // ceiling cove light strip readable through glass
   box(FW - 2, 0.06, 0.2, E(cc, h === 'vacant' ? 0.2 : 1.6), 0, FH - 0.25, -FD / 2 + 1.2, g);
   if (f.id === 'exec') { const gl = new THREE.PointLight(0xfcee0a, 14, 16, 1.4); gl.position.set(-4, 2.2, -1); gl.layers.set(LAYER_ROOM); g.add(gl); }
+  // 3F 訂車部 only. The shared floor lights sit on the room layer, and the
+  // street camera never sees that layer, so Hailey stays almost black.
+  // These stay on the camera layer. The range dies inside this storey,
+  // so the other floors, the street, and the highway are left alone.
+  if (f.id === 'hb') {
+    const bookLight = (color, intensity, dist, x, y, z) => {
+      const L = new THREE.PointLight(color, intensity, dist, 2);
+      L.position.set(x, y, z);
+      g.add(L);
+    };
+    // Warm key in front of each desk, and one for the aisle where people turn.
+    bookLight(0xfff1e2, 14, 2.45, -4.5, 1.65, -1.85);
+    bookLight(0xfff1e2, 14, 2.45, 4.5, 1.65, -1.85);
+    bookLight(0xfff1e2, 11, 2.45, 1.35, 2.25, 2.15);
+    // Cooler fill from the other side so a turned face is not a silhouette.
+    bookLight(0xc5d0e8, 6, 2.45, -4.5, 1.4, 1.55);
+    bookLight(0xc5d0e8, 6, 2.45, 4.5, 1.4, 1.55);
+    bookLight(0xd4dcee, 3, 2.35, 0, 2.35, 0.4);
+    // Short cyan and magenta rims. An edge on the hair and jacket, not a wash.
+    bookLight(0x3adfff, 8, 2.05, -6.6, 1.75, 0.35);
+    bookLight(0xff4b88, 7, 2.05, 6.6, 1.75, 0.35);
+  }
 
   const c = colors[idx % colors.length];
   if (f.id === 'hall') {
