@@ -483,6 +483,29 @@ S.FLOORS.forEach((f, idx) => {
   // ceiling cove light strip readable through glass
   S.box(S.FW - 2, 0.06, 0.2, S.E(cc, h === 'vacant' ? 0.2 : 1.6), 0, S.FH - 0.25, -S.FD / 2 + 1.2, g);
   if (f.id === 'exec') { const gl = new S.THREE.PointLight(0xfcee0a, 14, 16, 1.4); gl.position.set(-4, 2.2, -1); gl.layers.set(S.LAYER_ROOM); g.add(gl); }
+  // 3F 訂車部 only (ported from PR #12). The shared floor lights above sit on
+  // the room layer, which the street camera never renders, so Hailey read
+  // almost black. These stay on the camera layer with a short range that dies
+  // inside this storey. PR #12 used 8 point lights; this keeps the same look
+  // with 5 (warm key per desk, one cool fill, cyan and magenta rims) so the
+  // camera-layer light budget from PR #13 only grows from 26 to 31.
+  if (f.id === 'hb') {
+    const bookLight = (color, intensity, dist, x, y, z) => {
+      const L = new S.THREE.PointLight(color, intensity, dist, 2);
+      L.position.set(x, y, z);
+      g.add(L);
+    };
+    // Warm key in front of each desk. The range is widened a little to also
+    // cover the aisle, replacing PR #12's separate aisle key.
+    bookLight(0xfff1e2, 14, 2.8, -4.5, 1.65, -1.85);
+    bookLight(0xfff1e2, 14, 2.8, 4.5, 1.65, -1.85);
+    // One cooler fill from the room side so a turned face is not a silhouette
+    // (replaces PR #12's three fills).
+    bookLight(0xc5d0e8, 7, 6.0, 0, 1.6, 1.4);
+    // Short cyan and magenta rims. An edge on the hair and jacket, not a wash.
+    bookLight(0x3adfff, 8, 2.05, -6.6, 1.75, 0.35);
+    bookLight(0xff4b88, 7, 2.05, 6.6, 1.75, 0.35);
+  }
 
   const c = S.colors[idx % S.colors.length];
   if (f.id === 'hall') {
