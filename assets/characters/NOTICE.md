@@ -97,7 +97,7 @@ The file in `penny.glb` is the lit PBR mesh, about 1.65 m, with the gold cables 
 
 ## Hailey
 
-Hailey v3.6 is in `hailey.glb` (the office loads `assets/characters/hailey.glb`). The file is about 5.3 MB, with Idle, Walk, and Sit embedded. The office plays those clips directly, the same names as Mandy.
+Hailey v3.9 is in `hailey.glb` (the office loads `assets/characters/hailey.glb`). The file is about 5.4 MB, with Idle, Walk, and Sit embedded. The office plays those clips directly, the same names as Mandy.
 
 Base character mesh and textures: This work is based on "Japan young woman" (https://sketchfab.com/3d-models/japan-young-woman-1c7f142755b24de99ed75d530549d19a) by YØD (https://sketchfab.com/YOD3DD), licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). Changes: the model was decimated and re-rigged to a 22-bone mixamorig skeleton, its bust was reshaped, its legs were completed below mid-thigh, the body and rig were symmetrised about the centre plane, and a parametric cyberpunk outfit was added (cropped armoured jacket with sheer chest panels over an opaque bandeau, latex leggings with thigh straps, belts, knee-high boots) with procedural textures.
 
@@ -106,6 +106,8 @@ Jacket design is an original procedural recreation inspired by the look of "Cybe
 Animations (Idle, Walk, Sit) were retargeted from Quaternius "woman_casual" animations, CC0 1.0 (https://quaternius.com).
 
 v3.6 narrows the waist into a symmetric hourglass, lowers the pants to a low-rise waistband on the hips, and leaves a clean midriff. The sleeves are decimated less so the elbows are not pinched, and the arm retarget is swing-only so the sleeves do not twist. There are no new third-party assets in v3.6. The credits above still apply.
+
+v3.7 to v3.9 strengthen the hourglass, lower the pants rise further, refit the jacket shoulder cap so it hugs the body instead of floating (which had made the shoulders look shrugged), and then widen the shoulders a little again. The neck, head, rig and clips are unchanged. There are no new third-party assets in v3.7 to v3.9. The full per-version notes that ship with the model are in `NOTICE-hailey.md`.
 
 ## Other people
 
