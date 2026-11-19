@@ -388,8 +388,13 @@ export function initOfficeBase() {
 
 
 // ---- tower ----
+S.site = new S.THREE.Group();
+S.site.name = 'h-site';
+S.site.position.set(S.TOWER_X, 0, S.TOWER_Z);
+S.scene.add(S.site);
 S.tower = new S.THREE.Group();
- S.scene.add(S.tower);
+S.tower.name = 'h-tower';
+S.site.add(S.tower);
 
 // Yellow mark on the plan is a NE–SW rectangle. The working floors rotate with it.
 S.tower.rotation.y = 138 * Math.PI / 180;
@@ -607,41 +612,41 @@ S.neonH = S.TOPLV * S.FH + 9.2;
 S.podX = S.FW / 2 + 1.2, S.podZ = S.FD / 2 + 1.2;
 
 for (const [x, z, col] of [[-S.podX, S.podZ, 0xff2a6d], [S.podX, -S.podZ, 0xff2a6d], [S.podX, S.podZ, 0x39f3ff], [-S.podX, -S.podZ, 0x39f3ff]])
-  S.box(0.34, S.neonH, 0.34, S.E(col, 4.8), x, S.neonH / 2, z);
+  S.box(0.34, S.neonH, 0.34, S.E(col, 4.8), x, S.neonH / 2, z, S.site);
 
 
 S.ROOF = S.TOPLV * S.FH;
 
-S.box(S.FW + 2.2, 0.7, S.FD + 2.2, S.M(0x141820, { metalness: 0.5, roughness: 0.48 }), 0, S.ROOF + 0.35, 0);
+S.box(S.FW + 2.2, 0.7, S.FD + 2.2, S.M(0x141820, { metalness: 0.5, roughness: 0.48 }), 0, S.ROOF + 0.35, 0, S.site);
 
 // Landing deck on the open front roof. Long axis is X, matching the car's nose.
 S.PAD_Z = 3.8;
 
-S.box(10.5, 0.16, 6.2, S.M(0x1a1c24, { metalness: 0.45, roughness: 0.55 }), 0, S.ROOF + 0.78, S.PAD_Z);
+S.box(10.5, 0.16, 6.2, S.M(0x1a1c24, { metalness: 0.45, roughness: 0.55 }), 0, S.ROOF + 0.78, S.PAD_Z, S.site);
 
-S.box(10.2, 0.04, 0.08, S.E(0xfcee0a, 1.6), 0, S.ROOF + 0.88, S.PAD_Z + 2.95);
+S.box(10.2, 0.04, 0.08, S.E(0xfcee0a, 1.6), 0, S.ROOF + 0.88, S.PAD_Z + 2.95, S.site);
 
-S.box(10.2, 0.04, 0.08, S.E(0xfcee0a, 1.6), 0, S.ROOF + 0.88, S.PAD_Z - 2.95);
+S.box(10.2, 0.04, 0.08, S.E(0xfcee0a, 1.6), 0, S.ROOF + 0.88, S.PAD_Z - 2.95, S.site);
 
-S.box(0.08, 0.04, 5.8, S.E(0x00f0ff, 1.4), 5.15, S.ROOF + 0.88, S.PAD_Z);
+S.box(0.08, 0.04, 5.8, S.E(0x00f0ff, 1.4), 5.15, S.ROOF + 0.88, S.PAD_Z, S.site);
 
-S.box(0.08, 0.04, 5.8, S.E(0x00f0ff, 1.4), -5.15, S.ROOF + 0.88, S.PAD_Z);
+S.box(0.08, 0.04, 5.8, S.E(0x00f0ff, 1.4), -5.15, S.ROOF + 0.88, S.PAD_Z, S.site);
 
 { const hc = document.createElement('canvas'); hc.width = hc.height = 256; const hx = hc.getContext('2d');
   hx.strokeStyle = '#FCEE0A'; hx.lineWidth = 10; hx.beginPath(); hx.arc(128, 128, 100, 0, Math.PI * 2); hx.stroke();
   hx.font = '800 120px sans-serif'; hx.fillStyle = '#FCEE0A'; hx.textAlign = 'center'; hx.textBaseline = 'middle'; hx.fillText('H', 128, 138);
   const ht = new S.THREE.CanvasTexture(hc); ht.colorSpace = S.THREE.SRGBColorSpace;
   const hm = new S.THREE.Mesh(new S.THREE.PlaneGeometry(4.6, 4.6), new S.THREE.MeshBasicMaterial({ map: ht, transparent: true, toneMapped: false }));
-  hm.rotation.x = -Math.PI / 2; hm.position.set(0, S.ROOF + 0.88, S.PAD_Z); S.scene.add(hm); }
+  hm.rotation.x = -Math.PI / 2; hm.position.set(0, S.ROOF + 0.88, S.PAD_Z); S.site.add(hm); }
 
 // Penthouse sits on the back half so the street side of the roof stays a landing deck.
-S.pent = S.box(S.FW - 4, 3.2, 7.2, S.M(0x10141c, { metalness: 0.45, roughness: 0.5 }), 0, S.ROOF + 2.4, -4.4);
+S.pent = S.box(S.FW - 4, 3.2, 7.2, S.M(0x10141c, { metalness: 0.45, roughness: 0.5 }), 0, S.ROOF + 2.4, -4.4, S.site);
 
-for (let i = -2; i <= 2; i++) S.box(0.42, 0.22, 0.08, S.E(0xe7f7ff, 3.2), i * 1.6, S.ROOF + 3.3, -0.7);
+for (let i = -2; i <= 2; i++) S.box(0.42, 0.22, 0.08, S.E(0xe7f7ff, 3.2), i * 1.6, S.ROOF + 3.3, -0.7, S.site);
 
-S.box(0.16, 3.0, 0.16, S.E(0xff2a6d, 4.4), -(S.FW - 4) / 2, S.ROOF + 2.4, -4.4);
+S.box(0.16, 3.0, 0.16, S.E(0xff2a6d, 4.4), -(S.FW - 4) / 2, S.ROOF + 2.4, -4.4, S.site);
 
-S.box(0.16, 3.0, 0.16, S.E(0x39f3ff, 4.4), (S.FW - 4) / 2, S.ROOF + 2.4, -4.4);
+S.box(0.16, 3.0, 0.16, S.E(0x39f3ff, 4.4), (S.FW - 4) / 2, S.ROOF + 2.4, -4.4, S.site);
 
 
 // Hex H as a roof hologram. No backing board. One additive shader plane,

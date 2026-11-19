@@ -126,8 +126,11 @@ S.tick = function tick() {
       const hi = c.laneMax != null ? c.laneMax : -30;
       if (c.g.position.x > hi) c.g.position.x = lo;
       if (c.g.position.x < lo) c.g.position.x = hi;
-      // hard keep clear of tower column |x|<18
+      // hard keep clear of the old civic plot and the relocated H tower
       if (Math.abs(c.g.position.x) < 18) c.g.position.x = c.g.position.x < 0 ? -32 : 36;
+      if (Math.hypot(c.g.position.x - S.TOWER_X, c.g.position.z - S.TOWER_Z) < 20) {
+        c.g.position.x = c.g.position.x < S.TOWER_X ? S.TOWER_X - 32 : S.TOWER_X + 32;
+      }
     } else if (c.hover) c.g.position.y = 0.5 + Math.sin(t * 3 + c.g.position.x) * 0.1;
   });
   S.pedestrians.forEach(p => {
@@ -295,11 +298,11 @@ window.__brightShot = (fov) => {
 // ~80 m back, low street, look-up ~17° — tower fills ~50% height, HQ crown above roof
 S.ROOF_Y = S.TOPLV * 4.2 + 6;
 
-S.CAM_END = new S.THREE.Vector3(9, 9.0, 104);
+S.CAM_END = new S.THREE.Vector3(9 + S.TOWER_X, 9.0, 104 + S.TOWER_Z);
 
-S.CAM_START = new S.THREE.Vector3(20, 14, 115);
+S.CAM_START = new S.THREE.Vector3(20 + S.TOWER_X, 14, 115 + S.TOWER_Z);
 
-S.CAM_WIDE = new S.THREE.Vector3(14, 8.0, 130);
+S.CAM_WIDE = new S.THREE.Vector3(14 + S.TOWER_X, 8.0, 130 + S.TOWER_Z);
 
 S.camera.position.copy(S.CAM_START);
 
@@ -307,7 +310,7 @@ S.controls = new S.OrbitControls(S.camera, S.renderer.domElement);
 
 S.TGT_Y = S.ROOF_Y * 0.45;
 
-S.controls.target.set(2, S.TGT_Y + 9, -4);
+S.controls.target.set(2 + S.TOWER_X, S.TGT_Y + 9, -4 + S.TOWER_Z);
 
 S.controls.enableDamping = true;
  S.controls.maxPolarAngle = Math.PI * 0.495;
@@ -320,13 +323,13 @@ S.userTook = false;
 
 S.ceoInspect = false;
 
-S.CEO_POS = new S.THREE.Vector3(2.4, 23.5, 15.5);
+S.CEO_POS = new S.THREE.Vector3(2.4 + S.TOWER_X, 23.5, 15.5 + S.TOWER_Z);
 
-S.CEO_TGT = new S.THREE.Vector3(0.5, 22.6, -0.4);
+S.CEO_TGT = new S.THREE.Vector3(0.5 + S.TOWER_X, 22.6, -0.4 + S.TOWER_Z);
 
 S.camHomePos = new S.THREE.Vector3();
 
-S.camHomeTgt = new S.THREE.Vector3(2, S.TGT_Y + 9, -4);
+S.camHomeTgt = new S.THREE.Vector3(2 + S.TOWER_X, S.TGT_Y + 9, -4 + S.TOWER_Z);
 
 S.ceoBlend = 0;
 

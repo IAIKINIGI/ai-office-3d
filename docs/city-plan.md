@@ -29,3 +29,10 @@ Grid lines are every 10 m, on multiples of 10. The labels are those world coordi
 `city-plan-blank.png` has no generated roads. Grey paths inside the blocks are the city mesh itself. `city-plan-current-roads.png` adds the current avenue, lane pieces, and flyover in darker grey, with sidewalks lighter grey.
 
 A stroke drawn on either PNG converts to a road centreline by sampling pixels along the stroke and applying the formula above. Use the pixel centre (`+ 0.5`). Y on the image increases downward and maps to increasing world Z.
+
+
+`city-plan.png` is the same 210 m frame after the H office tower moved to the
+west empty plot (centre near x = −38 m, z = 8 m). The magenta rectangle is the
+rotated 22×14 m H tower; the gold square at (42.4, −37.2) is ATOM. Both are
+labelled. The highway is drawn as a road band (asphalt + markings), not as a
+diagnostic deck-edge overlay. `window.__renderCityPlan(true)` writes this frame.
