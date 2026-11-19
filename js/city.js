@@ -1,4 +1,5 @@
 import { S } from './scope.js';
+import './overlap-check.js';
 
 
 S.facadeMat = function facadeMat(tintIdx, rx, ry) {
@@ -2296,9 +2297,7 @@ for (let z = 56; z <= 106; z += 10) {
   S.box(0.06, 0.05, 7, S.E(0xff2a6d, 0.7), 17.7, 0.32, z);
 }
 
-// plaza ring around tower base
-{ const ring = new S.THREE.Mesh(new S.THREE.TorusGeometry(14, 0.12, 8, 96), S.E(0x00f0ff, 1.6));
-  ring.rotation.x = Math.PI / 2; ring.position.y = 0.12; S.scene.add(ring); }
+// plaza ring around tower base removed so the shrunk H tower is not ringed by a 14 m civic circle.
 
 // Lane dashes that ran straight through the blocks were removed.
 
@@ -2376,6 +2375,37 @@ for (let i = 0; i < 3; i++) {
     S.box(3.4, 0.35, 1.5, S.M(0x1a2030, { metalness: 0.7 }), x, y, z, S.megaGroup);
   }
 }
+
+
+S.buildOldSiteFill = function buildOldSiteFill() {
+  const spec = S.OLD_SITE || { x: 10, z: 2, w: 12, d: 6, rot: 128, h: 18 };
+  const g = new S.THREE.Group();
+  g.name = 'old-hq-block';
+  const h = spec.h || 18;
+  const w = spec.w, d = spec.d;
+  const baseH = h * 0.62, topH = h * 0.28, roofH = 0.7;
+  const facade = S.facadeMat(2, Math.max(1.2, w / 6), Math.max(1.8, baseH / 10));
+  const upper = S.facadeMat(3, Math.max(1.0, w / 7), Math.max(1.4, topH / 8));
+  const dark = S.M(0x141820, { metalness: 0.62, roughness: 0.42 });
+  S.box(w, baseH, d, facade, 0, baseH / 2, 0, g);
+  S.box(w * 0.72, topH, d * 0.7, upper, 0, baseH + topH / 2, 0, g);
+  S.box(w * 0.8, roofH, d * 0.78, dark, 0, baseH + topH + roofH / 2, 0, g);
+  // corner neon, same language as the surrounding blocks, kept dim
+  const ec = 0x00f0ff, em = 0xff2a6d;
+  S.box(0.12, baseH, 0.12, S.E(ec, 1.2), w / 2, baseH / 2, d / 2, g);
+  S.box(0.1, baseH, 0.1, S.E(em, 0.9), -w / 2, baseH / 2, -d / 2, g);
+  const ant = 5.5;
+  S.box(0.18, ant, 0.18, S.M(0x555a70, { metalness: 0.85 }), w * 0.15, baseH + topH + roofH + ant / 2, d * 0.1, g);
+  S.box(0.12, ant * 0.7, 0.12, S.M(0x555a70, { metalness: 0.85 }), -w * 0.18, baseH + topH + roofH + ant * 0.35, -d * 0.12, g);
+  g.position.set(spec.x, 0, spec.z);
+  g.rotation.y = (spec.rot || 0) * Math.PI / 180;
+  S.scene.add(g);
+  S.oldSiteFill = g;
+  S.oldSiteFillMeta = { x: spec.x, z: spec.z, w, d, rot: spec.rot || 0, h };
+  console.info('[old-site] mid-rise fill', S.oldSiteFillMeta);
+};
+
+S.buildOldSiteFill();
 
 // Side billboards only. A second vertical neon here used to ghost through the first.
 S.megas.filter(m => m.depth === 0).forEach((m, i) => {
@@ -2771,18 +2801,32 @@ window.__ORANGE = {"pts": [{"x": 13.19, "z": -55.37, "w": 5.6}, {"x": 14.3, "z":
 
 export function initDistrict() {
 
-window.__renderCityPlan = function (withRoads, highwayOnly) {
+window.__renderCityPlan = function (withRoads, highwayOnly, opts) {
+  opts = opts || {};
   const W = 2048;
+  const occupancy = !!opts.occupancy;
+  // Same 1.6 m mesh-AABB cutoff as the clean plan Andrew reviews, so short
+  // sheds that live inside combined city meshes are included, but low ground
+  // decks that are invisible on the plan are not.
+  const minH = 1.6;
   const buildings = [];
+  const takeMesh = (o) => {
+    if (!o.isMesh || !o.geometry) return;
+    const box = new S.THREE.Box3().setFromObject(o);
+    if (box.max.y - box.min.y < minH) return;
+    buildings.push(o);
+  };
   if (window.__city) {
     window.__city.updateMatrixWorld(true);
-    window.__city.traverse(o => {
-      if (!o.isMesh || !o.geometry) return;
-      const box = new S.THREE.Box3().setFromObject(o);
-      if (box.max.y - box.min.y < 1.6) return;
-      buildings.push(o);
-    });
+    window.__city.traverse(takeMesh);
   }
+  const extra = [];
+  if (S.oldSiteFill) extra.push(S.oldSiteFill);
+  extra.forEach(root => {
+    root.updateMatrixWorld(true);
+    root.traverse(takeMesh);
+  });
+
   const roads = [];
   S.scene.traverse(o => { if (o.isMesh && o.userData.planRoad) roads.push(o); });
   const inHighway = (m) => {
@@ -2796,13 +2840,26 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
   bounds.expandByPoint(new S.THREE.Vector3(-S.FW / 2, 0, -S.FD / 2));
   bounds.expandByPoint(new S.THREE.Vector3(S.FW / 2, 30, S.FD / 2));
   roads.forEach(m => bounds.expandByObject(m));
-  const spanNeed = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) + 24;
-  const world = Math.ceil(spanNeed / 10) * 10;
-  const half = world / 2;
-  const cx = (bounds.min.x + bounds.max.x) / 2;
-  const cz = (bounds.min.z + bounds.max.z) / 2;
-  const x0 = cx - half, x1 = cx + half;
-  const z0 = cz - half, z1 = cz + half;
+  let world, half, cx, cz, x0, x1, z0, z1;
+  if (opts.fixed !== false) {
+    // Same 210 m orthographic frame as docs/city-plan.md
+    world = 210;
+    half = world / 2;
+    x0 = -100.76154028251767;
+    z0 = -87.36261804588139;
+    x1 = x0 + world;
+    z1 = z0 + world;
+    cx = x0 + half;
+    cz = z0 + half;
+  } else {
+    const spanNeed = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) + 24;
+    world = Math.ceil(spanNeed / 10) * 10;
+    half = world / 2;
+    cx = (bounds.min.x + bounds.max.x) / 2;
+    cz = (bounds.min.z + bounds.max.z) / 2;
+    x0 = cx - half; x1 = cx + half;
+    z0 = cz - half; z1 = cz + half;
+  }
   const savedVis = [];
   S.scene.traverse(o => savedVis.push([o, o.visible]));
   S.scene.traverse(o => { o.visible = false; });
@@ -2824,12 +2881,29 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
     m.add(line);
     edgeLines.push(line);
   });
-  const office = new S.THREE.Mesh(new S.THREE.BoxGeometry(S.FW, 1.2, S.FD), new S.THREE.MeshBasicMaterial({ color: 0xff2ad0 }));
-  office.position.set(0, 0.2, 0);
-  const officeLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(office.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a1060 }));
-  office.add(officeLine);
-  S.scene.add(office);
-  show(office);
+  let office = null, atomLot = null;
+  if (!occupancy) {
+    const twFw = S.TOWER_FW || S.FW, twFd = S.TOWER_FD || S.FD;
+    office = new S.THREE.Mesh(new S.THREE.BoxGeometry(twFw, 1.2, twFd), new S.THREE.MeshBasicMaterial({ color: 0xff2ad0 }));
+    office.position.set(S.TOWER_X || 0, 0.2, S.TOWER_Z || 0);
+    office.rotation.y = ((S.TOWER_ROT != null) ? S.TOWER_ROT : 138) * Math.PI / 180;
+    const officeLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(office.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a1060 }));
+    office.add(officeLine);
+    S.scene.add(office);
+    show(office);
+    atomLot = new S.THREE.Mesh(new S.THREE.BoxGeometry(6.6, 1.2, 6.6), new S.THREE.MeshBasicMaterial({ color: 0xd4a017 }));
+    atomLot.position.set(42.4, 0.2, -37.2);
+    const atomLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(atomLot.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a5a08 }));
+    atomLot.add(atomLine);
+    S.scene.add(atomLot);
+    show(atomLot);
+  } else if (window.__atom) {
+    // Keep the ATOM lot occupied so clearance tests see it, without the gold overlay.
+    atomLot = new S.THREE.Mesh(new S.THREE.BoxGeometry(6.6, 1.2, 6.6), new S.THREE.MeshBasicMaterial({ color: 0x8d939c }));
+    atomLot.position.set(42.4, 0.2, -37.2);
+    S.scene.add(atomLot);
+    show(atomLot);
+  }
   const savedRoad = [];
   const roadFlat = new S.THREE.MeshBasicMaterial({ color: 0x4e5966 });
   const walkFlat = new S.THREE.MeshBasicMaterial({ color: 0xb7c0c8 });
@@ -2871,7 +2945,8 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
   savedRoad.forEach(([m, mat]) => { m.material = mat; });
   edgeLines.forEach(l => l.parent && l.parent.remove(l));
   S.scene.remove(ground);
-  S.scene.remove(office);
+  if (office) S.scene.remove(office);
+  if (atomLot) S.scene.remove(atomLot);
   rt.dispose();
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = W;
@@ -2882,13 +2957,33 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
     img.data.set(buf.subarray(src, src + W * 4), y * W * 4);
   }
   g.putImageData(img, 0, 0);
+  const mpp = world / W;
+  if (occupancy) {
+    const occ = new Uint8Array(W * W);
+    let nOcc = 0;
+    const data = img.data;
+    for (let i = 0, p = 0; i < W * W; i++, p += 4) {
+      // Anything not near-white is a building, shed, road, rail, or highway.
+      if (data[p] < 230 || data[p + 1] < 230 || data[p + 2] < 230) {
+        occ[i] = 1; nOcc++;
+      }
+    }
+    return {
+      png: canvas.toDataURL('image/png'),
+      occupancy: occ,
+      occupied: nOcc,
+      width: W, height: W,
+      x0, x1, z0, z1, cx, cz, world,
+      metersPerPixel: mpp,
+      north: '-Z is up',
+    };
+  }
   g.strokeStyle = 'rgba(20,24,28,0.22)';
   g.lineWidth = 1;
   g.fillStyle = '#1a1e22';
   g.font = '22px sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  const mpp = world / W;
   for (let x = Math.ceil(x0 / 10) * 10; x <= x1; x += 10) {
     const px = (x - x0) / world * W;
     g.beginPath(); g.moveTo(px, 0); g.lineTo(px, W); g.stroke();
@@ -2920,6 +3015,18 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
   g.font = '28px sans-serif';
   g.textAlign = 'center';
   g.fillText('N', nx, ny - 70);
+  const label = (wx, wz, text, color, dx, dy) => {
+    const px = (wx - x0) / world * W + (dx || 0);
+    const py = (wz - z0) / world * W + (dy || 0);
+    g.fillStyle = color;
+    g.font = '28px sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(text, px, py);
+  };
+  label(S.TOWER_X || 0, S.TOWER_Z || 0, 'H TOWER', '#c01880', 0, 52);
+  label(42.4, -37.2, 'ATOM', '#8a6a10', 0, -22);
+
   return {
     png: canvas.toDataURL('image/png'),
     width: W,

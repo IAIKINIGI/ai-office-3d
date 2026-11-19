@@ -2140,6 +2140,9 @@ S.syncProof = function syncProof(dt) {
   S.proofHumans.forEach(entry => {
     const rig = entry.agent.rig;
     if (entry.model.parent !== rig.parent) rig.parent.add(entry.model);
+    // Proof models are siblings of the rig under the scaled tower; copy the
+    // rig's inverse XZ scale so Hailey and the others stay life-size.
+    if (rig.scale) entry.model.scale.copy(rig.scale);
     entry.model.rotation.set(0, rig.rotation.y, 0);
     S.playProof(entry, S.proofClip(entry.agent, entry.clips));
     if (entry._footClip !== entry.current) {

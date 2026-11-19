@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "cityOk": false,
+  "overlaps": 8,
+  "hTowerOverlaps": 0,
+  "buildings": 15,
+  "ways": 9,
+  "cityCells": 8578,
+  "hClearance": {
+    "ok": true,
+    "minClear": 1.525,
+    "hits": 0,
+    "inside": 0,
+    "margin": 1.5,
+    "nearest": {
+      "x": -38.777,
+      "z": 7.025,
+      "dist": 1.525
+    },
+    "fw": 8,
+    "fd": 8,
+    "tx": -37.75,
+    "tz": 1.5,
+    "rot": 90,
+    "cells": 0,
+    "area": 0
+  },
+  "items": [
+    {
+      "a": "mega-0",
+      "b": "mega-6",
+      "kind": "building-building",
+      "pen": 1.359,
+      "area": 11.18
+    },
+    {
+      "a": "mega-4",
+      "b": "mega-9",
+      "kind": "building-building",
+      "pen": 3.415,
+      "area": 26.22
+    },
+    {
+      "a": "mega-8",
+      "b": "mega-11",
+      "kind": "building-building",
+      "pen": 8.358,
+      "area": 79.15
+    },
+    {
+      "a": "atom",
+      "b": "ramp-R1",
+      "kind": "building-highway",
+      "pen": 1.044,
+      "area": 1.04
+    },
+    {
+      "a": "atom",
+      "b": "city-grid",
+      "kind": "building-city",
+      "pen": 6.5,
+      "area": 42.25,
+      "cells": 169
+    },
+    {
+      "a": "city-grid",
+      "b": "ramp-R1",
+      "kind": "city-highway",
+      "pen": 3.041,
+      "area": 9.25,
+      "cells": 37
+    },
+    {
+      "a": "city-grid",
+      "b": "ramp-R3",
+      "kind": "city-highway",
+      "pen": 2.646,
+      "area": 7,
+      "cells": 28
+    },
+    {
+      "a": "city-grid",
+      "b": "ramp-R4",
+      "kind": "city-highway",
+      "pen": 3.317,
+      "area": 11,
+      "cells": 44
+    }
+  ]
+}
