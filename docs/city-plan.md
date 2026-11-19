@@ -1,6 +1,6 @@
 # City plan coordinates
 
-The H office tower is a **12 × 14 m** slab (width shrunk from 22 m, depth unchanged) at world `(-36, -1)` in the west empty plot, rotated **90°** so the door (local +Z) faces east toward the existing street. World footprint is 14 m east–west by 12 m north–south. The original origin plot is filled with the existing city mid-rises plus a new 12 × 6 m, 18 m-tall mid-rise at `(10, 2)`, rotated 128°, in the leftover gap toward the eastern civic circle. The city mesh, roads, highway, ramps, and ATOM are otherwise unchanged from main. The decorative 14 m neon plaza ring around the old base has been removed.
+The H office tower is an **8 × 8 m** slab (both axes shrunk from 22 × 14 m) at world `(-37.75, 1.5)` in the west empty plot, rotated **90°** so the door (local +Z) faces east toward the existing street. World footprint is an 8 × 8 m square with at least 1.5 m clearance from every original building, shed, road, ramp, highway and the civic disc. The original origin plot is filled with the existing city mid-rises plus a new 12 × 6 m, 18 m-tall mid-rise at `(10, 2)`, rotated 128°, in the leftover gap toward the eastern civic circle. The city mesh, roads, highway, ramps, and ATOM are otherwise unchanged from main. The decorative 14 m neon plaza ring around the old base has been removed.
 
 
 To verify the H tower is clear of other buildings, the highway, rails, and roads:
@@ -9,7 +9,7 @@ To verify the H tower is clear of other buildings, the highway, rails, and roads
 python3 tools/check-overlaps.py
 ```
 
-The script exits 0 when the H tower has no overlaps. Any pre-existing overlaps elsewhere in the original map are listed and left untouched.
+The script exits 0 when the H tower has no overlaps and has at least 1.5 m clearance from the rendered plan occupancy (buildings, sheds, the civic disc, roads, ramps and the highway, at the same 1.6 m mesh-AABB cutoff as this plan, ~0.10 m pixels). Any pre-existing overlaps elsewhere in the original map are listed and left untouched.
 
 Both `city-plan-blank.png` and `city-plan-current-roads.png` are the same 2048×2048 orthographic frame. North is up. World +X is right (east). World +Z is down (south), so world −Z is north.
 
@@ -35,7 +35,7 @@ px = (worldX - x0) / metersPerPixel - 0.5
 py = (worldZ - z0) / metersPerPixel - 0.5
 ```
 
-Grid lines are every 10 m, on multiples of 10. The labels are those world coordinates. The scale bar is 50 m. The office tower footprint is the magenta rectangle at world (-36, -1) in the west plot. A grey mid-rise at (10, 2) fills the leftover gap in the original origin plot. Open ground is white. Block footprints are mid-grey with a thin outline.
+Grid lines are every 10 m, on multiples of 10. The labels are those world coordinates. The scale bar is 50 m. The office tower footprint is the magenta square at world (-37.75, 1.5) in the west plot. A grey mid-rise at (10, 2) fills the leftover gap in the original origin plot. A zoomed crop of the west plot is in `docs/htower-zoom.png`. Open ground is white. Block footprints are mid-grey with a thin outline.
 
 `city-plan-blank.png` has no generated roads. Grey paths inside the blocks are the city mesh itself. `city-plan-current-roads.png` adds the current avenue, lane pieces, and flyover in darker grey, with sidewalks lighter grey.
 

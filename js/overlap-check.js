@@ -7,6 +7,7 @@ import { S } from './scope.js';
 const EPS = 0.20;          // contact slack, metres
 const AREA_MIN = 0.5;      // ignore sliver intersections smaller than this (m²)
 const PEN_MIN = 0.25;      // or penetration deeper than this (m)
+const H_CLEAR = 1.5;       // required clearance around the H tower, metres
 
 
 function worldTower() {
@@ -449,6 +450,124 @@ function polylineGridHits(grid, cols, rows, pts, halfW) {
   return n;
 }
 
+
+function distToObb(pts, x, z) {
+  if (pointInConvex(pts, x, z)) return 0;
+  let minD = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const d = distPointSeg(x, z, a.x, a.z, b.x, b.z);
+    if (d < minD) minD = d;
+  }
+  return minD;
+}
+
+function loadPlanOccupancy() {
+  if (!window.__renderCityPlan) return null;
+  const data = window.__renderCityPlan(true, false, { fixed: true, occupancy: true });
+  if (!data || !data.occupancy) return null;
+  return data;
+}
+
+function measureTowerClearance(plan, tx, tz, rot, fw, fd, margin) {
+  margin = margin == null ? H_CLEAR : margin;
+  const pts = towerCorners(tx, tz, rot, fw, fd);
+  const empty = {
+    ok: false, minClear: 0, hits: 0, margin, nearest: null,
+    fw, fd, tx, tz, rot, cells: 0,
+  };
+  if (!plan || !plan.occupancy) return empty;
+  const W = plan.width, occ = plan.occupancy, mpp = plan.metersPerPixel;
+  const x0 = plan.x0, z0 = plan.z0;
+  const aabb = aabbOf(pts);
+  const pad = margin + mpp * 2;
+  const c0 = Math.max(0, Math.floor((aabb.minX - pad - x0) / mpp));
+  const c1 = Math.min(W - 1, Math.floor((aabb.maxX + pad - x0) / mpp));
+  const r0 = Math.max(0, Math.floor((aabb.minZ - pad - z0) / mpp));
+  const r1 = Math.min(W - 1, Math.floor((aabb.maxZ + pad - z0) / mpp));
+  let minD = Infinity, hits = 0, nearest = null, inside = 0;
+  for (let r = r0; r <= r1; r++) {
+    const z = z0 + (r + 0.5) * mpp;
+    for (let c = c0; c <= c1; c++) {
+      if (!occ[r * W + c]) continue;
+      const x = x0 + (c + 0.5) * mpp;
+      const d = distToObb(pts, x, z);
+      if (d < minD) {
+        minD = d;
+        nearest = { x: +x.toFixed(3), z: +z.toFixed(3), dist: +d.toFixed(3) };
+      }
+      if (d === 0) inside++;
+      if (d < margin) hits++;
+    }
+  }
+  if (minD === Infinity) minD = 99;
+  return {
+    ok: minD >= margin - 1e-6,
+    minClear: +minD.toFixed(3),
+    hits,
+    inside,
+    margin,
+    nearest,
+    fw, fd, tx, tz, rot,
+    cells: hits,
+    area: +(hits * mpp * mpp).toFixed(2),
+  };
+}
+
+S.measureTowerClearance = function (margin) {
+  const tw = worldTower();
+  const plan = loadPlanOccupancy();
+  return measureTowerClearance(plan, tw.tx, tw.tz, tw.rot, tw.fw, tw.fd, margin);
+};
+
+S.searchTowerClearance = function searchTowerClearance(opts) {
+  opts = opts || {};
+  const plan = loadPlanOccupancy();
+  if (!plan) return { error: 'no occupancy plan' };
+  const margin = opts.margin != null ? opts.margin : H_CLEAR;
+  const rots = opts.rots || [0, 90, 128, 138, 180];
+  const sizes = opts.sizes || [
+    [16, 14], [14, 14], [14, 12], [12, 14], [12, 12], [12, 10],
+    [10, 12], [10, 10], [10, 8], [8, 10], [8, 8], [7, 7],
+  ];
+  const x0s = opts.x0 != null ? opts.x0 : -45;
+  const x1s = opts.x1 != null ? opts.x1 : -28;
+  const z0s = opts.z0 != null ? opts.z0 : -5;
+  const z1s = opts.z1 != null ? opts.z1 : 12;
+  const step = opts.step || 0.5;
+  const found = [];
+  let best = null;
+  for (const [fw, fd] of sizes) {
+    const local = [];
+    for (const rot of rots) {
+      for (let tx = x0s; tx <= x1s + 1e-9; tx = +(tx + step).toFixed(3)) {
+        for (let tz = z0s; tz <= z1s + 1e-9; tz = +(tz + step).toFixed(3)) {
+          const r = measureTowerClearance(plan, tx, tz, rot, fw, fd, margin);
+          if (!r.ok) continue;
+          const rec = {
+            tx, tz, rot, fw, fd,
+            area: +(fw * fd).toFixed(2),
+            minClear: r.minClear,
+            distOrigin: +Math.hypot(tx + 36, tz + 1).toFixed(3),
+          };
+          local.push(rec);
+          if (!best
+            || rec.area > best.area + 0.1
+            || (Math.abs(rec.area - best.area) < 0.1 && rec.minClear > best.minClear + 0.05)
+            || (Math.abs(rec.area - best.area) < 0.1 && Math.abs(rec.minClear - best.minClear) <= 0.05 && rec.distOrigin < best.distOrigin)) {
+            best = rec;
+          }
+        }
+      }
+    }
+    local.sort((a, b) => b.minClear - a.minClear || a.distOrigin - b.distOrigin);
+    if (local.length) found.push({ fw, fd, count: local.length, best: local[0], near: local.slice(0, 6) });
+  }
+  const result = { margin, best, found };
+  window.__clearanceSearch = result;
+  return result;
+};
+
 S.checkOverlaps = function checkOverlaps() {
   if (S.scene) S.scene.updateMatrixWorld(true);
   const buildings = collectBuildings();
@@ -508,7 +627,7 @@ S.checkOverlaps = function checkOverlaps() {
   // Placed buildings and highway/roads vs the city occupancy grid.
   for (const bld of buildings) {
     const n = obbGridHits(cityGrid.grid, cityGrid.cols, cityGrid.rows, bld.pts);
-    if (n >= 2) { // two 0.5 m cells ≈ 0.5 m²
+    if (n * CELL * CELL >= AREA_MIN) {
       overlaps.push({
         a: bld.id, b: 'city-grid', kind: 'building-city',
         pen: +(Math.sqrt(n) * CELL).toFixed(3),
@@ -523,7 +642,7 @@ S.checkOverlaps = function checkOverlaps() {
     const n = way.areaPts
       ? obbGridHits(cityGrid.grid, cityGrid.cols, cityGrid.rows, way.areaPts)
       : polylineGridHits(cityGrid.grid, cityGrid.cols, cityGrid.rows, way.pts, half);
-    if (n >= 3) {
+    if (n * CELL * CELL >= 0.75) {
       overlaps.push({
         a: 'city-grid', b: way.id, kind: 'city-' + way.kind,
         pen: +(Math.sqrt(n) * CELL).toFixed(3),
@@ -531,6 +650,22 @@ S.checkOverlaps = function checkOverlaps() {
         cells: n,
       });
     }
+  }
+
+  const planOcc = loadPlanOccupancy();
+  const tw = worldTower();
+  const clearance = measureTowerClearance(planOcc, tw.tx, tw.tz, tw.rot, tw.fw, tw.fd, H_CLEAR);
+  if (!clearance.ok) {
+    overlaps.push({
+      a: 'h-tower', b: 'plan-occupancy', kind: 'clearance',
+      pen: +Math.max(0, H_CLEAR - clearance.minClear).toFixed(3),
+      area: clearance.area,
+      minClear: clearance.minClear,
+      margin: H_CLEAR,
+      nearest: clearance.nearest,
+      inside: clearance.inside,
+      cells: clearance.cells,
+    });
   }
 
   const hHits = overlaps.filter(o => o.a === 'h-tower' || o.b === 'h-tower');
@@ -542,6 +677,7 @@ S.checkOverlaps = function checkOverlaps() {
     buildings: buildings.length,
     ways: ways.length,
     cityCells: cityGrid.cells,
+    hClearance: clearance,
     items: overlaps,
   };
   window.__overlapReport = result;
@@ -805,6 +941,8 @@ S.scanTowerFit = function scanTowerFit(opts) {
 
 if (typeof window !== 'undefined') {
   window.__checkOverlaps = S.checkOverlaps;
+  window.__measureTowerClearance = S.measureTowerClearance;
+  window.__searchTowerClearance = S.searchTowerClearance;
   window.__scanTowerFit = S.scanTowerFit;
   window.__searchTowerSite = S.searchTowerSite;
   window.__probeTower = S.probeTower;

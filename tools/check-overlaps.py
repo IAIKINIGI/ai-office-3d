@@ -107,6 +107,10 @@ def main():
         print("buildings", report.get("buildings"), "ways", report.get("ways"),
               "overlaps", report.get("overlaps"),
               "h-tower", report.get("hTowerOverlaps"))
+        clr = report.get("hClearance") or {}
+        print("H clearance: minClear=%s m  margin=%s m  ok=%s  inside=%s  hits=%s  nearest=%s" % (
+            clr.get("minClear"), clr.get("margin"), clr.get("ok"),
+            clr.get("inside"), clr.get("hits"), clr.get("nearest")))
         items = report.get("items") or []
         h_items = [it for it in items if it.get("a") == "h-tower" or it.get("b") == "h-tower"]
         other = [it for it in items if it not in h_items]

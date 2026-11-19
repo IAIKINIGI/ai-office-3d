@@ -2804,26 +2804,27 @@ export function initDistrict() {
 window.__renderCityPlan = function (withRoads, highwayOnly, opts) {
   opts = opts || {};
   const W = 2048;
+  const occupancy = !!opts.occupancy;
+  // Same 1.6 m mesh-AABB cutoff as the clean plan Andrew reviews, so short
+  // sheds that live inside combined city meshes are included, but low ground
+  // decks that are invisible on the plan are not.
+  const minH = 1.6;
   const buildings = [];
+  const takeMesh = (o) => {
+    if (!o.isMesh || !o.geometry) return;
+    const box = new S.THREE.Box3().setFromObject(o);
+    if (box.max.y - box.min.y < minH) return;
+    buildings.push(o);
+  };
   if (window.__city) {
     window.__city.updateMatrixWorld(true);
-    window.__city.traverse(o => {
-      if (!o.isMesh || !o.geometry) return;
-      const box = new S.THREE.Box3().setFromObject(o);
-      if (box.max.y - box.min.y < 1.6) return;
-      buildings.push(o);
-    });
+    window.__city.traverse(takeMesh);
   }
   const extra = [];
   if (S.oldSiteFill) extra.push(S.oldSiteFill);
   extra.forEach(root => {
     root.updateMatrixWorld(true);
-    root.traverse(o => {
-      if (!o.isMesh || !o.geometry) return;
-      const box = new S.THREE.Box3().setFromObject(o);
-      if (box.max.y - box.min.y < 1.6) return;
-      buildings.push(o);
-    });
+    root.traverse(takeMesh);
   });
 
   const roads = [];
@@ -2880,20 +2881,29 @@ window.__renderCityPlan = function (withRoads, highwayOnly, opts) {
     m.add(line);
     edgeLines.push(line);
   });
-  const twFw = S.TOWER_FW || S.FW, twFd = S.TOWER_FD || S.FD;
-  const office = new S.THREE.Mesh(new S.THREE.BoxGeometry(twFw, 1.2, twFd), new S.THREE.MeshBasicMaterial({ color: 0xff2ad0 }));
-  office.position.set(S.TOWER_X || 0, 0.2, S.TOWER_Z || 0);
-  office.rotation.y = ((S.TOWER_ROT != null) ? S.TOWER_ROT : 138) * Math.PI / 180;
-  const officeLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(office.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a1060 }));
-  office.add(officeLine);
-  S.scene.add(office);
-  show(office);
-  const atomLot = new S.THREE.Mesh(new S.THREE.BoxGeometry(6.6, 1.2, 6.6), new S.THREE.MeshBasicMaterial({ color: 0xd4a017 }));
-  atomLot.position.set(42.4, 0.2, -37.2);
-  const atomLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(atomLot.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a5a08 }));
-  atomLot.add(atomLine);
-  S.scene.add(atomLot);
-  show(atomLot);
+  let office = null, atomLot = null;
+  if (!occupancy) {
+    const twFw = S.TOWER_FW || S.FW, twFd = S.TOWER_FD || S.FD;
+    office = new S.THREE.Mesh(new S.THREE.BoxGeometry(twFw, 1.2, twFd), new S.THREE.MeshBasicMaterial({ color: 0xff2ad0 }));
+    office.position.set(S.TOWER_X || 0, 0.2, S.TOWER_Z || 0);
+    office.rotation.y = ((S.TOWER_ROT != null) ? S.TOWER_ROT : 138) * Math.PI / 180;
+    const officeLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(office.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a1060 }));
+    office.add(officeLine);
+    S.scene.add(office);
+    show(office);
+    atomLot = new S.THREE.Mesh(new S.THREE.BoxGeometry(6.6, 1.2, 6.6), new S.THREE.MeshBasicMaterial({ color: 0xd4a017 }));
+    atomLot.position.set(42.4, 0.2, -37.2);
+    const atomLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(atomLot.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a5a08 }));
+    atomLot.add(atomLine);
+    S.scene.add(atomLot);
+    show(atomLot);
+  } else if (window.__atom) {
+    // Keep the ATOM lot occupied so clearance tests see it, without the gold overlay.
+    atomLot = new S.THREE.Mesh(new S.THREE.BoxGeometry(6.6, 1.2, 6.6), new S.THREE.MeshBasicMaterial({ color: 0x8d939c }));
+    atomLot.position.set(42.4, 0.2, -37.2);
+    S.scene.add(atomLot);
+    show(atomLot);
+  }
   const savedRoad = [];
   const roadFlat = new S.THREE.MeshBasicMaterial({ color: 0x4e5966 });
   const walkFlat = new S.THREE.MeshBasicMaterial({ color: 0xb7c0c8 });
@@ -2935,8 +2945,8 @@ window.__renderCityPlan = function (withRoads, highwayOnly, opts) {
   savedRoad.forEach(([m, mat]) => { m.material = mat; });
   edgeLines.forEach(l => l.parent && l.parent.remove(l));
   S.scene.remove(ground);
-  S.scene.remove(office);
-  S.scene.remove(atomLot);
+  if (office) S.scene.remove(office);
+  if (atomLot) S.scene.remove(atomLot);
   rt.dispose();
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = W;
@@ -2947,13 +2957,33 @@ window.__renderCityPlan = function (withRoads, highwayOnly, opts) {
     img.data.set(buf.subarray(src, src + W * 4), y * W * 4);
   }
   g.putImageData(img, 0, 0);
+  const mpp = world / W;
+  if (occupancy) {
+    const occ = new Uint8Array(W * W);
+    let nOcc = 0;
+    const data = img.data;
+    for (let i = 0, p = 0; i < W * W; i++, p += 4) {
+      // Anything not near-white is a building, shed, road, rail, or highway.
+      if (data[p] < 230 || data[p + 1] < 230 || data[p + 2] < 230) {
+        occ[i] = 1; nOcc++;
+      }
+    }
+    return {
+      png: canvas.toDataURL('image/png'),
+      occupancy: occ,
+      occupied: nOcc,
+      width: W, height: W,
+      x0, x1, z0, z1, cx, cz, world,
+      metersPerPixel: mpp,
+      north: '-Z is up',
+    };
+  }
   g.strokeStyle = 'rgba(20,24,28,0.22)';
   g.lineWidth = 1;
   g.fillStyle = '#1a1e22';
   g.font = '22px sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  const mpp = world / W;
   for (let x = Math.ceil(x0 / 10) * 10; x <= x1; x += 10) {
     const px = (x - x0) / world * W;
     g.beginPath(); g.moveTo(px, 0); g.lineTo(px, W); g.stroke();

@@ -6,6 +6,25 @@
   "buildings": 15,
   "ways": 9,
   "cityCells": 8578,
+  "hClearance": {
+    "ok": true,
+    "minClear": 1.525,
+    "hits": 0,
+    "inside": 0,
+    "margin": 1.5,
+    "nearest": {
+      "x": -38.777,
+      "z": 7.025,
+      "dist": 1.525
+    },
+    "fw": 8,
+    "fd": 8,
+    "tx": -37.75,
+    "tz": 1.5,
+    "rot": 90,
+    "cells": 0,
+    "area": 0
+  },
   "items": [
     {
       "a": "mega-0",
