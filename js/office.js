@@ -795,4 +795,6 @@ S.applyTowerFootprintScale = function applyTowerFootprintScale() {
   S.tower.traverse(o => {
     if (o && o.userData && (o.userData.head || o.userData.torso)) unscale(o);
   });
+  S.tower.updateMatrixWorld(true);
+  if (S.refreshHbInspect) S.refreshHbInspect();
 };

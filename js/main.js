@@ -319,11 +319,16 @@ window.__brightShot = (fov) => {
 // ~80 m back, low street, look-up ~17° — tower fills ~50% height, HQ crown above roof
 S.ROOF_Y = S.TOPLV * 4.2 + 6;
 
-S.CAM_END = new S.THREE.Vector3(9, 9.0, 104);
+// Street / intro camera was authored for the tower at the origin. Shift it
+// with the west-plot placement so the opening shot still frames the H tower.
+S.SITE_X = S.TOWER_X || 0;
+S.SITE_Z = S.TOWER_Z || 0;
 
-S.CAM_START = new S.THREE.Vector3(20, 14, 115);
+S.CAM_END = new S.THREE.Vector3(S.SITE_X + 9, 9.0, S.SITE_Z + 104);
 
-S.CAM_WIDE = new S.THREE.Vector3(14, 8.0, 130);
+S.CAM_START = new S.THREE.Vector3(S.SITE_X + 20, 14, S.SITE_Z + 115);
+
+S.CAM_WIDE = new S.THREE.Vector3(S.SITE_X + 14, 8.0, S.SITE_Z + 130);
 
 S.camera.position.copy(S.CAM_START);
 
@@ -331,7 +336,7 @@ S.controls = new S.OrbitControls(S.camera, S.renderer.domElement);
 
 S.TGT_Y = S.ROOF_Y * 0.45;
 
-S.controls.target.set(2, S.TGT_Y + 9, -4);
+S.controls.target.set(S.SITE_X + 2, S.TGT_Y + 9, S.SITE_Z - 4);
 
 S.controls.enableDamping = true;
  S.controls.maxPolarAngle = Math.PI * 0.495;
@@ -345,13 +350,13 @@ S.userTook = false;
 S.ceoInspect = false;
 S.hbInspect = false;
 S.hbBlend = 0;
-S.CEO_POS = new S.THREE.Vector3(2.4, 23.5, 15.5);
+S.CEO_POS = new S.THREE.Vector3(S.SITE_X + 2.4, 23.5, S.SITE_Z + 15.5);
 
-S.CEO_TGT = new S.THREE.Vector3(0.5, 22.6, -0.4);
+S.CEO_TGT = new S.THREE.Vector3(S.SITE_X + 0.5, 22.6, S.SITE_Z - 0.4);
 
 S.camHomePos = new S.THREE.Vector3();
 
-S.camHomeTgt = new S.THREE.Vector3(2, S.TGT_Y + 9, -4);
+S.camHomeTgt = new S.THREE.Vector3(S.SITE_X + 2, S.TGT_Y + 9, S.SITE_Z - 4);
 
 S.ceoBlend = 0;
 

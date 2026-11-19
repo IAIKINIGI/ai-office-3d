@@ -218,6 +218,17 @@ export function addHbRichInterior(parent, floor) {
   parent.traverse((o) => {
     if (o.isMesh) o.layers.enable(S.LAYER_HB);
   });
+  S.refreshHbInspect(floor);
+  return g;
+}
+
+// Recompute 3F inspect cameras in world space after the tower is moved,
+// rotated, or footprint-scaled. Local points are in the unscaled 22×14
+// construction frame; localToWorld applies the live scale.
+S.refreshHbInspect = function refreshHbInspect(floor) {
+  if (!S.tower) return;
+  floor = floor || (S.FLOORS && S.FLOORS.find(f => f.id === 'hb'));
+  if (!floor) return;
   const fy = (floor.lv - 1) * S.FH;
   S.tower.updateMatrixWorld(true);
   // Just behind the desk line, looking at both workstations, the neon sign
@@ -230,5 +241,4 @@ export function addHbRichInterior(parent, floor) {
   window.__HB_TGT = S.HB_TGT;
   window.__HB_HAILEY_POS = S.HB_HAILEY_POS;
   window.__HB_HAILEY_TGT = S.HB_HAILEY_TGT;
-  return g;
-}
+};
