@@ -32,7 +32,11 @@ A stroke drawn on either PNG converts to a road centreline by sampling pixels al
 
 
 `city-plan.png` is the same 210 m frame after the H office tower moved to the
-west empty plot (centre near x = −38 m, z = 8 m). The magenta rectangle is the
-rotated 22×14 m H tower; the gold square at (42.4, −37.2) is ATOM. Both are
-labelled. The highway is drawn as a road band (asphalt + markings), not as a
-diagnostic deck-edge overlay. `window.__renderCityPlan(true)` writes this frame.
+west empty plot (centre at x = −39 m, z = −0.5 m, rotated 140°). The circular
+civic rotunda and its kerb that previously sat in that lot were removed, and a
+few small original buildings were shifted so the 22×14 m footprint (magenta)
+clears the highway off-ramp and every neighbouring building. The gold square at
+(42.4, −37.2) is ATOM. Both are labelled. The highway is drawn as a road band
+(asphalt + markings), not as a diagnostic deck-edge overlay.
+`window.__renderCityPlan(true)` writes this frame. Run `window.__checkOverlaps()`
+(or `python3 tools/check-overlaps.py`) for the automated OBB overlap report.

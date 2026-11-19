@@ -396,8 +396,8 @@ S.tower = new S.THREE.Group();
 S.tower.name = 'h-tower';
 S.site.add(S.tower);
 
-// Yellow mark on the plan is a NE–SW rectangle. The working floors rotate with it.
-S.tower.rotation.y = 138 * Math.PI / 180;
+// NE–SW slab, door (local +Z) faces the existing road on the north-east.
+S.tower.rotation.y = (S.TOWER_ROT || 140) * Math.PI / 180;
 
 S.FW = 22, S.FD = 14, S.FH = 4.2;
 

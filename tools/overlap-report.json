@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "overlaps": 0,
+  "hTowerOverlaps": 0,
+  "buildings": 12,
+  "ways": 10,
+  "cityCells": 7267,
+  "items": [],
+  "westPlotEdit": {
+    "cutTris": 9149,
+    "cutMeshes": 28,
+    "standins": []
+  }
+}

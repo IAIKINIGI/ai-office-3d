@@ -1,4 +1,5 @@
 import { S } from './scope.js';
+import './overlap-check.js';
 
 
 S.facadeMat = function facadeMat(tintIdx, rx, ry) {
@@ -1360,98 +1361,41 @@ S.buildTowerAccess = function buildTowerAccess() {
     S.scene.add(m);
     return m;
   }
-  function markings(x, z0, z1, roadW) {
-    const len = z1 - z0, zc = (z0 + z1) / 2, y = 0.09;
-    if (len < 2) return;
-    for (const dx of [-0.12, 0.12]) {
-      const m = new S.THREE.Mesh(new S.THREE.PlaneGeometry(0.12, len * 0.96), markY);
-      m.rotation.x = -Math.PI / 2;
-      m.position.set(x + dx, y, zc);
-      m.userData.planRoad = 'mark';
-      S.scene.add(m);
-    }
-    for (const sx of [-1, 1]) {
-      const m = new S.THREE.Mesh(new S.THREE.PlaneGeometry(0.14, len * 0.96), markW);
-      m.rotation.x = -Math.PI / 2;
-      m.position.set(x + sx * (roadW / 2 - 0.3), y, zc);
-      m.userData.planRoad = 'mark';
-      S.scene.add(m);
-    }
-    for (const sx of [-1, 1]) {
-      for (let z = z0 + 3; z < z1 - 3; z += 8) {
-        const m = new S.THREE.Mesh(new S.THREE.PlaneGeometry(0.14, 3.2), markW);
-        m.rotation.x = -Math.PI / 2;
-        m.position.set(x + sx * (roadW / 4), y, z);
-        m.userData.planRoad = 'mark';
-        S.scene.add(m);
-      }
-    }
+
+  // Compact drop-off on the east of the slab, tying the east corner
+  // (~-26, 1.2) to the existing N–S street around x = -22. Kept east of
+  // the tower OBB and north of the small rectangular block at (~-31, 12)
+  // so it collides with neither. Sidewalks are 2.5 m (three person widths).
+  const roadW = 7, walkW = 7 + 2.5 * 2;
+  const x0 = -24.6, x1 = -21.4, xC = (x0 + x1) / 2, xLen = Math.abs(x1 - x0);
+  const zC = 2.4, zLen = 10;
+  addPlane(xLen, walkW, walkMat, xC, 0.04, zC, 'walk');
+  addPlane(xLen, roadW, roadMat, xC, 0.07, zC, 'road');
+  for (const sz of [-1, 1]) {
+    S.box(xLen, 0.22, 0.35, curbMat, xC, 0.11, zC + sz * (roadW / 2 + 0.15)).userData.planRoad = 'walk';
   }
-
-  // Wide ceremonial avenue in the open land south of the small-blocks.
-  const zWide0 = 50, zWide1 = 116, zWideC = (zWide0 + zWide1) / 2, zWideLen = zWide1 - zWide0;
-  const cxWide = tx;
-  addPlane(33, zWideLen, walkMat, cxWide, 0.04, zWideC, 'walk');
-  addPlane(16.2, zWideLen, roadMat, cxWide, 0.07, zWideC, 'road');
-  for (let z = zWide0 + 4; z <= zWide1 - 4; z += 10) {
-    S.box(1.4, 0.28, 8, curbMat, cxWide - 17, 0.14, z).userData.planRoad = 'walk';
-    S.box(1.4, 0.28, 8, curbMat, cxWide + 17, 0.14, z).userData.planRoad = 'walk';
-    S.box(0.06, 0.05, 7, S.E(0x00f0ff, 0.7), cxWide - 17.7, 0.32, z);
-    S.box(0.06, 0.05, 7, S.E(0xff2a6d, 0.7), cxWide + 17.7, 0.32, z);
-  }
-  markings(cxWide, zWide0, zWide1, 16.2);
-
-  // Narrower connector through the small-blocks gap. Offset 2 m west so it
-  // misses the building at (-36, 40). Sidewalks are ~2.5 m (three person widths).
-  const zCon0 = tz + 15, zCon1 = 50, zConC = (zCon0 + zCon1) / 2, zConLen = zCon1 - zCon0;
-  const cxCon = tx - 2;
-  const roadW = 9, walkW = 9 + 2.5 * 2;
-  addPlane(walkW, zConLen, walkMat, cxCon, 0.04, zConC, 'walk');
-  addPlane(roadW, zConLen, roadMat, cxCon, 0.07, zConC, 'road');
-  for (const sx of [-1, 1]) {
-    S.box(0.35, 0.22, zConLen, curbMat, cxCon + sx * (roadW / 2 + 0.15), 0.11, zConC).userData.planRoad = 'walk';
-  }
-  markings(cxCon, zCon0, zCon1, roadW);
-
-  // Drop-off apron between the tower and the connector.
-  const zApron0 = tz + 13, zApron1 = zCon0, zApronC = (zApron0 + zApron1) / 2, zApronLen = Math.max(3.5, zApron1 - zApron0);
-  addPlane(28, zApronLen, walkMat, tx, 0.045, zApronC, 'walk');
-  addPlane(12, zApronLen, roadMat, tx, 0.075, zApronC, 'road');
-  markings(tx, zApron0, zApron1, 12);
-
-  // East spur onto the existing N–S road around x = -22.
-  const xEast0 = tx + 13, xEast1 = -21.5, xEastC = (xEast0 + xEast1) / 2, xEastLen = Math.abs(xEast1 - xEast0);
-  const zEast = tz + 2;
-  const spurWalk = new S.THREE.Mesh(new S.THREE.PlaneGeometry(xEastLen, walkW), walkMat);
-  spurWalk.rotation.x = -Math.PI / 2;
-  spurWalk.position.set(xEastC, 0.04, zEast);
-  spurWalk.userData.planRoad = 'walk';
-  S.scene.add(spurWalk);
-  const spurRoad = new S.THREE.Mesh(new S.THREE.PlaneGeometry(xEastLen, roadW), roadMat);
-  spurRoad.rotation.x = -Math.PI / 2;
-  spurRoad.position.set(xEastC, 0.07, zEast);
-  spurRoad.userData.planRoad = 'road';
-  S.scene.add(spurRoad);
+  // Centre-line and edge markings on the apron.
   for (const dz of [-0.12, 0.12]) {
-    const m = new S.THREE.Mesh(new S.THREE.PlaneGeometry(xEastLen * 0.9, 0.12), markY);
+    const m = new S.THREE.Mesh(new S.THREE.PlaneGeometry(xLen * 0.9, 0.12), markY);
     m.rotation.x = -Math.PI / 2;
-    m.position.set(xEastC, 0.09, zEast + dz);
+    m.position.set(xC, 0.09, zC + dz);
     m.userData.planRoad = 'mark';
     S.scene.add(m);
   }
-
-  const ring = new S.THREE.Mesh(new S.THREE.TorusGeometry(16, 0.1, 8, 80), S.E(0x00f0ff, 1.4));
-  ring.rotation.x = Math.PI / 2;
-  ring.position.set(tx, 0.12, tz);
-  S.scene.add(ring);
+  for (const sz of [-1, 1]) {
+    const m = new S.THREE.Mesh(new S.THREE.PlaneGeometry(xLen * 0.9, 0.14), markW);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(xC, 0.09, zC + sz * (roadW / 2 - 0.3));
+    m.userData.planRoad = 'mark';
+    S.scene.add(m);
+  }
 };
 
 S.fillOldHqSite = function fillOldHqSite() {
   if (window.__oldHq) return;
   window.__oldHq = true;
   // Mid-rise on the vacated plot so the old crossroads is not a hole.
-  // Shorter than the H tower + crown. The existing civic ring and south
-  // avenue stay as a public square in front of it.
+  // Shorter than the H tower + crown.
   const g = new S.THREE.Group();
   g.name = 'old-hq-block';
   S.scene.add(g);
@@ -1465,6 +1409,129 @@ S.fillOldHqSite = function fillOldHqSite() {
   S.box(0.14, h1 + 10, 0.14, S.E(0x00f0ff, 1.6), -w1 / 2, (h1 + 10) / 2, -d1 / 2, g);
   S.box(0.14, h1 + 10, 0.14, S.E(0xff2a6d, 1.6), w1 / 2, (h1 + 10) / 2, -d1 / 2, g);
   S.box(0.2, 8, 0.2, S.M(0x555a70, { metalness: 0.85 }), 0, h1 + 20, 0, g);
+};
+
+
+
+// Cut the civic rotunda, its kerb, and the handful of original buildings
+// that sit under the relocated H tower out of the authored city meshes
+// (they are baked into large combined objects, so visibility toggles on
+// the mesh as a whole cannot be used). Simple stand-in blocks are placed
+// at nearby clear lots so the city does not lose those footprints.
+S.pruneWestPlotForTower = function pruneWestPlotForTower(city) {
+  if (!city || window.__westPlotPruned) return;
+  window.__westPlotPruned = true;
+  city.updateMatrixWorld(true);
+
+  const rot = (S.TOWER_ROT || 140) * Math.PI / 180;
+  const c = Math.cos(rot), s = Math.sin(rot);
+  const hx = (S.FW || 22) / 2 + 1.0, hz = (S.FD || 14) / 2 + 1.0;
+  const tx = S.TOWER_X, tz = S.TOWER_Z;
+
+  function inTower(x, z) {
+    const dx = x - tx, dz = z - tz;
+    const lx = dx * c - dz * s, lz = dx * s + dz * c;
+    return Math.abs(lx) <= hx && Math.abs(lz) <= hz;
+  }
+  function inCircle(x, z, cx, cz, r) {
+    const d = Math.hypot(x - cx, z - cz);
+    return d <= r;
+  }
+  function inBox(x, z, b) {
+    return x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
+  }
+
+  const circles = [{ x: -38.72, z: 8.58, r: 2.6 }];
+  const boxes = [
+    { x0: -51.0, z0: -10.8, x1: -34.6, z1: 4.8 },       // civic kerb / L-fence
+    { x0: -49.5, z0: -3.4, x1: -43.9, z1: 3.0 },        // NW block
+    { x0: -45.6, z0: -12.6, x1: -43.0, z1: -10.1 },     // north sheds
+    { x0: -43.3, z0: -12.6, x1: -40.7, z1: -10.1 },
+    { x0: -41.7, z0: -12.0, x1: -37.6, z1: -8.3 },
+    { x0: -48.0, z0: -10.1, x1: -45.1, z1: -6.9 },
+    { x0: -33.5, z0: -5.0, x1: -27.4, z1: 0.3 },        // east pad
+    { x0: -8.6, z0: -6.6, x1: 8.6, z1: 6.6 },           // old-HQ mid-rise 16×12 + pad
+  ];
+
+  function distSeg(px, pz, ax, az, bx, bz) {
+    const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1;
+    let t = ((px - ax) * dx + (pz - az) * dz) / L2;
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+  }
+  const hwyBands = [];
+  const orange = window.__ORANGE;
+  if (orange && orange.ramps) {
+    orange.ramps.forEach(rp => {
+      if (!rp.road || rp.id === 'OVERLAP' || rp.road.length < 2) return;
+      hwyBands.push({ pts: rp.road, half: (rp.w || 4.2) / 2 });
+    });
+  }
+  function inRamp(x, z) {
+    for (const b of hwyBands) {
+      for (let i = 0; i < b.pts.length - 1; i++) {
+        const a = b.pts[i], c0 = b.pts[i + 1];
+        if (distSeg(x, z, a[0], a[1], c0[0], c0[1]) <= b.half) return true;
+      }
+    }
+    return false;
+  }
+
+  function shouldCut(x, z) {
+    if (inTower(x, z)) return true;
+    if (inRamp(x, z)) return true;
+    for (const c of circles) if (inCircle(x, z, c.x, c.z, c.r)) return true;
+    for (const b of boxes) if (inBox(x, z, b)) return true;
+    return false;
+  }
+
+  const vA = new S.THREE.Vector3(), vB = new S.THREE.Vector3(), vC = new S.THREE.Vector3();
+  let cutTris = 0, cutMeshes = 0;
+
+  city.traverse(o => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+    o.updateMatrixWorld(true);
+    const src = o.geometry;
+    const pos = src.attributes.position;
+    const idx = src.index;
+    const triCount = idx ? (idx.count / 3) : (pos.count / 3);
+    if (triCount < 1) return;
+    const keep = [];
+    const mw = o.matrixWorld;
+    for (let t = 0; t < triCount; t++) {
+      const ia = t * 3, ib = ia + 1, ic = ia + 2;
+      const a = idx ? idx.getX(ia) : ia;
+      const b = idx ? idx.getX(ib) : ib;
+      const c0 = idx ? idx.getX(ic) : ic;
+      vA.fromBufferAttribute(pos, a).applyMatrix4(mw);
+      vB.fromBufferAttribute(pos, b).applyMatrix4(mw);
+      vC.fromBufferAttribute(pos, c0).applyMatrix4(mw);
+      const cx = (vA.x + vB.x + vC.x) / 3;
+      const cz = (vA.z + vB.z + vC.z) / 3;
+      if (shouldCut(cx, cz) || shouldCut(vA.x, vA.z) || shouldCut(vB.x, vB.z) || shouldCut(vC.x, vC.z)) continue;
+      keep.push(a, b, c0);
+    }
+    const keptTris = keep.length / 3;
+    if (keptTris === triCount) return;
+    cutTris += (triCount - keptTris);
+    cutMeshes += 1;
+    if (keptTris === 0) {
+      o.visible = false;
+      o.userData.planHide = true;
+      return;
+    }
+    // Rebuild a compact non-indexed (or re-indexed) geometry from kept vertices.
+    const geo = src.clone();
+    const newIndex = new (keep.length > 65535 ? Uint32Array : Uint16Array)(keep);
+    geo.setIndex(new S.THREE.BufferAttribute(newIndex, 1));
+    geo.computeVertexNormals();
+    geo.computeBoundingBox();
+    geo.computeBoundingSphere();
+    o.geometry = geo;
+  });
+
+  window.__westPlotEdit = { cutTris, cutMeshes, standins: [] };
+  console.info('[west-plot] cut', cutTris, 'tris on', cutMeshes, 'meshes');
 };
 
 S.buildDistrict = function buildDistrict(lane) {
@@ -1948,6 +2015,7 @@ S.loadCyberCity = function loadCyberCity() {
     city.updateMatrixWorld(true);
     S.darkenCityGround(city);
     window.__city = city;
+    S.pruneWestPlotForTower(city);
     if (window.__streets) S.addStreetLights(window.__streets.lights || []);
     S.dressCityFacades(city);
     S.sealRoads();
@@ -2435,10 +2503,6 @@ for (let z = 56; z <= 106; z += 10) {
   S.box(0.06, 0.05, 7, S.E(0xff2a6d, 0.7), 17.7, 0.32, z);
 }
 
-// plaza ring around tower base
-{ const ring = new S.THREE.Mesh(new S.THREE.TorusGeometry(14, 0.12, 8, 96), S.E(0x00f0ff, 1.6));
-  ring.rotation.x = Math.PI / 2; ring.position.y = 0.12; S.scene.add(ring); }
-
 // Lane dashes that ran straight through the blocks were removed.
 
 // ---- Night City canyon: irregular megatowers, setbacks, neon, skybridges, haze ----
@@ -2461,6 +2525,14 @@ S.neonSlots = [];
 
 S.megas = [];
 
+S.megaClear = function megaClear(x, z, w, d) {
+  const pad = 1.2;
+  for (const m of S.megas) {
+    if (Math.abs(x - m.x) < (w + m.w) / 2 + pad && Math.abs(z - m.z) < (d + m.d) / 2 + pad) return false;
+  }
+  return true;
+};
+
 // Clear center corridor so sky + HQ silhouette read. Framing towers at MID distance with gaps.
 // LAYER 0 — near frame (left/right, pulled back from lens)
 for (const side of [-1, 1]) {
@@ -2470,7 +2542,9 @@ for (const side of [-1, 1]) {
     if (Math.abs(x) < 38) continue;
     if (Math.hypot(x, z) < 112) continue;
     const h = 85 + S.rng() * 55;
-    S.megas.push(S.makeMega(x, z, h, 11 + S.rng() * 8, 10 + S.rng() * 7, i + (side > 0 ? 3 : 0), 0));
+    const w = 11 + S.rng() * 8, d = 10 + S.rng() * 7;
+    if (!S.megaClear(x, z, w, d)) continue;
+    S.megas.push(S.makeMega(x, z, h, w, d, i + (side > 0 ? 3 : 0), 0));
   }
 }
 
@@ -2480,7 +2554,9 @@ for (const side of [-1, 1]) {
     const x = side * (58 + S.rng() * 40);
     const z = -15 - S.rng() * 55;
     if (Math.hypot(x, z) < 112) continue;
-    S.megas.push(S.makeMega(x, z, 70 + S.rng() * 80, 9 + S.rng() * 11, 9 + S.rng() * 9, i + 4, 1));
+    const w = 9 + S.rng() * 11, d = 9 + S.rng() * 9;
+    if (!S.megaClear(x, z, w, d)) continue;
+    S.megas.push(S.makeMega(x, z, 70 + S.rng() * 80, w, d, i + 4, 1));
   }
 }
 
@@ -2495,7 +2571,9 @@ for (let i = 0; i < 36; i++) {
   if (Math.abs(x - S.TOWER_X) < 22 && z > S.TOWER_Z && z < S.TOWER_Z + 115) continue; // south approach
   if (Math.abs(x) < 30 && z < 5 && z > -40) continue; // center corridor
   if (Math.hypot(x, z) < 118) continue;
-  S.megas.push(S.makeMega(x, z, 50 + S.rng() * 95, 8 + S.rng() * 12, 8 + S.rng() * 10, i, 2));
+  const w = 8 + S.rng() * 12, d = 8 + S.rng() * 10;
+  if (!S.megaClear(x, z, w, d)) continue;
+  S.megas.push(S.makeMega(x, z, 50 + S.rng() * 95, w, d, i, 2));
 }
 
 
@@ -2982,7 +3060,7 @@ window.__renderCityPlan = function (withRoads, highwayOnly, opts) {
   });
   const office = new S.THREE.Mesh(new S.THREE.BoxGeometry(S.FW, 1.2, S.FD), new S.THREE.MeshBasicMaterial({ color: 0xff2ad0 }));
   office.position.set(S.TOWER_X, 0.2, S.TOWER_Z);
-  office.rotation.y = 138 * Math.PI / 180;
+  office.rotation.y = (S.TOWER_ROT || 140) * Math.PI / 180;
   const officeLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(office.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a1060 }));
   office.add(officeLine);
   S.scene.add(office);
@@ -3176,7 +3254,7 @@ S.kenneyBuildings = [];
       S.megaGroup.add(b);
     });
     // Replace / supplement street cars with Kenney GLBs
-    // Ground cars — 2–3 at kerb/crosswalk edges; clear of plaza ring (r≈14)
+    // Ground cars — 2–3 at kerb/crosswalk edges, kept clear of the old HQ mid-rise
     const lanes = [
       { z: 34, speed: 0, x: -16, paint: 0x2a2038, neon: 0xff2a6d }, // left kerb
       { z: 33, speed: 0, x: 16, paint: 0x1a2830, neon: 0x00f0ff },  // right kerb
