@@ -1,4 +1,5 @@
 import { S } from './scope.js';
+import './overlap-check.js';
 
 
 S.facadeMat = function facadeMat(tintIdx, rx, ry) {
@@ -2296,9 +2297,7 @@ for (let z = 56; z <= 106; z += 10) {
   S.box(0.06, 0.05, 7, S.E(0xff2a6d, 0.7), 17.7, 0.32, z);
 }
 
-// plaza ring around tower base
-{ const ring = new S.THREE.Mesh(new S.THREE.TorusGeometry(14, 0.12, 8, 96), S.E(0x00f0ff, 1.6));
-  ring.rotation.x = Math.PI / 2; ring.position.y = 0.12; S.scene.add(ring); }
+// plaza ring around tower base removed so the shrunk H tower is not ringed by a 14 m civic circle.
 
 // Lane dashes that ran straight through the blocks were removed.
 
@@ -2771,7 +2770,8 @@ window.__ORANGE = {"pts": [{"x": 13.19, "z": -55.37, "w": 5.6}, {"x": 14.3, "z":
 
 export function initDistrict() {
 
-window.__renderCityPlan = function (withRoads, highwayOnly) {
+window.__renderCityPlan = function (withRoads, highwayOnly, opts) {
+  opts = opts || {};
   const W = 2048;
   const buildings = [];
   if (window.__city) {
@@ -2796,13 +2796,26 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
   bounds.expandByPoint(new S.THREE.Vector3(-S.FW / 2, 0, -S.FD / 2));
   bounds.expandByPoint(new S.THREE.Vector3(S.FW / 2, 30, S.FD / 2));
   roads.forEach(m => bounds.expandByObject(m));
-  const spanNeed = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) + 24;
-  const world = Math.ceil(spanNeed / 10) * 10;
-  const half = world / 2;
-  const cx = (bounds.min.x + bounds.max.x) / 2;
-  const cz = (bounds.min.z + bounds.max.z) / 2;
-  const x0 = cx - half, x1 = cx + half;
-  const z0 = cz - half, z1 = cz + half;
+  let world, half, cx, cz, x0, x1, z0, z1;
+  if (opts.fixed !== false) {
+    // Same 210 m orthographic frame as docs/city-plan.md
+    world = 210;
+    half = world / 2;
+    x0 = -100.76154028251767;
+    z0 = -87.36261804588139;
+    x1 = x0 + world;
+    z1 = z0 + world;
+    cx = x0 + half;
+    cz = z0 + half;
+  } else {
+    const spanNeed = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) + 24;
+    world = Math.ceil(spanNeed / 10) * 10;
+    half = world / 2;
+    cx = (bounds.min.x + bounds.max.x) / 2;
+    cz = (bounds.min.z + bounds.max.z) / 2;
+    x0 = cx - half; x1 = cx + half;
+    z0 = cz - half; z1 = cz + half;
+  }
   const savedVis = [];
   S.scene.traverse(o => savedVis.push([o, o.visible]));
   S.scene.traverse(o => { o.visible = false; });
@@ -2824,12 +2837,20 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
     m.add(line);
     edgeLines.push(line);
   });
-  const office = new S.THREE.Mesh(new S.THREE.BoxGeometry(S.FW, 1.2, S.FD), new S.THREE.MeshBasicMaterial({ color: 0xff2ad0 }));
-  office.position.set(0, 0.2, 0);
+  const twFw = S.TOWER_FW || S.FW, twFd = S.TOWER_FD || S.FD;
+  const office = new S.THREE.Mesh(new S.THREE.BoxGeometry(twFw, 1.2, twFd), new S.THREE.MeshBasicMaterial({ color: 0xff2ad0 }));
+  office.position.set(S.TOWER_X || 0, 0.2, S.TOWER_Z || 0);
+  office.rotation.y = ((S.TOWER_ROT != null) ? S.TOWER_ROT : 138) * Math.PI / 180;
   const officeLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(office.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a1060 }));
   office.add(officeLine);
   S.scene.add(office);
   show(office);
+  const atomLot = new S.THREE.Mesh(new S.THREE.BoxGeometry(6.6, 1.2, 6.6), new S.THREE.MeshBasicMaterial({ color: 0xd4a017 }));
+  atomLot.position.set(42.4, 0.2, -37.2);
+  const atomLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(atomLot.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a5a08 }));
+  atomLot.add(atomLine);
+  S.scene.add(atomLot);
+  show(atomLot);
   const savedRoad = [];
   const roadFlat = new S.THREE.MeshBasicMaterial({ color: 0x4e5966 });
   const walkFlat = new S.THREE.MeshBasicMaterial({ color: 0xb7c0c8 });
@@ -2872,6 +2893,7 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
   edgeLines.forEach(l => l.parent && l.parent.remove(l));
   S.scene.remove(ground);
   S.scene.remove(office);
+  S.scene.remove(atomLot);
   rt.dispose();
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = W;
@@ -2920,6 +2942,18 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
   g.font = '28px sans-serif';
   g.textAlign = 'center';
   g.fillText('N', nx, ny - 70);
+  const label = (wx, wz, text, color, dx, dy) => {
+    const px = (wx - x0) / world * W + (dx || 0);
+    const py = (wz - z0) / world * W + (dy || 0);
+    g.fillStyle = color;
+    g.font = '28px sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(text, px, py);
+  };
+  label(S.TOWER_X || 0, S.TOWER_Z || 0, 'H TOWER', '#c01880', 0, 52);
+  label(42.4, -37.2, 'ATOM', '#8a6a10', 0, -22);
+
   return {
     png: canvas.toDataURL('image/png'),
     width: W,

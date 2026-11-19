@@ -534,6 +534,7 @@ initBloom();
 initHud();
 initLoop();
 initProof();
+S.applyTowerFootprintScale();
 S.tick();
 const hsh = location.hash.slice(1);
 if (hsh) { const f = S.FLOORS.find(x => x.id === hsh); if (f) S.openPanel(f); }

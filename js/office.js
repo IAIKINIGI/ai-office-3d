@@ -393,7 +393,8 @@ S.tower = new S.THREE.Group();
  S.scene.add(S.tower);
 
 // Yellow mark on the plan is a NE–SW rectangle. The working floors rotate with it.
-S.tower.rotation.y = 138 * Math.PI / 180;
+S.tower.rotation.y = ((S.TOWER_ROT != null) ? S.TOWER_ROT : 138) * Math.PI / 180;
+S.tower.position.set(S.TOWER_X || 0, 0, S.TOWER_Z || 0);
 
 S.FW = 22, S.FD = 14, S.FH = 4.2;
 
@@ -774,3 +775,24 @@ S.box(0.16, 3.0, 0.16, S.E(0x39f3ff, 4.4), (S.FW - 4) / 2, S.ROOF + 2.4, -4.4);
 }
 }
 
+
+
+S.applyTowerFootprintScale = function applyTowerFootprintScale() {
+  if (!S.tower) return;
+  const builtW = S.FW || 22, builtD = S.FD || 14;
+  const fw = S.TOWER_FW || builtW, fd = S.TOWER_FD || builtD;
+  const sx = fw / builtW, sz = fd / builtD;
+  S.tower.position.set(S.TOWER_X || 0, 0, S.TOWER_Z || 0);
+  S.tower.rotation.y = ((S.TOWER_ROT != null) ? S.TOWER_ROT : 138) * Math.PI / 180;
+  S.tower.scale.set(sx, 1, sz);
+  const invX = sx ? 1 / sx : 1, invZ = sz ? 1 / sz : 1;
+  const unscale = (rig) => { if (rig && rig.scale) rig.scale.set(invX, 1, invZ); };
+  const underTower = (o) => { let n = o; while (n) { if (n === S.tower) return true; n = n.parent; } return false; };
+  if (S.cast) {
+    S.cast.forEach(a => { if (a.rig && underTower(a.rig)) unscale(a.rig); });
+  }
+  // Rigs are the groups that carry head/torso userData.
+  S.tower.traverse(o => {
+    if (o && o.userData && (o.userData.head || o.userData.torso)) unscale(o);
+  });
+};
