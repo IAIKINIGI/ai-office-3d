@@ -1,4 +1,5 @@
 import { S } from './scope.js';
+import { addHbRichInterior } from './hb-interior.js';
 
 
 S.screenKeyFor = function screenKeyFor(floor) {
@@ -439,12 +440,15 @@ S.FLOORS.forEach((f, idx) => {
   const g = new S.THREE.Group(); g.position.y = (f.lv - 1) * S.FH; S.tower.add(g);
   // floor slab + lit edge strip
   S.box(S.FW + 0.4, 0.38, S.FD + 0.4, S.floorMat, 0, 0.19, 0, g);
-  // opaque rear wall so interiors read against dark
-  S.box(S.FW - 0.4, S.FH - 0.5, 0.25, S.backWall, 0, S.FH / 2, -S.FD / 2 + 0.2, g);
+  // opaque rear wall so interiors read against dark.
+  // 3F (hb) gets a windowed back wall in addHbRichInterior instead.
+  if (f.id !== 'hb') S.box(S.FW - 0.4, S.FH - 0.5, 0.25, S.backWall, 0, S.FH / 2, -S.FD / 2 + 0.2, g);
   // Dark city glass. The lobby front is a real door, not a solid pane.
   if (f.lv === 1) S.buildLobbyShell(g, f, S.shellMat);
   else {
-    const shell = new S.THREE.Mesh(new S.THREE.BoxGeometry(S.FW, S.FH - 0.35, S.FD), S.shellMat);
+    const shellMat = f.id === 'hb' ? S.shellMat.clone() : S.shellMat;
+    if (f.id === 'hb') { shellMat.opacity = 0.16; shellMat.depthWrite = false; }
+    const shell = new S.THREE.Mesh(new S.THREE.BoxGeometry(S.FW, S.FH - 0.35, S.FD), shellMat);
     shell.position.y = S.FH / 2 + 0.15; shell.userData.floor = f; g.add(shell); S.pickables.push(shell);
   }
   S.addCityFacade(g, f);
@@ -505,6 +509,10 @@ S.FLOORS.forEach((f, idx) => {
     // Short cyan and magenta rims. An edge on the hair and jacket, not a wash.
     bookLight(0x3adfff, 8, 2.05, -6.6, 1.75, 0.35);
     bookLight(0xff4b88, 7, 2.05, 6.6, 1.75, 0.35);
+    // Modest hall fill so the new furniture reads from the street and
+    // from the 3F inspect camera. Range still dies inside this storey.
+    // Camera-layer lights: 31 -> 32.
+    bookLight(0xd8e4f4, 9, 10, 0, 1.75, 0.2);
   }
 
   const c = S.colors[idx % S.colors.length];
@@ -579,6 +587,7 @@ for (const { g, f } of S.floorGroups) {
   S.addFloorLanding(g, f);
   S.addRestCorner(g, f);
   if (f.id === 'exec') { S.addGamingRoom(g, f); S.execBundle = { g, f }; }
+  if (f.id === 'hb') addHbRichInterior(g, f);
 }
 
 S.buildLiftCabin();

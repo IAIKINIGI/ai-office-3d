@@ -134,6 +134,8 @@ S.LAYER_ACTOR = 1;
  // people / cars — local rim lights must not enter city shaders
 S.LAYER_ROOM = 2;
   // office interiors only
+S.LAYER_HB = 3;
+  // 3F 訂車部 fill only — camera enables this layer when inspecting 3F
 S.scene = new S.THREE.Scene();
 
 window.__scene = S.scene;

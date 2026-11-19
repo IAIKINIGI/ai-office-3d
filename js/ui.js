@@ -10,6 +10,7 @@ S.openPanel = function openPanel(f) {
   ${f.stats ? `<div class="kv warn"><b>今日數字</b><span>${f.stats}</span></div>` : ''}
   <h3>工作報告</h3><ul>${rows}</ul>`;
   S.panel.classList.add('open'); S.focusY = (f.lv - 1) * S.FH + S.FH / 2;
+  S.hbInspect = f.id === 'hb';
   S.ceoInspect = f.id === 'exec' && !S.userTook;
   S.floorTags.forEach(x => x.el.classList.toggle('sel', x.f === f));
 }
