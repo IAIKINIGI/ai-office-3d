@@ -1,4 +1,5 @@
 import { S } from './scope.js';
+import './overlap-check.js';
 
 
 S.facadeMat = function facadeMat(tintIdx, rx, ry) {
@@ -1333,7 +1334,209 @@ S.buildAvenue = function buildAvenue() {
 }
 
 
+
+S.buildTowerAccess = function buildTowerAccess() {
+  if (window.__towerAccess) return;
+  window.__towerAccess = true;
+  const tx = S.TOWER_X, tz = S.TOWER_Z;
+  const roadMat = new S.THREE.MeshStandardMaterial({
+    map: S.asphaltMap(), color: 0xffffff, roughness: 0.93, metalness: 0.02,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+  });
+  const walkMat = new S.THREE.MeshStandardMaterial({
+    map: S.pavingMap(), color: 0xffffff, roughness: 0.92, metalness: 0.02,
+  });
+  const curbMat = new S.THREE.MeshStandardMaterial({
+    color: 0x1a1e26, metalness: 0.55, roughness: 0.45, map: S.texStreet,
+  });
+  const markW = new S.THREE.MeshBasicMaterial({ color: 0xf4f1e6 });
+  const markY = new S.THREE.MeshBasicMaterial({ color: 0xe6c44c });
+
+  function addPlane(w, d, mat, x, y, z, kind) {
+    const m = new S.THREE.Mesh(new S.THREE.PlaneGeometry(w, d), mat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, y, z);
+    m.receiveShadow = true;
+    m.userData.planRoad = kind;
+    S.scene.add(m);
+    return m;
+  }
+
+  // Compact drop-off on the east of the slab, tying the east corner
+  // (~-26, 1.2) to the existing N–S street around x = -22. Kept east of
+  // the tower OBB and north of the small rectangular block at (~-31, 12)
+  // so it collides with neither. Sidewalks are 2.5 m (three person widths).
+  const roadW = 7, walkW = 7 + 2.5 * 2;
+  const x0 = -24.6, x1 = -21.4, xC = (x0 + x1) / 2, xLen = Math.abs(x1 - x0);
+  const zC = 2.4, zLen = 10;
+  addPlane(xLen, walkW, walkMat, xC, 0.04, zC, 'walk');
+  addPlane(xLen, roadW, roadMat, xC, 0.07, zC, 'road');
+  for (const sz of [-1, 1]) {
+    S.box(xLen, 0.22, 0.35, curbMat, xC, 0.11, zC + sz * (roadW / 2 + 0.15)).userData.planRoad = 'walk';
+  }
+  // Centre-line and edge markings on the apron.
+  for (const dz of [-0.12, 0.12]) {
+    const m = new S.THREE.Mesh(new S.THREE.PlaneGeometry(xLen * 0.9, 0.12), markY);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(xC, 0.09, zC + dz);
+    m.userData.planRoad = 'mark';
+    S.scene.add(m);
+  }
+  for (const sz of [-1, 1]) {
+    const m = new S.THREE.Mesh(new S.THREE.PlaneGeometry(xLen * 0.9, 0.14), markW);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(xC, 0.09, zC + sz * (roadW / 2 - 0.3));
+    m.userData.planRoad = 'mark';
+    S.scene.add(m);
+  }
+};
+
+S.fillOldHqSite = function fillOldHqSite() {
+  if (window.__oldHq) return;
+  window.__oldHq = true;
+  // Mid-rise on the vacated plot so the old crossroads is not a hole.
+  // Shorter than the H tower + crown.
+  const g = new S.THREE.Group();
+  g.name = 'old-hq-block';
+  S.scene.add(g);
+  const facade = (S.facadeMat && S.facadeMat(3, 2.2, 3.4)) || S.M(0x161b24, { metalness: 0.35, roughness: 0.55 });
+  const h1 = 18, w1 = 16, d1 = 12;
+  S.box(w1, h1, d1, facade, 0, h1 / 2, 0, g);
+  S.box(w1 * 0.72, 10, d1 * 0.7, facade, 0, h1 + 5, 0, g);
+  S.box(w1 * 0.45, 6, d1 * 0.48, S.M(0x10141c, { metalness: 0.55, roughness: 0.4 }), 0, h1 + 13, 0, g);
+  S.box(0.14, h1 + 10, 0.14, S.E(0xff2a6d, 2.2), -w1 / 2, (h1 + 10) / 2, d1 / 2, g);
+  S.box(0.14, h1 + 10, 0.14, S.E(0x00f0ff, 2.0), w1 / 2, (h1 + 10) / 2, d1 / 2, g);
+  S.box(0.14, h1 + 10, 0.14, S.E(0x00f0ff, 1.6), -w1 / 2, (h1 + 10) / 2, -d1 / 2, g);
+  S.box(0.14, h1 + 10, 0.14, S.E(0xff2a6d, 1.6), w1 / 2, (h1 + 10) / 2, -d1 / 2, g);
+  S.box(0.2, 8, 0.2, S.M(0x555a70, { metalness: 0.85 }), 0, h1 + 20, 0, g);
+};
+
+
+
+// Cut the civic rotunda, its kerb, and the handful of original buildings
+// that sit under the relocated H tower out of the authored city meshes
+// (they are baked into large combined objects, so visibility toggles on
+// the mesh as a whole cannot be used). Simple stand-in blocks are placed
+// at nearby clear lots so the city does not lose those footprints.
+S.pruneWestPlotForTower = function pruneWestPlotForTower(city) {
+  if (!city || window.__westPlotPruned) return;
+  window.__westPlotPruned = true;
+  city.updateMatrixWorld(true);
+
+  const rot = (S.TOWER_ROT || 140) * Math.PI / 180;
+  const c = Math.cos(rot), s = Math.sin(rot);
+  const hx = (S.FW || 22) / 2 + 1.0, hz = (S.FD || 14) / 2 + 1.0;
+  const tx = S.TOWER_X, tz = S.TOWER_Z;
+
+  function inTower(x, z) {
+    const dx = x - tx, dz = z - tz;
+    const lx = dx * c - dz * s, lz = dx * s + dz * c;
+    return Math.abs(lx) <= hx && Math.abs(lz) <= hz;
+  }
+  function inCircle(x, z, cx, cz, r) {
+    const d = Math.hypot(x - cx, z - cz);
+    return d <= r;
+  }
+  function inBox(x, z, b) {
+    return x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1;
+  }
+
+  const circles = [{ x: -38.72, z: 8.58, r: 2.6 }];
+  const boxes = [
+    { x0: -51.0, z0: -10.8, x1: -34.6, z1: 4.8 },       // civic kerb / L-fence
+    { x0: -49.5, z0: -3.4, x1: -43.9, z1: 3.0 },        // NW block
+    { x0: -45.6, z0: -12.6, x1: -43.0, z1: -10.1 },     // north sheds
+    { x0: -43.3, z0: -12.6, x1: -40.7, z1: -10.1 },
+    { x0: -41.7, z0: -12.0, x1: -37.6, z1: -8.3 },
+    { x0: -48.0, z0: -10.1, x1: -45.1, z1: -6.9 },
+    { x0: -33.5, z0: -5.0, x1: -27.4, z1: 0.3 },        // east pad
+    { x0: -8.6, z0: -6.6, x1: 8.6, z1: 6.6 },           // old-HQ mid-rise 16×12 + pad
+  ];
+
+  function distSeg(px, pz, ax, az, bx, bz) {
+    const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1;
+    let t = ((px - ax) * dx + (pz - az) * dz) / L2;
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+  }
+  const hwyBands = [];
+  const orange = window.__ORANGE;
+  if (orange && orange.ramps) {
+    orange.ramps.forEach(rp => {
+      if (!rp.road || rp.id === 'OVERLAP' || rp.road.length < 2) return;
+      hwyBands.push({ pts: rp.road, half: (rp.w || 4.2) / 2 });
+    });
+  }
+  function inRamp(x, z) {
+    for (const b of hwyBands) {
+      for (let i = 0; i < b.pts.length - 1; i++) {
+        const a = b.pts[i], c0 = b.pts[i + 1];
+        if (distSeg(x, z, a[0], a[1], c0[0], c0[1]) <= b.half) return true;
+      }
+    }
+    return false;
+  }
+
+  function shouldCut(x, z) {
+    if (inTower(x, z)) return true;
+    if (inRamp(x, z)) return true;
+    for (const c of circles) if (inCircle(x, z, c.x, c.z, c.r)) return true;
+    for (const b of boxes) if (inBox(x, z, b)) return true;
+    return false;
+  }
+
+  const vA = new S.THREE.Vector3(), vB = new S.THREE.Vector3(), vC = new S.THREE.Vector3();
+  let cutTris = 0, cutMeshes = 0;
+
+  city.traverse(o => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+    o.updateMatrixWorld(true);
+    const src = o.geometry;
+    const pos = src.attributes.position;
+    const idx = src.index;
+    const triCount = idx ? (idx.count / 3) : (pos.count / 3);
+    if (triCount < 1) return;
+    const keep = [];
+    const mw = o.matrixWorld;
+    for (let t = 0; t < triCount; t++) {
+      const ia = t * 3, ib = ia + 1, ic = ia + 2;
+      const a = idx ? idx.getX(ia) : ia;
+      const b = idx ? idx.getX(ib) : ib;
+      const c0 = idx ? idx.getX(ic) : ic;
+      vA.fromBufferAttribute(pos, a).applyMatrix4(mw);
+      vB.fromBufferAttribute(pos, b).applyMatrix4(mw);
+      vC.fromBufferAttribute(pos, c0).applyMatrix4(mw);
+      const cx = (vA.x + vB.x + vC.x) / 3;
+      const cz = (vA.z + vB.z + vC.z) / 3;
+      if (shouldCut(cx, cz) || shouldCut(vA.x, vA.z) || shouldCut(vB.x, vB.z) || shouldCut(vC.x, vC.z)) continue;
+      keep.push(a, b, c0);
+    }
+    const keptTris = keep.length / 3;
+    if (keptTris === triCount) return;
+    cutTris += (triCount - keptTris);
+    cutMeshes += 1;
+    if (keptTris === 0) {
+      o.visible = false;
+      o.userData.planHide = true;
+      return;
+    }
+    // Rebuild a compact non-indexed (or re-indexed) geometry from kept vertices.
+    const geo = src.clone();
+    const newIndex = new (keep.length > 65535 ? Uint32Array : Uint16Array)(keep);
+    geo.setIndex(new S.THREE.BufferAttribute(newIndex, 1));
+    geo.computeVertexNormals();
+    geo.computeBoundingBox();
+    geo.computeBoundingSphere();
+    o.geometry = geo;
+  });
+
+  window.__westPlotEdit = { cutTris, cutMeshes, standins: [] };
+  console.info('[west-plot] cut', cutTris, 'tris on', cutMeshes, 'meshes');
+};
+
 S.buildDistrict = function buildDistrict(lane) {
+  S.buildTowerAccess();
+  S.fillOldHqSite();
   if (window.__district || !lane || lane.length < 8) return;
   window.__district = true;
   window.__lane = lane;
@@ -1526,6 +1729,7 @@ S.dressLane = function dressLane(lane) {
   }
   function open(x, z) {
     if (Math.hypot(x, z) < 16) return false;
+    if (Math.hypot(x - S.TOWER_X, z - S.TOWER_Z) < 18) return false;
     if (window.__footBlocked) return !window.__footBlocked(x, z);
     return groundY(x, z) < 1.25;
   }
@@ -1811,6 +2015,7 @@ S.loadCyberCity = function loadCyberCity() {
     city.updateMatrixWorld(true);
     S.darkenCityGround(city);
     window.__city = city;
+    S.pruneWestPlotForTower(city);
     if (window.__streets) S.addStreetLights(window.__streets.lights || []);
     S.dressCityFacades(city);
     S.sealRoads();
@@ -2155,8 +2360,10 @@ S.loadAtomTower = function loadAtomTower() {
     // The northeast lot is a 6.6 m square. Height is the H tower crown, a bit taller.
     // X/Z stay on the lot; Y is stretched so it reads as a spire.
     atom.scale.set(6.6 / 0.972, 72 / 4.586, 6.6 / 0.571);
-    // Local -X carries the ATOM face. Point that face south, back toward the H tower.
-    atom.rotation.y = Math.PI / 2;
+    // Local -X carries the ATOM face. Point that face toward the H tower
+    // (west-southwest of the northeast lot) so it stays the opposite landmark.
+    const toHx = S.TOWER_X - 42.4, toHz = S.TOWER_Z + 37.2;
+    atom.rotation.y = Math.atan2(toHz, -toHx);
     atom.updateMatrixWorld(true);
     const box = new S.THREE.Box3().setFromObject(atom);
     const center = box.getCenter(new S.THREE.Vector3());
@@ -2296,10 +2503,6 @@ for (let z = 56; z <= 106; z += 10) {
   S.box(0.06, 0.05, 7, S.E(0xff2a6d, 0.7), 17.7, 0.32, z);
 }
 
-// plaza ring around tower base
-{ const ring = new S.THREE.Mesh(new S.THREE.TorusGeometry(14, 0.12, 8, 96), S.E(0x00f0ff, 1.6));
-  ring.rotation.x = Math.PI / 2; ring.position.y = 0.12; S.scene.add(ring); }
-
 // Lane dashes that ran straight through the blocks were removed.
 
 // ---- Night City canyon: irregular megatowers, setbacks, neon, skybridges, haze ----
@@ -2322,6 +2525,14 @@ S.neonSlots = [];
 
 S.megas = [];
 
+S.megaClear = function megaClear(x, z, w, d) {
+  const pad = 1.2;
+  for (const m of S.megas) {
+    if (Math.abs(x - m.x) < (w + m.w) / 2 + pad && Math.abs(z - m.z) < (d + m.d) / 2 + pad) return false;
+  }
+  return true;
+};
+
 // Clear center corridor so sky + HQ silhouette read. Framing towers at MID distance with gaps.
 // LAYER 0 — near frame (left/right, pulled back from lens)
 for (const side of [-1, 1]) {
@@ -2331,7 +2542,9 @@ for (const side of [-1, 1]) {
     if (Math.abs(x) < 38) continue;
     if (Math.hypot(x, z) < 112) continue;
     const h = 85 + S.rng() * 55;
-    S.megas.push(S.makeMega(x, z, h, 11 + S.rng() * 8, 10 + S.rng() * 7, i + (side > 0 ? 3 : 0), 0));
+    const w = 11 + S.rng() * 8, d = 10 + S.rng() * 7;
+    if (!S.megaClear(x, z, w, d)) continue;
+    S.megas.push(S.makeMega(x, z, h, w, d, i + (side > 0 ? 3 : 0), 0));
   }
 }
 
@@ -2341,7 +2554,9 @@ for (const side of [-1, 1]) {
     const x = side * (58 + S.rng() * 40);
     const z = -15 - S.rng() * 55;
     if (Math.hypot(x, z) < 112) continue;
-    S.megas.push(S.makeMega(x, z, 70 + S.rng() * 80, 9 + S.rng() * 11, 9 + S.rng() * 9, i + 4, 1));
+    const w = 9 + S.rng() * 11, d = 9 + S.rng() * 9;
+    if (!S.megaClear(x, z, w, d)) continue;
+    S.megas.push(S.makeMega(x, z, 70 + S.rng() * 80, w, d, i + 4, 1));
   }
 }
 
@@ -2351,10 +2566,14 @@ for (let i = 0; i < 36; i++) {
   const r = 100 + S.rng() * 90;
   const x = Math.cos(a) * r, z = Math.sin(a) * r - 40;
   if (z > 10) continue;
-  if (Math.hypot(x - 22, z + 22) < 35) continue; // HQ clearance
+  if (Math.hypot(x - 22, z + 22) < 35) continue; // old HQ / centre clearance
+  if (Math.hypot(x - S.TOWER_X, z - S.TOWER_Z) < 40) continue; // new H tower
+  if (Math.abs(x - S.TOWER_X) < 22 && z > S.TOWER_Z && z < S.TOWER_Z + 115) continue; // south approach
   if (Math.abs(x) < 30 && z < 5 && z > -40) continue; // center corridor
   if (Math.hypot(x, z) < 118) continue;
-  S.megas.push(S.makeMega(x, z, 50 + S.rng() * 95, 8 + S.rng() * 12, 8 + S.rng() * 10, i, 2));
+  const w = 8 + S.rng() * 12, d = 8 + S.rng() * 10;
+  if (!S.megaClear(x, z, w, d)) continue;
+  S.megas.push(S.makeMega(x, z, 50 + S.rng() * 95, w, d, i, 2));
 }
 
 
@@ -2372,7 +2591,8 @@ for (let i = 0; i < 3; i++) {
 for (let i = 0; i < 3; i++) {
   const y = 22 + i * 10, z = -155 - i * 8;
   for (let x = -100; x <= 100; x += 4) {
-    if (Math.abs(x) < 22) continue; // keep clear of tower + HQ sightline
+    if (Math.abs(x) < 22) continue; // keep clear of old civic plot sightline
+    if (Math.abs(x - S.TOWER_X) < 22 && z > S.TOWER_Z) continue;
     S.box(3.4, 0.35, 1.5, S.M(0x1a2030, { metalness: 0.7 }), x, y, z, S.megaGroup);
   }
 }
@@ -2691,7 +2911,7 @@ S.scene.add(S.roofFlyer);
 
 window.__roofFlyer = S.roofFlyer;
 
-S.ROOF_PAD = new S.THREE.Vector3(0, S.ROOF + 0.86, S.PAD_Z);
+S.ROOF_PAD = new S.THREE.Vector3(S.TOWER_X, S.ROOF + 0.86, S.PAD_Z + S.TOWER_Z);
 }
 
 export function initProps() {
@@ -2771,13 +2991,14 @@ window.__ORANGE = {"pts": [{"x": 13.19, "z": -55.37, "w": 5.6}, {"x": 14.3, "z":
 
 export function initDistrict() {
 
-window.__renderCityPlan = function (withRoads, highwayOnly) {
+window.__renderCityPlan = function (withRoads, highwayOnly, opts) {
+  opts = opts || {};
   const W = 2048;
   const buildings = [];
   if (window.__city) {
     window.__city.updateMatrixWorld(true);
     window.__city.traverse(o => {
-      if (!o.isMesh || !o.geometry) return;
+      if (!o.isMesh || !o.geometry || o.userData.planHide) return;
       const box = new S.THREE.Box3().setFromObject(o);
       if (box.max.y - box.min.y < 1.6) return;
       buildings.push(o);
@@ -2796,13 +3017,26 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
   bounds.expandByPoint(new S.THREE.Vector3(-S.FW / 2, 0, -S.FD / 2));
   bounds.expandByPoint(new S.THREE.Vector3(S.FW / 2, 30, S.FD / 2));
   roads.forEach(m => bounds.expandByObject(m));
-  const spanNeed = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) + 24;
-  const world = Math.ceil(spanNeed / 10) * 10;
-  const half = world / 2;
-  const cx = (bounds.min.x + bounds.max.x) / 2;
-  const cz = (bounds.min.z + bounds.max.z) / 2;
-  const x0 = cx - half, x1 = cx + half;
-  const z0 = cz - half, z1 = cz + half;
+  let world, half, cx, cz, x0, x1, z0, z1;
+  if (opts.fixed !== false) {
+    // Same 210 m orthographic frame as docs/city-plan.md
+    world = 210;
+    half = world / 2;
+    x0 = -100.76154028251767;
+    z0 = -87.36261804588139;
+    x1 = x0 + world;
+    z1 = z0 + world;
+    cx = x0 + half;
+    cz = z0 + half;
+  } else {
+    const spanNeed = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) + 24;
+    world = Math.ceil(spanNeed / 10) * 10;
+    half = world / 2;
+    cx = (bounds.min.x + bounds.max.x) / 2;
+    cz = (bounds.min.z + bounds.max.z) / 2;
+    x0 = cx - half; x1 = cx + half;
+    z0 = cz - half; z1 = cz + half;
+  }
   const savedVis = [];
   S.scene.traverse(o => savedVis.push([o, o.visible]));
   S.scene.traverse(o => { o.visible = false; });
@@ -2825,11 +3059,18 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
     edgeLines.push(line);
   });
   const office = new S.THREE.Mesh(new S.THREE.BoxGeometry(S.FW, 1.2, S.FD), new S.THREE.MeshBasicMaterial({ color: 0xff2ad0 }));
-  office.position.set(0, 0.2, 0);
+  office.position.set(S.TOWER_X, 0.2, S.TOWER_Z);
+  office.rotation.y = (S.TOWER_ROT || 140) * Math.PI / 180;
   const officeLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(office.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a1060 }));
   office.add(officeLine);
   S.scene.add(office);
   show(office);
+  const atomLot = new S.THREE.Mesh(new S.THREE.BoxGeometry(6.6, 1.2, 6.6), new S.THREE.MeshBasicMaterial({ color: 0xd4a017 }));
+  atomLot.position.set(42.4, 0.2, -37.2);
+  const atomLine = new S.THREE.LineSegments(new S.THREE.EdgesGeometry(atomLot.geometry), new S.THREE.LineBasicMaterial({ color: 0x7a5a08 }));
+  atomLot.add(atomLine);
+  S.scene.add(atomLot);
+  show(atomLot);
   const savedRoad = [];
   const roadFlat = new S.THREE.MeshBasicMaterial({ color: 0x4e5966 });
   const walkFlat = new S.THREE.MeshBasicMaterial({ color: 0xb7c0c8 });
@@ -2920,6 +3161,21 @@ window.__renderCityPlan = function (withRoads, highwayOnly) {
   g.font = '28px sans-serif';
   g.textAlign = 'center';
   g.fillText('N', nx, ny - 70);
+  const toPx = (x, z) => [(x - x0) / world * W, (z - z0) / world * W];
+  const label = (x, z, text, color, ox, oy) => {
+    const [px, py] = toPx(x, z);
+    g.font = 'bold 32px sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    const tw = g.measureText(text).width;
+    g.fillRect(px + (ox || 0) - tw / 2 - 8, py + (oy || 0) - 16, tw + 16, 32);
+    g.fillStyle = color;
+    g.fillText(text, px + (ox || 0), py + (oy || 0));
+  };
+  label(S.TOWER_X, S.TOWER_Z, 'H TOWER', '#c01880', 0, -28);
+  label(42.4, -37.2, 'ATOM', '#8a6a10', 0, -22);
+  S.scene.remove(atomLot);
   return {
     png: canvas.toDataURL('image/png'),
     width: W,
@@ -2998,7 +3254,7 @@ S.kenneyBuildings = [];
       S.megaGroup.add(b);
     });
     // Replace / supplement street cars with Kenney GLBs
-    // Ground cars — 2–3 at kerb/crosswalk edges; clear of plaza ring (r≈14)
+    // Ground cars — 2–3 at kerb/crosswalk edges, kept clear of the old HQ mid-rise
     const lanes = [
       { z: 34, speed: 0, x: -16, paint: 0x2a2038, neon: 0xff2a6d }, // left kerb
       { z: 33, speed: 0, x: 16, paint: 0x1a2830, neon: 0x00f0ff },  // right kerb
