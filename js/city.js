@@ -2376,6 +2376,37 @@ for (let i = 0; i < 3; i++) {
   }
 }
 
+
+S.buildOldSiteFill = function buildOldSiteFill() {
+  const spec = S.OLD_SITE || { x: 10, z: 2, w: 12, d: 6, rot: 128, h: 18 };
+  const g = new S.THREE.Group();
+  g.name = 'old-hq-block';
+  const h = spec.h || 18;
+  const w = spec.w, d = spec.d;
+  const baseH = h * 0.62, topH = h * 0.28, roofH = 0.7;
+  const facade = S.facadeMat(2, Math.max(1.2, w / 6), Math.max(1.8, baseH / 10));
+  const upper = S.facadeMat(3, Math.max(1.0, w / 7), Math.max(1.4, topH / 8));
+  const dark = S.M(0x141820, { metalness: 0.62, roughness: 0.42 });
+  S.box(w, baseH, d, facade, 0, baseH / 2, 0, g);
+  S.box(w * 0.72, topH, d * 0.7, upper, 0, baseH + topH / 2, 0, g);
+  S.box(w * 0.8, roofH, d * 0.78, dark, 0, baseH + topH + roofH / 2, 0, g);
+  // corner neon, same language as the surrounding blocks, kept dim
+  const ec = 0x00f0ff, em = 0xff2a6d;
+  S.box(0.12, baseH, 0.12, S.E(ec, 1.2), w / 2, baseH / 2, d / 2, g);
+  S.box(0.1, baseH, 0.1, S.E(em, 0.9), -w / 2, baseH / 2, -d / 2, g);
+  const ant = 5.5;
+  S.box(0.18, ant, 0.18, S.M(0x555a70, { metalness: 0.85 }), w * 0.15, baseH + topH + roofH + ant / 2, d * 0.1, g);
+  S.box(0.12, ant * 0.7, 0.12, S.M(0x555a70, { metalness: 0.85 }), -w * 0.18, baseH + topH + roofH + ant * 0.35, -d * 0.12, g);
+  g.position.set(spec.x, 0, spec.z);
+  g.rotation.y = (spec.rot || 0) * Math.PI / 180;
+  S.scene.add(g);
+  S.oldSiteFill = g;
+  S.oldSiteFillMeta = { x: spec.x, z: spec.z, w, d, rot: spec.rot || 0, h };
+  console.info('[old-site] mid-rise fill', S.oldSiteFillMeta);
+};
+
+S.buildOldSiteFill();
+
 // Side billboards only. A second vertical neon here used to ghost through the first.
 S.megas.filter(m => m.depth === 0).forEach((m, i) => {
   const face = m.x >= 0 ? -1 : 1;
@@ -2783,6 +2814,18 @@ window.__renderCityPlan = function (withRoads, highwayOnly, opts) {
       buildings.push(o);
     });
   }
+  const extra = [];
+  if (S.oldSiteFill) extra.push(S.oldSiteFill);
+  extra.forEach(root => {
+    root.updateMatrixWorld(true);
+    root.traverse(o => {
+      if (!o.isMesh || !o.geometry) return;
+      const box = new S.THREE.Box3().setFromObject(o);
+      if (box.max.y - box.min.y < 1.6) return;
+      buildings.push(o);
+    });
+  });
+
   const roads = [];
   S.scene.traverse(o => { if (o.isMesh && o.userData.planRoad) roads.push(o); });
   const inHighway = (m) => {

@@ -1,14 +1,20 @@
 export const S = {};
 
-// H office tower stays on the original central plot (it was at the origin
-// on main, rotated 138°, 22×14 m). That exact pose sits on top of original
-// mid-rise blocks, so the tower is shrunk and slid to the only clear pocket
-// still inside the original 22×14 footprint: the gap between those blocks
-// and the eastern civic circle. The city GLB, roads, highway, and ATOM are
-// unchanged. The decorative 14 m plaza ring that used to circle the old
-// base has been removed.
-S.TOWER_X = 10;
-S.TOWER_Z = 2;
-S.TOWER_ROT = 128; // degrees; was 138. Door is local +Z.
-S.TOWER_FW = 12;   // world footprint (metres). Built locally at 22×14, then scaled.
-S.TOWER_FD = 6;
+// Shrunk H office tower, moved to the west empty plot. The original 22×14 m
+// slab at the origin (rot 138°) sat on existing mid-rises; after the move those
+// stay in the city mesh, and the leftover gap in the old plot is filled with
+// a mid-rise. The west pad keeps every original building, the civic disc, the
+// highway and ramps, and ATOM as on main. No mesh clipping, no new avenues.
+// Decorative 14 m plaza ring at the old base has been removed.
+//
+// Local 12×14 m (width shrunk from 22, depth unchanged) at rot 90° so the
+// door (local +Z) faces east toward the existing N–S street. World footprint
+// is 14 m east–west by 12 m north–south.
+S.TOWER_X = -36;
+S.TOWER_Z = -1;
+S.TOWER_ROT = 90; // degrees; door (local +Z) faces east
+S.TOWER_FW = 12;
+S.TOWER_FD = 14;
+
+// Mid-rise that fills the leftover gap in the original origin plot.
+S.OLD_SITE = { x: 10, z: 2, w: 12, d: 6, rot: 128, h: 18 };

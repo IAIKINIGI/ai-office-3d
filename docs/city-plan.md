@@ -1,6 +1,7 @@
 # City plan coordinates
 
-The H office tower now occupies a **12 × 6 m** slab at world `(10, 2)`, rotated **128°** (door is local +Z). That pose sits inside the original 22 × 14 m footprint at the origin (the official magenta rectangle on the earlier plans), in the gap between the central mid-rises and the eastern civic circle. The city mesh, roads, highway, and ATOM tower are unchanged from main. The decorative 14 m neon plaza ring around the old base has been removed.
+The H office tower is a **12 × 14 m** slab (width shrunk from 22 m, depth unchanged) at world `(-36, -1)` in the west empty plot, rotated **90°** so the door (local +Z) faces east toward the existing street. World footprint is 14 m east–west by 12 m north–south. The original origin plot is filled with the existing city mid-rises plus a new 12 × 6 m, 18 m-tall mid-rise at `(10, 2)`, rotated 128°, in the leftover gap toward the eastern civic circle. The city mesh, roads, highway, ramps, and ATOM are otherwise unchanged from main. The decorative 14 m neon plaza ring around the old base has been removed.
+
 
 To verify the H tower is clear of other buildings, the highway, rails, and roads:
 
@@ -34,7 +35,7 @@ px = (worldX - x0) / metersPerPixel - 0.5
 py = (worldZ - z0) / metersPerPixel - 0.5
 ```
 
-Grid lines are every 10 m, on multiples of 10. The labels are those world coordinates. The scale bar is 50 m. The office tower footprint is the magenta rectangle (12 m by 6 m, rotated 128°) at world (10, 2), inside the original origin plot. Open ground is white. Block footprints are mid-grey with a thin outline.
+Grid lines are every 10 m, on multiples of 10. The labels are those world coordinates. The scale bar is 50 m. The office tower footprint is the magenta rectangle at world (-36, -1) in the west plot. A grey mid-rise at (10, 2) fills the leftover gap in the original origin plot. Open ground is white. Block footprints are mid-grey with a thin outline.
 
 `city-plan-blank.png` has no generated roads. Grey paths inside the blocks are the city mesh itself. `city-plan-current-roads.png` adds the current avenue, lane pieces, and flyover in darker grey, with sidewalks lighter grey.
 

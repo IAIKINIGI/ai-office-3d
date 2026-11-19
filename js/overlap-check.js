@@ -170,19 +170,27 @@ function collectBuildings() {
     pts: towerCorners(tw.tx, tw.tz, tw.rot, tw.fw, tw.fd),
   });
 
-  function addNamed(name, id) {
-    let found = null;
-    S.scene.traverse(o => { if (!found && o.name === name) found = o; });
-    if (!found) return;
-    found.updateMatrixWorld(true);
-    const box = new S.THREE.Box3().setFromObject(found);
-    if (box.max.y - box.min.y < 1.6) return;
+  if (S.oldSiteFillMeta) {
+    const m = S.oldSiteFillMeta;
     items.push({
-      id, kind: 'building', group: 'placed',
-      pts: boxCorners(box.min.x, box.min.z, box.max.x, box.max.z),
+      id: 'old-hq', kind: 'building', group: 'placed',
+      pts: towerCorners(m.x, m.z, m.rot || 0, m.w, m.d),
     });
+  } else {
+    function addNamed(name, id) {
+      let found = null;
+      S.scene.traverse(o => { if (!found && o.name === name) found = o; });
+      if (!found) return;
+      found.updateMatrixWorld(true);
+      const box = new S.THREE.Box3().setFromObject(found);
+      if (box.max.y - box.min.y < 1.6) return;
+      items.push({
+        id, kind: 'building', group: 'placed',
+        pts: boxCorners(box.min.x, box.min.z, box.max.x, box.max.z),
+      });
+    }
+    addNamed('old-hq-block', 'old-hq');
   }
-  addNamed('old-hq-block', 'old-hq');
 
   if (window.__atom) {
     const a = window.__atom;
