@@ -1,4 +1,5 @@
 import { S } from './scope.js';
+import { addHbRichInterior } from './hb-interior.js';
 
 
 S.screenKeyFor = function screenKeyFor(floor) {
@@ -439,8 +440,9 @@ S.FLOORS.forEach((f, idx) => {
   const g = new S.THREE.Group(); g.position.y = (f.lv - 1) * S.FH; S.tower.add(g);
   // floor slab + lit edge strip
   S.box(S.FW + 0.4, 0.38, S.FD + 0.4, S.floorMat, 0, 0.19, 0, g);
-  // opaque rear wall so interiors read against dark
-  S.box(S.FW - 0.4, S.FH - 0.5, 0.25, S.backWall, 0, S.FH / 2, -S.FD / 2 + 0.2, g);
+  // opaque rear wall so interiors read against dark.
+  // 3F (hb) gets a windowed back wall in addHbRichInterior instead.
+  if (f.id !== 'hb') S.box(S.FW - 0.4, S.FH - 0.5, 0.25, S.backWall, 0, S.FH / 2, -S.FD / 2 + 0.2, g);
   // Dark city glass. The lobby front is a real door, not a solid pane.
   if (f.lv === 1) S.buildLobbyShell(g, f, S.shellMat);
   else {
@@ -579,6 +581,7 @@ for (const { g, f } of S.floorGroups) {
   S.addFloorLanding(g, f);
   S.addRestCorner(g, f);
   if (f.id === 'exec') { S.addGamingRoom(g, f); S.execBundle = { g, f }; }
+  if (f.id === 'hb') addHbRichInterior(g, f);
 }
 
 S.buildLiftCabin();
