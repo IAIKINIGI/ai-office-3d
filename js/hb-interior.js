@@ -139,7 +139,7 @@ function keyboard(parent, x, y, z) {
 function windowedBackWall(parent) {
   const z = -S.FD / 2 + 0.2;
   const wall = S.backWall;
-  S.prop(S.FW - 0.4, 0.7, 0.25, wall, 0, 0.35, z, parent);
+  S.prop(S.FW - 0.4, 0.9, 0.25, wall, 0, 0.45, z, parent);
   S.prop(S.FW - 0.4, 0.55, 0.25, wall, 0, S.FH - 0.42, z, parent);
   for (let i = -4; i <= 4; i++) {
     S.prop(0.26, S.FH - 1.15, 0.25, wall, i * 2.5, S.FH / 2, z, parent);
@@ -158,15 +158,17 @@ function windowedBackWall(parent) {
   const sky = new S.THREE.Group();
   sky.position.set(0, 0, z - 1.4);
   parent.add(sky);
+  // Night plate behind the openings so the windows never read as a black hole.
+  S.prop(S.FW, 3.6, 0.08, S.M(0x0a1020, { metalness: 0.1, roughness: 0.8, emissive: 0x152038, emissiveIntensity: 0.35 }), 0, 1.7, -0.5, sky);
   for (let i = 0; i < 16; i++) {
     const bw = 0.7 + (i % 3) * 0.25;
-    const bh = 1.6 + (i * 17) % 22 / 10;
+    const bh = 1.8 + (i * 17) % 22 / 10;
     const bx = -9 + i * 1.2;
-    S.prop(bw, bh, 0.6, S.M(0x101018, { metalness: 0.4, roughness: 0.6 }), bx, bh / 2, 0, sky);
-    const lit = S.E(i % 2 ? 0xff2a6d : 0x00f0ff, 1.3);
+    S.prop(bw, bh, 0.6, S.M(0x101018, { metalness: 0.4, roughness: 0.6, emissive: 0x1a2030, emissiveIntensity: 0.2 }), bx, bh / 2, 0, sky);
+    const lit = S.E(i % 2 ? 0xff2a6d : 0x00f0ff, 2.2);
     for (let wy = 0; wy < 4; wy++) {
-      S.prop(0.08, 0.08, 0.02, lit, bx - 0.15, 0.35 + wy * 0.35, 0.32, sky);
-      S.prop(0.08, 0.08, 0.02, lit, bx + 0.15, 0.4 + wy * 0.35, 0.32, sky);
+      S.prop(0.1, 0.1, 0.02, lit, bx - 0.15, 0.35 + wy * 0.35, 0.32, sky);
+      S.prop(0.1, 0.1, 0.02, lit, bx + 0.15, 0.4 + wy * 0.35, 0.32, sky);
     }
   }
 }
@@ -211,5 +213,22 @@ export function addHbRichInterior(parent, floor) {
       o.userData.floor = floor;
     }
   });
+  // Whole 3F group (desks, chairs, rest corner, new props, characters later)
+  // also gets the hb fill layer.
+  parent.traverse((o) => {
+    if (o.isMesh) o.layers.enable(S.LAYER_HB);
+  });
+  const fy = (floor.lv - 1) * S.FH;
+  S.tower.updateMatrixWorld(true);
+  // Just behind the desk line, looking at both workstations, the neon sign
+  // and the window wall. Further back the glass shell can fill the frame.
+  S.HB_POS = S.tower.localToWorld(new S.THREE.Vector3(0, fy + 1.82, 0.55));
+  S.HB_TGT = S.tower.localToWorld(new S.THREE.Vector3(0, fy + 1.35, -5.2));
+  S.HB_HAILEY_POS = S.tower.localToWorld(new S.THREE.Vector3(-4.8, fy + 1.45, 1.7));
+  S.HB_HAILEY_TGT = S.tower.localToWorld(new S.THREE.Vector3(-6.0, fy + 1.05, -0.2));
+  window.__HB_POS = S.HB_POS;
+  window.__HB_TGT = S.HB_TGT;
+  window.__HB_HAILEY_POS = S.HB_HAILEY_POS;
+  window.__HB_HAILEY_TGT = S.HB_HAILEY_TGT;
   return g;
 }

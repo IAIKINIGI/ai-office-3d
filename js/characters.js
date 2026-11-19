@@ -370,6 +370,9 @@ S.registerAgent = function registerAgent(id, floor, group, rig, x, z, rot) {
     route: [], ri: 0, busy: false, arriveYaw: rot, arrivePose: 'type',
   };
   rig.position.set(x, 0, z); rig.rotation.y = rot;
+  if (floor.id === 'hb' && S.LAYER_HB != null) {
+    rig.traverse(o => { if (o.isMesh) o.layers.enable(S.LAYER_HB); });
+  }
   S.cast.push(agent); S.castById[id] = agent;
   return agent;
 }
@@ -2052,6 +2055,7 @@ S.attachProof = function attachProof(id, url) {
       o.castShadow = false;
       o.frustumCulled = false;
       o.layers.enable(S.LAYER_ROOM);
+      if (agent.floorId === 'hb' && S.LAYER_HB != null) o.layers.enable(S.LAYER_HB);
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       mats.forEach(m => {
         if (!m) return;

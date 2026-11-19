@@ -84,17 +84,41 @@ S.tick = function tick() {
     S.camera.position.lerpVectors(S.CAM_START, S.CAM_END, k);
     S.controls.target.y = S.TGT_Y + 4 * (1 - k);
   } else if (!S.controls.enabled) { S.controls.enabled = true; }
+  if (!window.__LOCK_CAM && t >= S.INTRO && S.panel && !S.panel.classList.contains('open')) {
+    S.ceoInspect = false;
+    S.hbInspect = false;
+  }
   if (!window.__LOCK_CAM && t >= S.INTRO && !S.userTook) {
-    if (!S.panel.classList.contains('open')) S.ceoInspect = false;
     const want = S.ceoInspect ? 1 : 0;
     S.ceoBlend += (want - S.ceoBlend) * 0.045;
-    if (S.ceoBlend > 0.004) {
+    if (S.ceoBlend > 0.004 && !S.hbInspect) {
       S.controls.minDistance = 8;
       S.camHomeTgt.y = S.focusY != null ? S.focusY : S.TGT_Y;
       S.camera.position.lerpVectors(S.CAM_END, S.CEO_POS, S.ceoBlend);
       S.controls.target.lerpVectors(S.camHomeTgt, S.CEO_TGT, S.ceoBlend);
-    } else S.controls.minDistance = 22;
+    } else if (!S.hbInspect && S.hbBlend <= 0.004) S.controls.minDistance = 22;
   }
+  // 3F inspect: dolly inside the booking floor when the user clicks 3F.
+  // Runs even after a prior orbit so the floor click always frames the room.
+  if (!window.__LOCK_CAM && t >= S.INTRO && S.HB_POS && S.HB_TGT) {
+    const wantHb = S.hbInspect ? 1 : 0;
+    S.hbBlend += (wantHb - S.hbBlend) * 0.07;
+    if (S.hbBlend > 0.004) {
+      S.controls.minDistance = 5;
+      S.camera.position.lerp(S.HB_POS, 0.085);
+      S.controls.target.lerp(S.HB_TGT, 0.085);
+    } else if (!(S.ceoBlend > 0.004 && !S.userTook)) {
+      S.controls.minDistance = 22;
+    }
+  }
+  if (S.setHbRoomView) S.setHbRoomView(!!(S.hbInspect || S.hbBlend > 0.05 || (S.cameraNearHb && S.cameraNearHb())));
+  const wantFov = window.__LOCK_CAM ? S.camera.fov : ((S.hbInspect || S.hbBlend > 0.15) ? 72 : 42);
+  if (Math.abs(S.camera.fov - wantFov) > 0.05) {
+    S.camera.fov += (wantFov - S.camera.fov) * 0.14;
+    S.camera.updateProjectionMatrix();
+  }
+  window.__hbInspect = S.hbInspect;
+  window.__hbBlend = S.hbBlend;
 
   S.typers.forEach(p => { p.armL.rotation.x = Math.sin(t * 10 + p.ph) * 0.25; p.armR.rotation.x = Math.cos(t * 10 + p.ph) * 0.25; p.head.rotation.y = Math.sin(t * 0.7 + p.ph) * 0.3; if (p.legL) { p.legL.rotation.x = Math.sin(t * 8 + p.ph) * 0.15; p.legR.rotation.x = Math.cos(t * 8 + p.ph) * 0.15; } });
   if (window.__streetGirls) S.updateStreetGirls(dt, t);
@@ -249,7 +273,7 @@ S.tick = function tick() {
   // hero fly-bys disabled
 
   if (!window.__LOCK_CAM) {
-    if (!(S.ceoBlend > 0.004 && !S.userTook) && S.focusY != null) S.controls.target.y += (S.focusY - S.controls.target.y) * 0.06;
+    if (!(S.ceoBlend > 0.004 && !S.userTook) && !S.hbInspect && S.hbBlend <= 0.004 && S.focusY != null) S.controls.target.y += (S.focusY - S.controls.target.y) * 0.06;
     S.controls.update();
   }
   if (!window.__neonReady) window.__neonReady = S.commitNeon();
@@ -319,7 +343,8 @@ S.controls.minDistance = 22;
 S.userTook = false;
 
 S.ceoInspect = false;
-
+S.hbInspect = false;
+S.hbBlend = 0;
 S.CEO_POS = new S.THREE.Vector3(2.4, 23.5, 15.5);
 
 S.CEO_TGT = new S.THREE.Vector3(0.5, 22.6, -0.4);
@@ -330,7 +355,7 @@ S.camHomeTgt = new S.THREE.Vector3(2, S.TGT_Y + 9, -4);
 
 S.ceoBlend = 0;
 
-S.controls.addEventListener('start', () => { S.userTook = true; S.ceoInspect = false; S.ceoBlend = 0; S.controls.autoRotate = false; });
+S.controls.addEventListener('start', () => { S.userTook = true; S.ceoInspect = false; S.ceoBlend = 0; S.hbInspect = false; S.controls.autoRotate = false; });
 
 window.__setCam = (x, y, z, tx, ty, tz) => {
   S.userTook = true; S.controls.enabled = true;
@@ -343,6 +368,8 @@ window.__CAM_END = S.CAM_END;
 
 window.__camera = S.camera;
  window.__controls = S.controls;
+window.__renderer = S.renderer;
+window.__LAYER_HB = S.LAYER_HB;
 
 
 // lights — cold
@@ -354,6 +381,22 @@ S.roomFill = new S.THREE.AmbientLight(0xd5dce8, 1.05);
 S.roomFill.layers.set(S.LAYER_ROOM);
 
 S.scene.add(S.roomFill);
+
+// Cheap 3F-only fill. Camera enables LAYER_HB when inspecting or near 3F
+// so we never turn on the other floors' LAYER_ROOM point lights.
+S.hbFill = new S.THREE.AmbientLight(0xdce6f4, 1.4);
+S.hbFill.layers.set(S.LAYER_HB);
+S.scene.add(S.hbFill);
+
+S.setHbRoomView = function setHbRoomView(on) {
+  if (on) S.camera.layers.enable(S.LAYER_HB);
+  else S.camera.layers.disable(S.LAYER_HB);
+};
+
+S.cameraNearHb = function cameraNearHb() {
+  if (!S.HB_TGT) return false;
+  return S.camera.position.distanceTo(S.HB_TGT) < 18;
+};
 
 S.moon = new S.THREE.DirectionalLight(0x6a7ab8, 0.4);
 
@@ -462,6 +505,8 @@ export function initLoop() {
 // ---- animation ----
 S.v = new S.THREE.Vector3();
  S.clock = new S.THREE.Clock();
+window.__clock = S.clock;
+
 
 S.INTRO = 4.2;
  S.ease = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
