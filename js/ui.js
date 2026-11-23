@@ -1,17 +1,38 @@
 import { S } from './scope.js';
+import { initZoom } from './zoom.js';
 
 
-S.openPanel = function openPanel(f) {
+S.openPanel = function openPanel(f, opts) {
   const rows = f.tasks.length ? f.tasks.map(t => `<li><span class="t">${t[0]}</span><span class="d">${t[1]}</span><span class="s ${t[2] === '完成' ? 'ok' : t[2] === '等緊' ? 'wait' : 'go'}">${t[2]}</span></li>`).join('')
     : `<li class="empty">${f.id === 'hall' ? '會議廳暫時冇會議進行中。' : S.isVac(f) ? '空置樓層。' : '閒置。'}</li>`;
-  S.panel.innerHTML = `<button class="x" onclick="document.getElementById('panel').classList.remove('open')">✕</button>
+  const agents = (S.labels || []).filter(l => l.floor === f);
+  const who = agents.length
+    ? `<div class="who"><h3>員工</h3>${agents.map(l => `<button type="button" class="who-name" data-zoom-agent="${S.esc(l.text)}">${S.esc(l.text)}</button>`).join('')}</div>`
+    : '';
+  S.panel.innerHTML = `<button class="x" type="button" aria-label="關閉">✕</button>
   <div class="lv">${f.lv}F</div><h2>${S.isVac(f) ? '空置' : `${f.dept}・${f.name}`}</h2><p class="role">${f.role}</p>
+  ${who}
   <div class="cards">${f.health ? `<div class="kv"><b>狀態</b><span>${S.dot(f)}${f.healthLabel || ''}</span></div>` : ''}${f.usage ? `<div class="kv"><b>本週用量</b><span>${f.usage}</span></div>` : ''}${f.seen ? `<div class="kv"><b>上次活動</b><span>${f.seen}</span></div>` : ''}${f.last ? `<div class="kv"><b>最後工作</b><span>${f.last}</span></div>` : ''}</div>
   ${f.stats ? `<div class="kv warn"><b>今日數字</b><span>${f.stats}</span></div>` : ''}
   <h3>工作報告</h3><ul>${rows}</ul>`;
+  const closeBtn = S.panel.querySelector('.x');
+  if (closeBtn) closeBtn.addEventListener('click', ev => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (S.camFlyHold || S.camFlySaved) S.flyBack();
+    else S.panel.classList.remove('open');
+  });
+  S.panel.querySelectorAll('.who-name').forEach(btn => {
+    btn.addEventListener('click', ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const lab = S.findAgentLabel && S.findAgentLabel(btn.getAttribute('data-zoom-agent'));
+      if (lab) S.frameAgent(lab);
+    });
+  });
   S.panel.classList.add('open'); S.focusY = (f.lv - 1) * S.FH + S.FH / 2;
   S.hbInspect = f.id === 'hb';
-  S.ceoInspect = f.id === 'exec' && !S.userTook;
+  S.ceoInspect = f.id === 'exec' && !S.userTook && !(S.camFlyHold);
   S.floorTags.forEach(x => x.el.classList.toggle('sel', x.f === f));
 }
 
@@ -66,12 +87,19 @@ S.renderer.domElement.addEventListener('pointerup', e => {
   S.mouse.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1);
   S.ray.setFromCamera(S.mouse, S.camera);
   const hit = S.ray.intersectObjects(S.pickables, false)[0];
-  if (hit) S.openPanel(hit.object.userData.floor);
+  if (hit) {
+    S._zoomSuppressBack = true;
+    setTimeout(() => { S._zoomSuppressBack = false; }, 400);
+    const floor = hit.object.userData.floor;
+    if (floor && S.frameFloor) S.frameFloor(floor);
+    else if (floor) S.openPanel(floor);
+  }
 });
 
 addEventListener('resize', () => {
   S.camera.aspect = innerWidth / innerHeight; S.camera.updateProjectionMatrix();
   S.applyQuality();
 });
-}
 
+initZoom();
+}

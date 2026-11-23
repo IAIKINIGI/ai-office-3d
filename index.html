@@ -34,6 +34,18 @@ canvas{display:block}
 #hud{position:fixed;right:14px;bottom:12px;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:#FCEE0A;text-shadow:0 0 8px #FCEE0A;z-index:5;opacity:.7;letter-spacing:1px}
 #qmode{position:fixed;top:64px;left:16px;z-index:6;font:600 11px/1.2 "Noto Sans CJK TC","PingFang HK","Microsoft JhengHei",sans-serif;color:#FCEE0A;padding:5px 10px;border-radius:999px;cursor:pointer;letter-spacing:.4px}
 #qmode:hover{border-color:#FCEE0A;box-shadow:0 0 16px rgba(252,238,10,.35)}
+.tag:hover,.tag.hot{opacity:1;box-shadow:0 0 0 1px #fff,0 0 16px rgba(252,238,10,.7)}
+.btag{position:absolute;left:0;top:0;background:rgba(192,24,128,.9);color:#fff;font-size:10px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:999px;box-shadow:0 1px 8px #0008,0 0 10px rgba(192,24,128,.45);pointer-events:auto;cursor:pointer;white-space:nowrap;opacity:.95;border:1px solid rgba(255,255,255,.25)}
+.btag-atom{background:rgba(138,106,16,.92);box-shadow:0 1px 8px #0008,0 0 10px rgba(252,238,10,.35)}
+.btag:hover,.btag.hot{opacity:1;box-shadow:0 0 0 1px #fff,0 0 18px rgba(252,238,10,.7)}
+.who{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px;align-items:center}
+.who h3{flex-basis:100%;margin:8px 0 0}
+.who-name{cursor:pointer;pointer-events:auto;font:700 12px/1.2 "Noto Sans CJK TC","PingFang HK","Microsoft JhengHei",sans-serif;color:#1b1408;background:linear-gradient(135deg,#FCEE0A,#ff9a3c);border:0;border-radius:999px;padding:5px 10px}
+.who-name:hover,.who-name:focus{box-shadow:0 0 0 1px #fff,0 0 14px rgba(252,238,10,.7)}
+#back-view{position:fixed;left:16px;top:104px;z-index:8;display:none;align-items:center;gap:8px;font:700 13px/1.2 "Noto Sans CJK TC","PingFang HK","Microsoft JhengHei",sans-serif;color:#1b1408;background:linear-gradient(135deg,#FCEE0A,#ff9a3c);border:0;border-radius:999px;padding:8px 14px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.45),0 0 16px rgba(252,238,10,.35)}
+#back-view.show{display:inline-flex}
+#back-view .back-who{font-weight:600;opacity:.8;max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#back-view:hover,#back-view:focus{box-shadow:0 0 0 1px #fff,0 0 18px rgba(252,238,10,.7)}
 </style>
 <script src="assets/glb-embeds-0.js"></script>
 <script src="assets/glb-embeds-1.js"></script>
@@ -49,7 +61,8 @@ canvas{display:block}
 <div id="title">AI 辦公大樓<small>NIGHT CITY · 6F · TEX</small></div>
 <button id="qmode" class="glass" type="button" aria-label="切換畫質">畫質 · 自動</button>
 <div id="btns"></div><div id="labels"></div><div id="panel"></div>
-<div id="hint" class="glass">拖曳旋轉・滾輪縮放・撳樓層或員工睇工作報告</div>
+<button id="back-view" class="glass" type="button" aria-hidden="true" aria-label="返回上一個視角">返回 <span class="back-who"></span></button>
+<div id="hint" class="glass">拖曳旋轉・滾輪縮放・撳名可放大・Esc / 返回 可返去</div>
 <div id="hud">SYS // TEX · BLOOM · RAIN</div>
 <script></script>
 <script></script>

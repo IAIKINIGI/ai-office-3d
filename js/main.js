@@ -79,16 +79,17 @@ S.tick = function tick() {
     S.controls.target.copy(window.__LOCK_CAM.tgt);
     S.camera.lookAt(S.controls.target);
     S.controls.enabled = false;
-  } else if (t < S.INTRO) {
+  } else if (t < S.INTRO && !S.camFlyTween && !S.camFlyHold) {
     const k = S.ease(t / S.INTRO);
     S.camera.position.lerpVectors(S.CAM_START, S.CAM_END, k);
     S.controls.target.y = S.TGT_Y + 4 * (1 - k);
-  } else if (!S.controls.enabled) { S.controls.enabled = true; }
-  if (!window.__LOCK_CAM && t >= S.INTRO && S.panel && !S.panel.classList.contains('open')) {
+  } else if (!S.controls.enabled && !S.camFlyTween) { S.controls.enabled = true; }
+  const flyBusy = S.stepCamFly ? S.stepCamFly() : false;
+  if (!flyBusy && !window.__LOCK_CAM && t >= S.INTRO && S.panel && !S.panel.classList.contains('open')) {
     S.ceoInspect = false;
     S.hbInspect = false;
   }
-  if (!window.__LOCK_CAM && t >= S.INTRO && !S.userTook) {
+  if (!flyBusy && !window.__LOCK_CAM && t >= S.INTRO && !S.userTook) {
     const want = S.ceoInspect ? 1 : 0;
     S.ceoBlend += (want - S.ceoBlend) * 0.045;
     if (S.ceoBlend > 0.004 && !S.hbInspect) {
@@ -100,7 +101,8 @@ S.tick = function tick() {
   }
   // 3F inspect: dolly inside the booking floor when the user clicks 3F.
   // Runs even after a prior orbit so the floor click always frames the room.
-  if (!window.__LOCK_CAM && t >= S.INTRO && S.HB_POS && S.HB_TGT) {
+  // Skipped while a name-click fly is driving the camera.
+  if (!flyBusy && !window.__LOCK_CAM && t >= S.INTRO && S.HB_POS && S.HB_TGT) {
     const wantHb = S.hbInspect ? 1 : 0;
     S.hbBlend += (wantHb - S.hbBlend) * 0.07;
     if (S.hbBlend > 0.004) {
@@ -111,11 +113,13 @@ S.tick = function tick() {
       S.controls.minDistance = 22;
     }
   }
-  if (S.setHbRoomView) S.setHbRoomView(!!(S.hbInspect || S.hbBlend > 0.05 || (S.cameraNearHb && S.cameraNearHb())));
-  const wantFov = window.__LOCK_CAM ? S.camera.fov : ((S.hbInspect || S.hbBlend > 0.15) ? 72 : 42);
-  if (Math.abs(S.camera.fov - wantFov) > 0.05) {
-    S.camera.fov += (wantFov - S.camera.fov) * 0.14;
-    S.camera.updateProjectionMatrix();
+  if (S.setHbRoomView) S.setHbRoomView(!!(S.hbInspect || S.camFlyInspect === 'hb' || S.hbBlend > 0.05 || (S.cameraNearHb && S.cameraNearHb())));
+  if (!flyBusy) {
+    const wantFov = window.__LOCK_CAM ? S.camera.fov : ((S.hbInspect || S.hbBlend > 0.15) ? 72 : 42);
+    if (Math.abs(S.camera.fov - wantFov) > 0.05) {
+      S.camera.fov += (wantFov - S.camera.fov) * 0.14;
+      S.camera.updateProjectionMatrix();
+    }
   }
   window.__hbInspect = S.hbInspect;
   window.__hbBlend = S.hbBlend;
@@ -272,8 +276,8 @@ S.tick = function tick() {
   // hero events every 18–35s
   // hero fly-bys disabled
 
-  if (!window.__LOCK_CAM) {
-    if (!(S.ceoBlend > 0.004 && !S.userTook) && !S.hbInspect && S.hbBlend <= 0.004 && S.focusY != null) S.controls.target.y += (S.focusY - S.controls.target.y) * 0.06;
+  if (!window.__LOCK_CAM && !(S.camFlyTween)) {
+    if (!flyBusy && !(S.ceoBlend > 0.004 && !S.userTook) && !S.hbInspect && S.hbBlend <= 0.004 && S.focusY != null) S.controls.target.y += (S.focusY - S.controls.target.y) * 0.06;
     S.controls.update();
   }
   if (!window.__neonReady) window.__neonReady = S.commitNeon();
@@ -297,6 +301,12 @@ S.tick = function tick() {
     if (y > innerHeight - 50) y = innerHeight - 50;
     el.style.transform = `translate(${Math.min(x, innerWidth - 280)}px,${y}px) translate(0,-50%)`;
     el.style.display = S.v.z > 1 ? 'none' : '';
+  });
+  if (S.siteTags) S.siteTags.forEach(l => {
+    l.getPos(S.v); S.v.project(S.camera);
+    const x = (S.v.x * 0.5 + 0.5) * innerWidth, y = (-S.v.y * 0.5 + 0.5) * innerHeight;
+    l.el.style.transform = `translate(${x}px,${y}px) translate(-50%,-100%)`;
+    l.el.style.display = S.v.z > 1 || x < 0 || x > innerWidth || y < 56 || y > innerHeight - 30 ? 'none' : '';
   });
 
   S.observeQuality(t, frameMs);
@@ -360,7 +370,12 @@ S.camHomeTgt = new S.THREE.Vector3(S.SITE_X + 2, S.TGT_Y + 9, S.SITE_Z - 4);
 
 S.ceoBlend = 0;
 
-S.controls.addEventListener('start', () => { S.userTook = true; S.ceoInspect = false; S.ceoBlend = 0; S.hbInspect = false; S.controls.autoRotate = false; });
+S.controls.addEventListener('start', () => {
+  S.userTook = true;
+  S.controls.autoRotate = false;
+  // Keep 3F lighting if the user orbits after a name-click zoom.
+  if (!S.camFlyHold) { S.ceoInspect = false; S.ceoBlend = 0; S.hbInspect = false; }
+});
 
 window.__setCam = (x, y, z, tx, ty, tz) => {
   S.userTook = true; S.controls.enabled = true;
